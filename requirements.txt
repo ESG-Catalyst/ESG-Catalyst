@@ -49,9 +49,9 @@ pandas>=2.0.0                  # CSV + Excel tabular data
 
 # ── Embeddings + NLP ──────────────────────────────────────
 # Install these separately — they are large (~2GB with torch):
-# sentence-transformers>=3.0.0
-# transformers>=4.40.0
-# torch>=2.2.0
+sentence-transformers>=3.0.0
+transformers>=4.40.0
+torch>=2.2.0
 
 # ── Vector store ──────────────────────────────────────────
 chromadb>=0.5.0
