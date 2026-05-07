@@ -4,15 +4,13 @@ Never call OpenRouter / OpenAI directly from pipeline code.
 Swapping a model = change one line in .env.  Zero code changes elsewhere.
 
 Usage:
-    from app.core.models.router import model_router
+    from app.core.llm.router import model_router
 
     llm = model_router.get_model("extraction")
     response = await llm.ainvoke([...])
 """
 
 from __future__ import annotations
-
-from functools import lru_cache
 
 import structlog
 from langchain_openai import ChatOpenAI

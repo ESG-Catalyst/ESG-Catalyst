@@ -27,11 +27,11 @@ import structlog
 from sqlalchemy import select, update
 
 from app.config import settings
-from app.core.pipeline.chunker import chunk_document
-from app.core.pipeline.classifier import classify_chunks
-from app.core.pipeline.extractor import extract_metrics
-from app.core.pipeline.ingestion import ingest_document
-from app.core.pipeline.scorer import score_report
+from app.core.nlp.chunker import chunk_document
+from app.core.nlp.classifier import classify_chunks
+from app.core.extraction.extractor import extract_metrics
+from app.core.ingestion.parser import ingest_document
+from app.core.scoring.scorer import score_report
 from app.database import Base, get_engine, get_session_factory
 from app.models.document import Document
 from app.models.enums import DocumentStatus, ReportStatus

@@ -59,10 +59,6 @@ chromadb>=0.5.0
 # ── Logging ───────────────────────────────────────────────
 structlog>=24.0.0
 
-# ── Frontend ──────────────────────────────────────────────
-streamlit>=1.35.0
-requests>=2.31.0               # Streamlit → API HTTP calls
-
 # ── MLflow experiment tracking ────────────────────────────
 mlflow>=2.13.0
 

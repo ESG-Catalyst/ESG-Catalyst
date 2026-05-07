@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import auth, companies, documents, extraction, reports
+from app.api import auth, companies, documents, metrics, pipeline, reports
 from app.config import settings
 from app.database import Base, get_engine
 
@@ -29,7 +29,8 @@ app = FastAPI(
 app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(documents.router)
-app.include_router(extraction.router)
+app.include_router(pipeline.router)
+app.include_router(metrics.router)
 app.include_router(reports.router)
 
 

@@ -1,0 +1,179 @@
+{
+  "version": "2023",
+  "source": "SASB Standards — Sustainability Accounting Standards Board",
+  "sectors": {
+    "banking": {
+      "sasb_industry": "Commercial Banks",
+      "industry_average_score": 58.0,
+      "material_topics": {
+        "GRI 418-1": 0.90,
+        "GRI 405-1": 0.85,
+        "GRI 305-1": 0.80,
+        "GRI 305-2": 0.80,
+        "GRI 302-1": 0.70,
+        "GRI 403-9": 0.65,
+        "GRI 401-1": 0.60,
+        "GRI 404-1": 0.55
+      },
+      "key_metrics": [
+        "FN-CB-230a.1 — Data security breaches",
+        "FN-CB-330a.1 — Employee diversity",
+        "FN-CB-410a.1 — Financed emissions (Scope 3)"
+      ]
+    },
+    "software": {
+      "sasb_industry": "Software & IT Services",
+      "industry_average_score": 52.0,
+      "material_topics": {
+        "GRI 418-1": 0.95,
+        "GRI 305-1": 0.75,
+        "GRI 305-2": 0.75,
+        "GRI 302-1": 0.70,
+        "GRI 405-1": 0.85,
+        "GRI 404-1": 0.70,
+        "GRI 401-1": 0.65,
+        "GRI 403-9": 0.50
+      },
+      "key_metrics": [
+        "TC-SI-230a.1 — Data privacy",
+        "TC-SI-330a.1 — Employee diversity",
+        "TC-SI-130a.1 — Energy management"
+      ]
+    },
+    "manufacturing": {
+      "sasb_industry": "Industrial Machinery & Goods",
+      "industry_average_score": 50.0,
+      "material_topics": {
+        "GRI 305-1": 0.90,
+        "GRI 305-2": 0.90,
+        "GRI 302-1": 0.85,
+        "GRI 303-1": 0.80,
+        "GRI 306-3": 0.80,
+        "GRI 403-9": 0.85,
+        "GRI 401-1": 0.65,
+        "GRI 418-1": 0.55
+      },
+      "key_metrics": [
+        "RT-IG-130a.1 — GHG emissions",
+        "RT-IG-140a.1 — Water management",
+        "RT-IG-320a.1 — Workforce health & safety"
+      ]
+    },
+    "retail": {
+      "sasb_industry": "Multiline and Specialty Retailers",
+      "industry_average_score": 47.0,
+      "material_topics": {
+        "GRI 308-1": 0.80,
+        "GRI 414-1": 0.80,
+        "GRI 305-1": 0.75,
+        "GRI 302-1": 0.70,
+        "GRI 401-1": 0.70,
+        "GRI 403-9": 0.70,
+        "GRI 418-1": 0.65,
+        "GRI 405-1": 0.60
+      },
+      "key_metrics": [
+        "CG-MR-430a.1 — Supply chain human rights",
+        "CG-MR-130a.1 — Energy management",
+        "CG-MR-110a.1 — GHG emissions"
+      ]
+    },
+    "oil_gas": {
+      "sasb_industry": "Oil & Gas — Exploration & Production",
+      "industry_average_score": 44.0,
+      "material_topics": {
+        "GRI 305-1": 0.95,
+        "GRI 305-2": 0.90,
+        "GRI 305-7": 0.85,
+        "GRI 303-1": 0.85,
+        "GRI 306-3": 0.85,
+        "GRI 403-9": 0.80,
+        "GRI 302-1": 0.75,
+        "GRI 418-1": 0.50
+      },
+      "key_metrics": [
+        "EM-EP-110a.1 — Scope 1 GHG emissions",
+        "EM-EP-140a.1 — Water management",
+        "EM-EP-320a.1 — Workforce safety"
+      ]
+    },
+    "utilities": {
+      "sasb_industry": "Electric Utilities & Power Generators",
+      "industry_average_score": 49.0,
+      "material_topics": {
+        "GRI 305-1": 0.95,
+        "GRI 305-2": 0.90,
+        "GRI 302-1": 0.90,
+        "GRI 303-1": 0.85,
+        "GRI 306-3": 0.80,
+        "GRI 403-9": 0.80,
+        "GRI 401-1": 0.60,
+        "GRI 418-1": 0.55
+      },
+      "key_metrics": [
+        "IF-EU-110a.1 — Scope 1 GHG emissions",
+        "IF-EU-130a.1 — Energy generation mix",
+        "IF-EU-140a.1 — Water management"
+      ]
+    },
+    "pharma": {
+      "sasb_industry": "Biotechnology & Pharmaceuticals",
+      "industry_average_score": 56.0,
+      "material_topics": {
+        "GRI 418-1": 0.85,
+        "GRI 403-9": 0.85,
+        "GRI 405-1": 0.80,
+        "GRI 305-1": 0.75,
+        "GRI 302-1": 0.70,
+        "GRI 303-1": 0.70,
+        "GRI 306-3": 0.65,
+        "GRI 401-1": 0.65
+      },
+      "key_metrics": [
+        "HC-BP-240a.1 — Drug safety",
+        "HC-BP-330a.1 — Employee diversity",
+        "HC-BP-130a.1 — GHG emissions"
+      ]
+    },
+    "food_beverage": {
+      "sasb_industry": "Food & Beverage",
+      "industry_average_score": 51.0,
+      "material_topics": {
+        "GRI 303-1": 0.90,
+        "GRI 305-1": 0.85,
+        "GRI 302-1": 0.80,
+        "GRI 306-3": 0.80,
+        "GRI 308-1": 0.80,
+        "GRI 403-9": 0.75,
+        "GRI 401-1": 0.65,
+        "GRI 418-1": 0.55
+      },
+      "key_metrics": [
+        "FB-AG-140a.1 — Water usage",
+        "FB-AG-110a.1 — GHG emissions",
+        "FB-AG-430a.1 — Supply chain management"
+      ]
+    },
+    "default": {
+      "sasb_industry": "General",
+      "industry_average_score": 50.0,
+      "material_topics": {
+        "GRI 305-1": 0.80,
+        "GRI 305-2": 0.80,
+        "GRI 302-1": 0.75,
+        "GRI 303-1": 0.70,
+        "GRI 403-9": 0.75,
+        "GRI 401-1": 0.65,
+        "GRI 405-1": 0.65,
+        "GRI 418-1": 0.60
+      },
+      "key_metrics": [
+        "GHG emissions (Scope 1 & 2)",
+        "Energy consumption",
+        "Water withdrawal",
+        "Workforce safety",
+        "Diversity & inclusion"
+      ]
+    }
+  }
+}

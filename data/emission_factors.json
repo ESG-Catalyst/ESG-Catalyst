@@ -1,0 +1,71 @@
+{
+  "version": "2024",
+  "source": "IEA / IPCC AR6 / EPA",
+  "note": "All factors in kg CO2e per unit stated",
+  "electricity": {
+    "unit": "kWh",
+    "factor_kg_co2e": 0.4409,
+    "note": "Global average grid emission factor (IEA 2023)"
+  },
+  "natural_gas": {
+    "unit": "m3",
+    "factor_kg_co2e": 2.0,
+    "note": "Combustion emissions; excludes upstream leakage"
+  },
+  "diesel": {
+    "unit": "liter",
+    "factor_kg_co2e": 2.68,
+    "note": "Diesel / gas oil combustion"
+  },
+  "gasoline": {
+    "unit": "liter",
+    "factor_kg_co2e": 2.31,
+    "note": "Petrol / gasoline combustion"
+  },
+  "lpg": {
+    "unit": "liter",
+    "factor_kg_co2e": 1.51,
+    "note": "Liquefied petroleum gas combustion"
+  },
+  "coal": {
+    "unit": "kg",
+    "factor_kg_co2e": 2.42,
+    "note": "Bituminous coal combustion"
+  },
+  "heavy_fuel_oil": {
+    "unit": "liter",
+    "factor_kg_co2e": 3.18,
+    "note": "Heavy fuel oil / bunker fuel combustion"
+  },
+  "aviation_fuel": {
+    "unit": "liter",
+    "factor_kg_co2e": 2.55,
+    "note": "Jet fuel combustion (Scope 1)"
+  },
+  "refrigerants": {
+    "r410a": {
+      "unit": "kg",
+      "factor_kg_co2e": 2088,
+      "note": "GWP100 — IPCC AR6"
+    },
+    "r134a": {
+      "unit": "kg",
+      "factor_kg_co2e": 1430,
+      "note": "GWP100 — IPCC AR6"
+    },
+    "r32": {
+      "unit": "kg",
+      "factor_kg_co2e": 675,
+      "note": "GWP100 — IPCC AR6"
+    }
+  },
+  "unit_conversions": {
+    "kwh_to_gj": 0.0036,
+    "mwh_to_gj": 3.6,
+    "tj_to_gj": 1000,
+    "toe_to_gj": 41.868,
+    "liter_to_m3": 0.001,
+    "gallon_to_m3": 0.003785,
+    "megaliter_to_m3": 1000
+  }
+}
