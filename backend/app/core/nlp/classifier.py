@@ -6,7 +6,7 @@ Primary model: ``climatebert/distilroberta-base-climate-detector`` (binary:
 Social (S) and Governance (G) content.
 
 Usage:
-    from app.core.pipeline.classifier import classify_chunks
+    from app.core.nlp.classifier import classify_chunks
 
     results = classify_chunks(chunks, threshold=0.5)
     relevant = [r for r in results if r.is_relevant]
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from app.core.pipeline.chunker import Chunk
+from app.core.nlp.chunker import Chunk
 
 logger = structlog.get_logger(__name__)
 
@@ -53,7 +53,6 @@ _GOVERNANCE_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 
-# Minimum keyword hits to count as relevant
 _KEYWORD_THRESHOLD = 2
 
 
@@ -101,8 +100,7 @@ def classify_chunks(
     Args:
         chunks: Output of ``chunk_document()``.
         threshold: Minimum ``esg_score`` to be marked ``is_relevant``.
-        use_climate_model: If ``False``, skip ClimateBERT and use keywords only
-            (useful when the model is unavailable or for fast testing).
+        use_climate_model: If ``False``, skip ClimateBERT and use keywords only.
 
     Returns:
         List of ``ClassifiedChunk`` in the same order as input.
@@ -110,13 +108,11 @@ def classify_chunks(
     if not chunks:
         return []
 
-    # ── Climate scores (E pillar) via ClimateBERT ────────────────────
     if use_climate_model:
         climate_scores = _batch_climate_scores([c.text for c in chunks])
     else:
         climate_scores = [0.0] * len(chunks)
 
-    # ── Keyword scores (S + G pillars) ───────────────────────────────
     results: list[ClassifiedChunk] = []
 
     for chunk, c_score in zip(chunks, climate_scores):
@@ -124,7 +120,6 @@ def classify_chunks(
         g_score = _keyword_score(chunk.text, _GOVERNANCE_KEYWORDS)
         esg_score = max(c_score, s_score, g_score)
 
-        # Determine dominant pillar
         scores = {"E": c_score, "S": s_score, "G": g_score}
         pillar = max(scores, key=scores.get) if esg_score > 0 else "none"
 
@@ -153,15 +148,11 @@ def classify_chunks(
 def _batch_climate_scores(texts: list[str]) -> list[float]:
     """Run ClimateBERT on a batch of texts and return P(yes) scores."""
     clf = _get_classifier()
-
-    # ClimateBERT has a 512-token limit; truncate long texts
     truncated = [t[:2000] for t in texts]
-
     raw_results = clf(truncated, batch_size=16)
 
     scores: list[float] = []
     for result in raw_results:
-        # result is a list of dicts: [{"label": "yes", "score": 0.9}, {"label": "no", ...}]
         label_scores = {d["label"]: d["score"] for d in result}
         scores.append(label_scores.get("yes", 0.0))
 
@@ -181,5 +172,4 @@ def _keyword_score(text: str, pattern: re.Pattern) -> float:
     if unique_hits < _KEYWORD_THRESHOLD:
         return 0.0
 
-    # Saturating scale: 2 hits → 0.3, 5 → 0.6, 10+ → 1.0
     return min(1.0, unique_hits / 10)

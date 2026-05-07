@@ -61,9 +61,7 @@ dependencies = [
     "structlog==24.4.0",                 # structured logging
     "python-dotenv==1.0.1",
 
-    # Frontend (Streamlit)
-    "streamlit==1.39.0",
-    "plotly==5.24.1",
+    # Data processing
     "pandas==2.2.3",
 ]
 

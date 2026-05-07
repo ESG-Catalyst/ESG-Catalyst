@@ -3,17 +3,10 @@
 Uses ``sentence-transformers`` with the model specified in ``settings.embedding_model``
 (default: ``paraphrase-multilingual-e5-base``).  Handles Arabic + English equally.
 
-Two collections in ChromaDB (as per architecture):
-- ``document_chunks`` — ingested document content
-- ``corrections_store`` — past reviewer corrections (Phase 1.5)
-
 Usage:
-    from app.core.pipeline.embedder import compute_embeddings, embed_and_store
+    from app.core.nlp.embedder import compute_embeddings, embed_and_store
 
-    # Compute only (no ChromaDB required):
     embedded = compute_embeddings(chunks)
-
-    # Compute + store in ChromaDB:
     ids = embed_and_store(chunks, collection_name="document_chunks")
 """
 
@@ -26,7 +19,7 @@ import structlog
 from sentence_transformers import SentenceTransformer
 
 from app.config import settings
-from app.core.pipeline.chunker import Chunk
+from app.core.nlp.chunker import Chunk
 
 logger = structlog.get_logger(__name__)
 
@@ -64,10 +57,7 @@ def _get_model() -> SentenceTransformer:
 
 # ── Prefix handling for E5 models ────────────────────────────────────────
 def _prepare_texts(texts: list[str]) -> list[str]:
-    """Add ``passage:`` prefix for E5 family models (improves retrieval quality).
-
-    Non-E5 models are passed through unchanged.
-    """
+    """Add ``passage:`` prefix for E5 family models (improves retrieval quality)."""
     if "e5" in settings.embedding_model.lower():
         return [f"passage: {t}" for t in texts]
     return texts
@@ -160,9 +150,5 @@ def embed_and_store(
         metadatas=metadatas,
     )
 
-    logger.info(
-        "embedder.stored",
-        collection=collection_name,
-        count=len(ids),
-    )
+    logger.info("embedder.stored", collection=collection_name, count=len(ids))
     return ids

@@ -7,8 +7,8 @@ Design principles:
 - Each chunk carries metadata (page, section, type, offset).
 
 Usage:
-    from app.core.pipeline.chunker import chunk_document
-    from app.core.pipeline.ingestion import ingest_document
+    from app.core.nlp.chunker import chunk_document
+    from app.core.ingestion.parser import ingest_document
 
     doc = ingest_document("report.pdf")
     chunks = chunk_document(doc)
@@ -23,7 +23,7 @@ from enum import Enum
 
 import structlog
 
-from app.core.pipeline.ingestion import IngestedDocument
+from app.core.ingestion.parser import IngestedDocument
 
 logger = structlog.get_logger(__name__)
 
@@ -159,21 +159,16 @@ def _parse_blocks(text: str) -> list[_Block]:
             current_lines.append(line)
 
         elif line_type == "separator":
-            # Table separators stay with the current table block
             if current_type == "table":
                 current_lines.append(line)
-            # Otherwise ignore (decorative line)
 
         elif line_type == "blank":
-            # Blank lines end the current block
             if current_lines:
                 _flush()
                 current_offset = char_pos
 
         else:
-            # Regular text
             if current_type == "table":
-                # Transitioning out of a table
                 _flush()
                 current_offset = char_pos
             if not current_lines:
@@ -200,8 +195,7 @@ def _classify_line(line: str) -> str:
     if _TABLE_LINE_RE.match(stripped):
         return "table"
 
-    # Short lines that look like section titles
-    if len(stripped) <= 80 and not stripped.endswith((".",":",",")):
+    if len(stripped) <= 80 and not stripped.endswith((".", ":", ",")):
         if _HEADER_RE.match(stripped):
             return "header"
 
@@ -243,13 +237,10 @@ def _merge_blocks_into_chunks(
         current_types = set()
 
     for block in blocks:
-        # Track the nearest section header
         if block.block_type == "header":
-            # If we have accumulated text, emit before starting new section
             if current_text.strip() and len(current_text) > _MIN_CHUNK_SIZE:
                 _emit()
             current_header = block.text
-            # Include the header in the next chunk's text
             if current_text:
                 current_text += "\n\n" + block.text
             else:
@@ -260,22 +251,17 @@ def _merge_blocks_into_chunks(
         proposed = current_text + ("\n\n" if current_text else "") + block.text
 
         if len(proposed) <= chunk_size:
-            # Fits — accumulate
             if not current_text:
                 current_offset = block.char_offset
             current_text = proposed
             current_types.add(block.block_type)
         else:
-            # Doesn't fit — emit current, then handle the block
             if current_text.strip():
                 _emit()
 
-            # If the block itself exceeds chunk_size, split it
             if len(block.text) > chunk_size:
-                sub_chunks = _split_large_block(
-                    block.text, chunk_size, chunk_overlap
-                )
-                for i, sub in enumerate(sub_chunks):
+                sub_chunks = _split_large_block(block.text, chunk_size, chunk_overlap)
+                for sub in sub_chunks:
                     current_text = sub
                     if current_header:
                         current_text = current_header + "\n" + current_text
@@ -283,7 +269,6 @@ def _merge_blocks_into_chunks(
                     current_types = {block.block_type}
                     _emit()
             else:
-                # Start a new chunk with overlap from previous
                 overlap_text = ""
                 if chunks and chunk_overlap > 0:
                     prev = chunks[-1].text
@@ -296,9 +281,7 @@ def _merge_blocks_into_chunks(
                     current_text = block.text
                 current_types = {block.block_type}
 
-    # Flush remaining
     _emit()
-
     return chunks
 
 
@@ -314,7 +297,6 @@ def _split_large_block(text: str, chunk_size: int, overlap: int) -> list[str]:
         else:
             if current:
                 result.append(current)
-            # If a single paragraph exceeds chunk_size, split on sentences
             if len(para) > chunk_size:
                 sentences = re.split(r"(?<=[.!?])\s+", para)
                 current = ""
