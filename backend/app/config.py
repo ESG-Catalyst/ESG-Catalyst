@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     chroma_port: int = 8001
 
     # Embeddings (local model — no API key)
-    embedding_model: str = "paraphrase-multilingual-e5-base"
+    embedding_model: str = "intfloat/multilingual-e5-base"
 
     # Auth
     secret_key: str = "dev-secret-change-in-production"
