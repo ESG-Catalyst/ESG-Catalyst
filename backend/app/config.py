@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # Database (default: SQLite for local dev; override with DATABASE_URL env var for Postgres)
+    database_url: str = "sqlite+aiosqlite:///./esg_catalyst.db"
+
+    # Redis
+    redis_url: str = "redis://localhost:6379/0"
+
+    # LLM — individual env vars, assembled into dict by validator below
+    openrouter_api_key: str = ""
+    model_extraction: str = "openrouter/anthropic/claude-3.5-sonnet"
+    model_scoring: str = "openrouter/meta-llama/llama-3.1-70b-instruct"
+    model_report: str = "openrouter/anthropic/claude-3.5-sonnet"
+
+    # Assembled dict used by ModelRouter: settings.models["extraction"]
+    models: dict[str, str] = {}
+
+    @model_validator(mode="after")
+    def _build_models_dict(self) -> "Settings":
+        self.models = {
+            "extraction": self.model_extraction,
+            "scoring": self.model_scoring,
+            "report": self.model_report,
+        }
+        return self
+
+    # Vector store
+    chroma_host: str = "localhost"
+    chroma_port: int = 8001
+
+    # Embeddings (local model — no API key)
+    embedding_model: str = "paraphrase-multilingual-e5-base"
+
+    # Auth
+    secret_key: str = "dev-secret-change-in-production"
+    access_token_expire_minutes: int = 30
+
+    # MLflow
+    mlflow_tracking_uri: str = "http://localhost:5001"
+
+    # App
+    environment: str = "development"
+    max_upload_size_mb: int = 50
+    confidence_threshold: float = 0.80
+
+
+settings = Settings()

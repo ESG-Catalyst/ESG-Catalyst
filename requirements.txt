@@ -1,0 +1,73 @@
+# ============================================================
+# ESG Catalyst — Python Dependencies
+# ============================================================
+# Install: pip install -r requirements.txt
+#
+# ML models (heavy, ~2GB) — install separately on Windows:
+#   pip install sentence-transformers transformers torch
+#
+# Tesseract OCR binary (for scanned PDF / Arabic OCR):
+#   Windows: https://github.com/UB-Mannheim/tesseract/wiki
+#   Install ara + eng language packs
+# ============================================================
+
+# ── Web framework ─────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9        # file upload support
+
+# ── Database ──────────────────────────────────────────────
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0                # PostgreSQL async driver (production)
+aiosqlite>=0.20.0              # SQLite async driver (local dev)
+
+# ── Pydantic + settings ───────────────────────────────────
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+email-validator>=2.0.0
+
+# ── Auth ──────────────────────────────────────────────────
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# ── Task queue ────────────────────────────────────────────
+celery>=5.3.0
+redis>=5.0.0                   # Redis client (Celery broker + backend)
+
+# ── LLM / LangChain ──────────────────────────────────────
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0        # ChatOpenAI (used via OpenRouter base_url)
+openai>=1.30.0                 # Required by langchain-openai
+
+# ── Document parsing ──────────────────────────────────────
+pymupdf>=1.24.0                # PDF digital text extraction (fitz)
+pillow>=10.0.0                 # Image handling for OCR
+pytesseract>=0.3.10            # Tesseract OCR wrapper (needs Tesseract binary)
+openpyxl>=3.1.0                # XLSX parsing
+pandas>=2.0.0                  # CSV + Excel tabular data
+
+# ── Embeddings + NLP ──────────────────────────────────────
+# Install these separately — they are large (~2GB with torch):
+# sentence-transformers>=3.0.0
+# transformers>=4.40.0
+# torch>=2.2.0
+
+# ── Vector store ──────────────────────────────────────────
+chromadb>=0.5.0
+
+# ── Logging ───────────────────────────────────────────────
+structlog>=24.0.0
+
+# ── Frontend ──────────────────────────────────────────────
+streamlit>=1.35.0
+requests>=2.31.0               # Streamlit → API HTTP calls
+
+# ── MLflow experiment tracking ────────────────────────────
+mlflow>=2.13.0
+
+# ── Utilities ─────────────────────────────────────────────
+numpy>=1.26.0
+python-dotenv>=1.0.0
+greenlet>=3.0.0                # SQLAlchemy async support
+eval_type_backport>=0.2.0      # Pydantic v2 + Python 3.9 X|None syntax support

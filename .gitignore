@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Database (local dev SQLite — re-created automatically on startup)
+*.db
+*.sqlite3
+
+# Uploaded files (user data — never commit)
+uploads/
+
+# ML model cache (re-downloaded automatically)
+.cache/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

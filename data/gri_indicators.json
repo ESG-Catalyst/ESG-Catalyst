@@ -1,0 +1,245 @@
+{
+  "version": "1.0.0",
+  "sector": "banking",
+  "indicators": [
+    {
+      "code": "GRI 2-1",
+      "name": "Organizational details",
+      "category": "general",
+      "pillar": "governance",
+      "difficulty": "easy",
+      "primary_source": "Annual report",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["legal_name", "headquarters_location", "countries_of_operation", "ownership_structure"],
+      "expected_unit": null,
+      "extraction_prompt": "Extract the following organizational details from the document:\n1. Legal name of the organization\n2. Location of headquarters (city and country)\n3. Countries where the organization operates\n4. Nature of ownership and legal form (e.g., public joint-stock company, subsidiary)\n\nReturn each field separately. If a field is not found, mark it as missing.\nFor Arabic documents, translate the extracted values to English.",
+      "validation_rules": {
+        "required_fields": ["legal_name"],
+        "min_fields": 2
+      }
+    },
+    {
+      "code": "GRI 2-9",
+      "name": "Governance structure and composition",
+      "category": "general",
+      "pillar": "governance",
+      "difficulty": "medium",
+      "primary_source": "Board report",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["board_size", "independent_members", "executive_members", "committees"],
+      "expected_unit": null,
+      "extraction_prompt": "Extract governance structure details from the document:\n1. Total number of board members\n2. Number of independent/non-executive board members\n3. Number of executive board members\n4. List of board committees (e.g., audit, risk, remuneration, nomination)\n5. Whether the chair is also the CEO (yes/no)\n\nReturn numerical values where applicable. For Arabic text, translate committee names to English.",
+      "validation_rules": {
+        "required_fields": ["board_size"],
+        "min_fields": 2,
+        "board_size_range": [3, 30]
+      }
+    },
+    {
+      "code": "GRI 302-1",
+      "name": "Energy consumption within the organization",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "hard",
+      "primary_source": "Electricity + gas bills",
+      "fra_code": "FRA-36-ENERGY",
+      "sasb_code": null,
+      "expected_fields": ["total_energy", "electricity", "natural_gas", "diesel", "renewable_energy"],
+      "expected_unit": "GJ",
+      "extraction_prompt": "Extract energy consumption data from the document:\n1. Total energy consumption within the organization (in GJ or MWh or kWh)\n2. Electricity consumption (purchased, in kWh or MWh)\n3. Natural gas consumption (in m³ or GJ)\n4. Diesel/fuel oil consumption (in liters or GJ)\n5. Renewable energy consumption if any (in kWh or GJ)\n6. Reporting year/period for these figures\n\nIMPORTANT: Preserve the original value and unit exactly as stated in the document.\nAlso provide the normalized value converted to GJ.\nConversion factors: 1 MWh = 3.6 GJ, 1 kWh = 0.0036 GJ, 1 liter diesel = 0.0384 GJ, 1 m³ natural gas = 0.0387 GJ.\nFor Arabic documents: numbers may use Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩). Convert to Western digits.",
+      "validation_rules": {
+        "required_fields": ["total_energy"],
+        "min_fields": 2,
+        "value_range": [0, 100000000],
+        "unit_must_be": "GJ"
+      }
+    },
+    {
+      "code": "GRI 302-3",
+      "name": "Energy intensity",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "medium",
+      "primary_source": "Utility bills + revenue",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["energy_intensity", "numerator", "denominator", "denominator_type"],
+      "expected_unit": "GJ per unit",
+      "extraction_prompt": "Extract energy intensity data from the document:\n1. Energy intensity ratio (energy per unit of activity/output)\n2. The numerator: total energy consumption value and unit\n3. The denominator: what metric is used (e.g., revenue in EGP, number of employees, floor area in m²)\n4. Whether the ratio includes Scope 1, Scope 2, or both\n\nPreserve original values and units as found in the document.\nIf energy intensity is not explicitly stated but total energy and denominator are available, note both values so intensity can be calculated.",
+      "validation_rules": {
+        "required_fields": ["energy_intensity"],
+        "min_fields": 2,
+        "value_range": [0, 10000]
+      }
+    },
+    {
+      "code": "GRI 303-5",
+      "name": "Water consumption",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "hard",
+      "primary_source": "Water bills",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["total_water_consumption", "water_withdrawal", "water_discharge", "water_recycled"],
+      "expected_unit": "m3",
+      "extraction_prompt": "Extract water consumption data from the document:\n1. Total water consumption (in m³ or liters or gallons)\n2. Total water withdrawal by source if available\n3. Total water discharge if available\n4. Water recycled/reused if available\n5. Reporting year/period\n\nPreserve original values and units exactly as stated.\nNormalize to cubic meters (m³). Conversion: 1000 liters = 1 m³.\nFor Arabic documents: watch for Arabic-Indic digits and translate unit names.",
+      "validation_rules": {
+        "required_fields": ["total_water_consumption"],
+        "min_fields": 1,
+        "value_range": [0, 50000000],
+        "unit_must_be": "m3"
+      }
+    },
+    {
+      "code": "GRI 305-1",
+      "name": "Direct (Scope 1) GHG emissions",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "hard",
+      "primary_source": "Fuel receipts",
+      "fra_code": "FRA-36-SCOPE1",
+      "sasb_code": null,
+      "expected_fields": ["scope1_total", "co2", "ch4", "n2o", "emission_factors_source", "base_year"],
+      "expected_unit": "tCO2e",
+      "extraction_prompt": "Extract Scope 1 (direct) GHG emissions data from the document:\n1. Total Scope 1 GHG emissions (in tCO2e or ktCO2e)\n2. Breakdown by gas if available (CO2, CH4, N2O, HFCs)\n3. Breakdown by source: stationary combustion, mobile combustion, fugitive emissions, process emissions\n4. Source of emission factors used (e.g., IPCC, DEFRA, EPA)\n5. Base year and base year emissions if stated\n6. Methodology or standard followed (e.g., GHG Protocol)\n\nPreserve original values. Normalize to tonnes CO2 equivalent (tCO2e).\n1 ktCO2e = 1000 tCO2e.",
+      "validation_rules": {
+        "required_fields": ["scope1_total"],
+        "min_fields": 1,
+        "value_range": [0, 10000000],
+        "unit_must_be": "tCO2e"
+      }
+    },
+    {
+      "code": "GRI 305-2",
+      "name": "Energy indirect (Scope 2) GHG emissions",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "medium",
+      "primary_source": "Electricity bills",
+      "fra_code": "FRA-36-SCOPE2",
+      "sasb_code": null,
+      "expected_fields": ["scope2_location", "scope2_market", "grid_factor"],
+      "expected_unit": "tCO2e",
+      "extraction_prompt": "Extract Scope 2 (energy indirect) GHG emissions data from the document:\n1. Location-based Scope 2 emissions (in tCO2e)\n2. Market-based Scope 2 emissions if available (in tCO2e)\n3. Grid emission factor used (kgCO2/kWh or tCO2/MWh)\n4. Source of the grid emission factor (e.g., national grid authority, IEA)\n5. Electricity consumption used for calculation\n\nPreserve original values. Normalize to tCO2e.\nFor Egyptian banking: the Egypt grid factor is approximately 0.489 kgCO2/kWh (verify against document).",
+      "validation_rules": {
+        "required_fields": ["scope2_location"],
+        "min_fields": 1,
+        "value_range": [0, 10000000],
+        "unit_must_be": "tCO2e"
+      }
+    },
+    {
+      "code": "GRI 305-4",
+      "name": "GHG emissions intensity",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "medium",
+      "primary_source": "Scope 1+2 + revenue",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["ghg_intensity", "numerator", "denominator", "denominator_type", "scopes_included"],
+      "expected_unit": "tCO2e per unit",
+      "extraction_prompt": "Extract GHG emissions intensity data from the document:\n1. GHG emissions intensity ratio\n2. Numerator: total GHG emissions value and which scopes are included (Scope 1, Scope 2, or both)\n3. Denominator: the activity metric used (e.g., revenue in EGP million, number of employees, total assets)\n4. Whether the intensity is for Scope 1 only, Scope 2 only, or Scope 1+2 combined\n\nPreserve original values. If not explicitly stated but components are available, note the components.",
+      "validation_rules": {
+        "required_fields": ["ghg_intensity"],
+        "min_fields": 2,
+        "value_range": [0, 100000]
+      }
+    },
+    {
+      "code": "GRI 401-1",
+      "name": "New employee hires and employee turnover",
+      "category": "social",
+      "pillar": "S",
+      "difficulty": "easy",
+      "primary_source": "HR export",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["total_new_hires", "new_hires_by_gender", "new_hires_by_age", "turnover_total", "turnover_rate", "turnover_by_gender"],
+      "expected_unit": null,
+      "extraction_prompt": "Extract employee hiring and turnover data from the document:\n1. Total number of new employee hires during the reporting period\n2. New hires broken down by gender (male/female) if available\n3. New hires broken down by age group (<30, 30-50, >50) if available\n4. Total number of employees who left (turnover)\n5. Employee turnover rate (percentage)\n6. Turnover broken down by gender if available\n7. Total number of employees at end of period (for rate calculation)\n\nReturn absolute numbers and percentages where both are available.",
+      "validation_rules": {
+        "required_fields": ["total_new_hires"],
+        "min_fields": 2,
+        "value_range": [0, 500000]
+      }
+    },
+    {
+      "code": "GRI 403-9",
+      "name": "Work-related injuries",
+      "category": "social",
+      "pillar": "S",
+      "difficulty": "medium",
+      "primary_source": "Safety logs",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["fatalities", "high_consequence_injuries", "recordable_injuries", "hours_worked", "injury_rate"],
+      "expected_unit": null,
+      "extraction_prompt": "Extract work-related injury data from the document:\n1. Number of fatalities as a result of work-related injury\n2. Number of high-consequence work-related injuries (excluding fatalities)\n3. Number of recordable work-related injuries\n4. Total hours worked by all employees\n5. Rate of recordable work-related injuries (per 200,000 or 1,000,000 hours worked)\n6. Types of work-related injuries if listed\n7. Whether the data covers employees only or also contractors\n\nReturn zero explicitly if the company reports zero incidents — do not mark as missing.",
+      "validation_rules": {
+        "required_fields": ["recordable_injuries"],
+        "min_fields": 1,
+        "fatalities_range": [0, 1000],
+        "injury_rate_range": [0, 100]
+      }
+    },
+    {
+      "code": "GRI 405-1",
+      "name": "Diversity of governance bodies and employees",
+      "category": "social",
+      "pillar": "S",
+      "difficulty": "easy",
+      "primary_source": "Board report",
+      "fra_code": null,
+      "sasb_code": null,
+      "expected_fields": ["board_gender_male", "board_gender_female", "board_age_under30", "board_age_30to50", "board_age_over50", "employee_gender_split"],
+      "expected_unit": null,
+      "extraction_prompt": "Extract diversity data for governance bodies and employees from the document:\n1. Board composition by gender: number and percentage of male members, number and percentage of female members\n2. Board composition by age group: under 30, 30-50, over 50\n3. Employee diversity by gender: total male employees, total female employees (numbers and percentages)\n4. Employee diversity by age group if available\n5. Diversity in management/senior positions by gender if available\n\nReturn both absolute numbers and percentages where available.",
+      "validation_rules": {
+        "required_fields": ["board_gender_male", "board_gender_female"],
+        "min_fields": 2,
+        "percentage_range": [0, 100]
+      }
+    },
+    {
+      "code": "GRI 418-1",
+      "name": "Substantiated complaints concerning breaches of customer privacy",
+      "category": "social",
+      "pillar": "G",
+      "difficulty": "medium",
+      "primary_source": "Compliance report",
+      "fra_code": null,
+      "sasb_code": "FN-CB-230a.1",
+      "expected_fields": ["complaints_from_outside", "complaints_from_regulators", "total_leaks_thefts_losses", "complaints_resolved"],
+      "expected_unit": null,
+      "extraction_prompt": "Extract customer privacy complaint data from the document:\n1. Total number of substantiated complaints received concerning breaches of customer privacy\n2. Complaints received from outside parties (customers, third parties)\n3. Complaints received from regulatory bodies\n4. Total number of identified leaks, thefts, or losses of customer data\n5. Number of complaints addressed/resolved during the reporting period\n\nReturn zero explicitly if the company reports zero complaints — this is a valid data point, not missing data.\nFor banking sector: also look for data breach incident reports and CBE (Central Bank of Egypt) complaint references.",
+      "validation_rules": {
+        "required_fields": ["complaints_from_outside"],
+        "min_fields": 1,
+        "value_range": [0, 100000]
+      }
+    },
+    {
+      "code": "FRA-36",
+      "name": "Total GHG emissions (Scope 1 + Scope 2)",
+      "category": "environmental",
+      "pillar": "E",
+      "difficulty": "hard",
+      "primary_source": "Fuel + electricity",
+      "fra_code": "FRA-36",
+      "sasb_code": null,
+      "expected_fields": ["scope1", "scope2", "total_scope1_scope2"],
+      "expected_unit": "tCO2e",
+      "extraction_prompt": "Extract total GHG emissions (Scope 1 + Scope 2 combined) from the document:\n1. Scope 1 (direct) emissions in tCO2e\n2. Scope 2 (indirect, energy) emissions in tCO2e\n3. Total combined Scope 1 + Scope 2 emissions in tCO2e\n4. Whether Scope 2 is location-based or market-based\n5. Reporting year\n\nThis is the FRA (Financial Regulatory Authority of Egypt) indicator FRA-36.\nIf only the combined total is stated, extract that. If only individual scopes are stated, note both so the total can be summed.\nNormalize all values to tCO2e.",
+      "validation_rules": {
+        "required_fields": ["total_scope1_scope2"],
+        "min_fields": 1,
+        "value_range": [0, 20000000],
+        "unit_must_be": "tCO2e"
+      }
+    }
+  ]
+}
