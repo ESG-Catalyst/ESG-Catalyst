@@ -1,7 +1,10 @@
 """Narrative generation — LLM drafts factual narrative per report section.
 
-Uses ``ModelRouter("report")`` for all LLM calls.
-Output is English only, references specific values, notes what is missing.
+Uses ``ModelRouter("report")`` with credit-error fallback. Output is English only,
+references the specific values provided, and explicitly notes anything missing
+or ambiguous. If the LLM is unavailable, a deterministic fallback narrative is
+produced from the metric data — without leaking raw error details into the
+finished report.
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.llm.router import model_router
 from app.core.reporting.builder import ReportSection
+from app.models.enums import MetricStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +28,7 @@ Rules:
 1. Write in clear, factual, professional English. Do NOT invent values.
 2. Reference the specific numbers and units provided in the data.
 3. If a metric is missing, ambiguous, or low-confidence, state that explicitly.
-4. Aim for 2–4 short paragraphs (150–250 words total).
+4. Aim for 2-4 short paragraphs (150-250 words total).
 5. Do not include section headings — only the body prose.
 6. Never speculate beyond the data provided.
 """
@@ -37,33 +41,38 @@ async def generate_narratives(sections: list[ReportSection]) -> list[ReportSecti
         sections: Output of ``build_report_sections()``.
 
     Returns:
-        Same sections with ``narrative`` field populated.
+        Same sections with ``narrative`` field populated. On LLM failure, the
+        fallback narrative is used and the error is logged (not embedded in
+        the report).
     """
     if not sections:
         return sections
 
-    llm = model_router.get_model("report")
-    tasks = [_narrate_section(llm, s) for s in sections]
-    narratives = await asyncio.gather(*tasks, return_exceptions=True)
+    tasks = [_narrate_section(s) for s in sections]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    for section, narrative in zip(sections, narratives):
-        if isinstance(narrative, Exception):
-            logger.error("narrative.section_failed", topic=section.gri_topic, error=str(narrative))
-            section.narrative = _fallback_narrative(section, error=str(narrative))
+    for section, result in zip(sections, results):
+        if isinstance(result, Exception):
+            logger.error(
+                "narrative.section_failed",
+                topic=section.gri_topic,
+                error=str(result)[:300],
+            )
+            section.narrative = _fallback_narrative(section)
         else:
-            section.narrative = narrative
+            section.narrative = result
 
     logger.info("narrative.done", sections=len(sections))
     return sections
 
 
-async def _narrate_section(llm, section: ReportSection) -> str:
-    """Generate a single section narrative via the LLM."""
+async def _narrate_section(section: ReportSection) -> str:
+    """Generate a single section narrative via the LLM (with credit fallback)."""
     messages = [
         SystemMessage(content=_NARRATIVE_SYSTEM_PROMPT),
         HumanMessage(content=_build_user_prompt(section)),
     ]
-    response = await llm.ainvoke(messages)
+    response = await model_router.ainvoke_with_fallback("report", messages)
     return response.content.strip()
 
 
@@ -75,7 +84,7 @@ def _build_user_prompt(section: ReportSection) -> str:
         "Metrics in this section:",
     ]
     for m in section.metrics:
-        status = m.status.value if hasattr(m.status, "value") else str(m.status)
+        status = _status_str(m.status)
         value_str = _format_value(m)
         evidence = (getattr(m, "evidence_chunk", None) or "").strip()[:200]
         lines.append(
@@ -90,38 +99,79 @@ def _build_user_prompt(section: ReportSection) -> str:
 
 
 def _format_value(metric) -> str:
+    """Best human-readable rendering of a metric's value, falling back through
+    normalized → original → none-disclosed."""
     if metric.value is not None and metric.unit:
         return f"{metric.value} {metric.unit}"
+    if metric.value is not None:
+        return f"{metric.value}"
     if metric.original_value:
         unit = metric.original_unit or ""
         return f"{metric.original_value} {unit}".strip()
     return "(no value)"
 
 
-def _fallback_narrative(section: ReportSection, error: str) -> str:
-    """Deterministic narrative used when the LLM call fails."""
+def _status_str(status) -> str:
+    return status.value if hasattr(status, "value") else str(status)
+
+
+def _is_disclosed(metric) -> bool:
+    """A metric is 'disclosed' if a value (normalized or original) is present
+    and the status is not explicitly missing/rejected."""
+    status = metric.status
+    if status in (MetricStatus.missing, MetricStatus.rejected):
+        return False
+    return metric.value is not None or bool(metric.original_value)
+
+
+def _fallback_narrative(section: ReportSection) -> str:
+    """Deterministic narrative used when the LLM call fails.
+
+    Produces clean factual prose; never embeds error details — those are
+    logged separately so the published report stays presentable.
+    """
     if not section.metrics:
         return (
             f"No metrics were reported for {section.title}. "
-            "This represents a gap in the disclosure scope."
+            "This represents a gap in the disclosure scope and should be "
+            "addressed in the next reporting cycle."
         )
 
-    lines = [f"This section covers {len(section.metrics)} indicator(s) under {section.title}."]
+    disclosed: list[str] = []
+    ambiguous: list[str] = []
+    missing: list[str] = []
+
     for m in section.metrics:
-        status = m.status.value if hasattr(m.status, "value") else str(m.status)
+        status = m.status
         value_str = _format_value(m)
-        if status in ("extracted", "approved") and m.value is not None:
-            lines.append(
-                f"{m.label} ({m.gri_code}) was reported as {value_str} "
-                f"with confidence {m.confidence:.0%}."
-            )
-        elif status == "ambiguous":
-            lines.append(
-                f"{m.label} ({m.gri_code}) was identified but the value is ambiguous "
-                "and requires reviewer attention."
+        if status == MetricStatus.ambiguous:
+            ambiguous.append(f"{m.label} ({m.gri_code})")
+        elif _is_disclosed(m):
+            disclosed.append(
+                f"{m.label} ({m.gri_code}) is reported as {value_str} "
+                f"with {m.confidence:.0%} confidence"
             )
         else:
-            lines.append(f"{m.label} ({m.gri_code}) is not currently disclosed.")
+            missing.append(f"{m.label} ({m.gri_code})")
 
-    lines.append(f"(Note: narrative generated without LLM due to: {error[:120]})")
-    return " ".join(lines)
+    paragraphs: list[str] = [
+        f"This section covers {len(section.metrics)} indicator(s) "
+        f"under {section.title}."
+    ]
+
+    if disclosed:
+        paragraphs.append(". ".join(disclosed) + ".")
+    if ambiguous:
+        paragraphs.append(
+            "The following indicator(s) were identified but the reported "
+            "value is ambiguous and requires reviewer attention: "
+            + ", ".join(ambiguous) + "."
+        )
+    if missing:
+        paragraphs.append(
+            "The following indicator(s) are not currently disclosed and "
+            "represent gaps for future reporting: "
+            + ", ".join(missing) + "."
+        )
+
+    return " ".join(paragraphs)

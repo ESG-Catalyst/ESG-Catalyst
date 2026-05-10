@@ -18,6 +18,11 @@ from jinja2 import Environment, select_autoescape
 
 from app.core.reporting.builder import ReportBundle, gri_content_index
 
+
+def _status_label(status) -> str:
+    """Render a metric status as a string regardless of enum/string input."""
+    return status.value if hasattr(status, "value") else str(status)
+
 logger = structlog.get_logger(__name__)
 
 
@@ -52,6 +57,13 @@ _REPORT_TEMPLATE = """\
   .gap-low { color: #555; }
   .narrative { text-align: justify; margin: .5em 0 1em 0; }
   .meta-line { color: #777; font-size: 9pt; }
+  .evidence { color: #555; font-size: 8.5pt; font-style: italic; margin-top: 3px; }
+  .status-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .status-extracted { background: #e0f2f1; color: #0D7A7A; }
+  .status-approved { background: #d4edda; color: #155724; }
+  .status-ambiguous { background: #fff3cd; color: #856404; }
+  .status-missing { background: #f8d7da; color: #721c24; }
+  .status-rejected { background: #f1f1f1; color: #555; }
   section { page-break-inside: avoid; }
 </style>
 </head>
@@ -103,11 +115,20 @@ _REPORT_TEMPLATE = """\
   <table>
     <tr><th>Indicator</th><th>Value</th><th>Confidence</th><th>Status</th><th>Page</th></tr>
     {% for m in section.metrics %}
+    {% set status = status_label(m.status) %}
     <tr>
-      <td><strong>{{ m.gri_code }}</strong><br><span class="meta-line">{{ m.label }}</span></td>
+      <td>
+        <strong>{{ m.gri_code }}</strong><br>
+        <span class="meta-line">{{ m.label }}</span>
+        {%- if m.evidence_chunk %}
+        <div class="evidence">"{{ m.evidence_chunk[:220] }}{{ "…" if m.evidence_chunk|length > 220 else "" }}"</div>
+        {%- endif %}
+      </td>
       <td>
         {%- if m.value is not none and m.unit -%}
           {{ m.value }} {{ m.unit }}
+        {%- elif m.value is not none -%}
+          {{ m.value }}
         {%- elif m.original_value -%}
           {{ m.original_value }} {{ m.original_unit or "" }}
         {%- else -%}
@@ -115,7 +136,7 @@ _REPORT_TEMPLATE = """\
         {%- endif -%}
       </td>
       <td>{{ "%.0f"|format(m.confidence * 100) }}%</td>
-      <td>{{ m.status.value if m.status.value is defined else m.status }}</td>
+      <td><span class="status-pill status-{{ status }}">{{ status }}</span></td>
       <td>{{ m.source_page or "—" }}</td>
     </tr>
     {% endfor %}
@@ -127,11 +148,12 @@ _REPORT_TEMPLATE = """\
 <table>
   <tr><th>Code</th><th>Disclosure</th><th>Page</th><th>Status</th></tr>
   {% for row in content_index %}
+  {% set status_class = "missing" if row.status == "not reported" else row.status %}
   <tr>
     <td><strong>{{ row.code }}</strong></td>
     <td>{{ row.name }}</td>
     <td>{{ row.page or "—" }}</td>
-    <td>{{ row.status }}</td>
+    <td><span class="status-pill status-{{ status_class }}">{{ row.status }}</span></td>
   </tr>
   {% endfor %}
 </table>
@@ -171,39 +193,92 @@ def render_report_html(bundle: ReportBundle) -> str:
         content_index=gri_content_index([m for s in bundle.sections for m in s.metrics]),
         generated_date=datetime.utcnow().strftime("%d %B %Y"),
         generated_year=datetime.utcnow().year,
+        status_label=_status_label,
     )
 
 
 def render_pdf(bundle: ReportBundle, output_path: Path | str) -> Path:
     """Render a ``ReportBundle`` to a PDF file.
 
-    On systems where WeasyPrint cannot load (missing GTK3 on Windows), falls
-    back to writing rendered HTML next to the requested path.
+    Backend chain (first that works wins):
+        1. WeasyPrint  — best CSS fidelity (needs GTK3 on Windows)
+        2. PyMuPDF Story — pure-Python fallback (limited CSS)
+        3. Plain HTML — last resort, written next to the requested path
 
     Args:
         bundle: Output of ``build_report_sections()`` with narratives populated.
         output_path: Destination path for the PDF file.
 
     Returns:
-        Path to the generated file (PDF on success, HTML on fallback).
+        Path to the generated file (PDF on success, HTML on final fallback).
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     html_string = render_report_html(bundle)
 
+    if _try_weasyprint(html_string, output_path):
+        return output_path
+
+    if _try_pymupdf(html_string, output_path):
+        return output_path
+
+    fallback = output_path.with_suffix(".html")
+    fallback.write_text(html_string, encoding="utf-8")
+    logger.warning(
+        "renderer.pdf_backends_unavailable",
+        fallback=str(fallback),
+        message="No PDF backend available — wrote HTML instead",
+    )
+    return fallback
+
+
+def _try_weasyprint(html_string: str, output_path: Path) -> bool:
     try:
         from weasyprint import HTML  # heavy import — keep local
     except (ImportError, OSError) as exc:
-        fallback = output_path.with_suffix(".html")
-        fallback.write_text(html_string, encoding="utf-8")
-        logger.warning(
-            "renderer.weasyprint_unavailable",
-            error=str(exc)[:200],
-            fallback=str(fallback),
-        )
-        return fallback
+        logger.info("renderer.weasyprint_unavailable", error=str(exc)[:200])
+        return False
+    try:
+        HTML(string=html_string).write_pdf(str(output_path))
+    except Exception as exc:
+        logger.warning("renderer.weasyprint_failed", error=str(exc)[:200])
+        return False
+    logger.info(
+        "renderer.pdf_written",
+        backend="weasyprint",
+        path=str(output_path),
+        size_bytes=output_path.stat().st_size,
+    )
+    return True
 
-    HTML(string=html_string).write_pdf(str(output_path))
-    logger.info("renderer.pdf_written", path=str(output_path), size_bytes=output_path.stat().st_size)
-    return output_path
+
+def _try_pymupdf(html_string: str, output_path: Path) -> bool:
+    try:
+        import fitz  # PyMuPDF — already a project dependency
+    except ImportError as exc:
+        logger.info("renderer.pymupdf_unavailable", error=str(exc)[:200])
+        return False
+    try:
+        story = fitz.Story(html=html_string)
+        mediabox = fitz.paper_rect("a4")
+        # 2.2cm top/bottom + 2cm sides ≈ 56pt vert, 50pt horiz
+        where = mediabox + (50, 56, -50, -56)
+        writer = fitz.DocumentWriter(str(output_path))
+        more = 1
+        while more:
+            dev = writer.begin_page(mediabox)
+            more, _ = story.place(where)
+            story.draw(dev)
+            writer.end_page()
+        writer.close()
+    except Exception as exc:
+        logger.warning("renderer.pymupdf_failed", error=str(exc)[:200])
+        return False
+    logger.info(
+        "renderer.pdf_written",
+        backend="pymupdf",
+        path=str(output_path),
+        size_bytes=output_path.stat().st_size,
+    )
+    return True
