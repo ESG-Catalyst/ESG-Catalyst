@@ -1,12 +1,15 @@
 """M2 NLP full chain test — chunker + embedder + ClimateBERT classifier"""
 import sys, time, os
-sys.path.insert(0, ".")
+from pathlib import Path
 
-# Load HF_TOKEN from .env so HuggingFace can authenticate
+# Run from project root: python backend/test_nlp.py
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "backend"))
+
 from dotenv import load_dotenv
-load_dotenv(r"f:\CC\esg-catalyst\.env")
+load_dotenv(PROJECT_ROOT / ".env")
 
-PDF = r"f:\CC\esg-catalyst\data\ADCB - ESG-report-english.pdf"
+PDF = str(PROJECT_ROOT / "data" / "ADCB - ESG-report-english.pdf")
 
 # ── Step 1: Ingest ─────────────────────────────────────────────────────
 from app.core.ingestion.parser import ingest_document
