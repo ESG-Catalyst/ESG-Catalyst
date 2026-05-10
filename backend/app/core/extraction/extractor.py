@@ -71,13 +71,11 @@ async def extract_metrics(
             kept=_MAX_DOCUMENT_CHARS,
         )
 
-    llm = model_router.get_model("extraction")
     metrics: list[ExtractedMetricCreate] = []
 
     for indicator in indicators:
         try:
             metric = await _extract_single(
-                llm=llm,
                 indicator=indicator,
                 document_text=doc_text,
                 company_id=company_id,
@@ -114,7 +112,6 @@ async def extract_metrics(
 
 # ── Single indicator extraction ──────────────────────────────────────────
 async def _extract_single(
-    llm,
     indicator: dict,
     document_text: str,
     company_id: UUID,
@@ -134,7 +131,7 @@ async def _extract_single(
         HumanMessage(content=user_prompt),
     ]
 
-    response = await llm.ainvoke(messages)
+    response = await model_router.ainvoke_with_fallback("extraction", messages)
     parsed = _parse_llm_json(response.content)
 
     status = _map_status(parsed.get("status", "missing"))

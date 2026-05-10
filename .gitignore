@@ -37,3 +37,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# obsidian
+ESG_Catalyst_Wiki/
