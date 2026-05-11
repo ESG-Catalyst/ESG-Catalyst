@@ -16,6 +16,7 @@ class UserRole(str, enum.Enum):
 
 
 class DocumentStatus(str, enum.Enum):
+    uploaded = "uploaded"
     pending = "pending"
     processing = "processing"
     processed = "processed"

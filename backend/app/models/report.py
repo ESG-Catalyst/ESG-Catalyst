@@ -30,8 +30,8 @@ class Report(Base):
     fra_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     sasb_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     pdf_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    created_by: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

@@ -1,4 +1,8 @@
-"""Documents API — upload, list, and manage uploaded files (auth + scoping)."""
+"""Documents API — upload PDFs and read document metadata.
+
+Iteration 1: no auth. A default company is created on first use so the
+upload endpoint can save files under ``data/uploads/{company_id}/``.
+"""
 
 from __future__ import annotations
 
@@ -7,156 +11,140 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.auth import assert_company_access, get_accessible_company_ids, get_current_user
 from app.database import get_db
+from app.models.company import Company
 from app.models.document import Document
 from app.models.enums import DocumentStatus
-from app.models.user import User
+from app.schemas.document import DocumentSchema
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
-# Persistent upload directory (created on first use)
-_UPLOAD_DIR = Path("uploads")
+UPLOAD_ROOT = Path("data/uploads")
+DEFAULT_COMPANY_NAME = "Default Company"
 
 
-# ── Response schema ───────────────────────────────────────────────────────
-class DocumentResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class DocumentUploadResponse(BaseModel):
+    """Minimal response per Iteration 1 spec."""
 
-    id: UUID
-    company_id: UUID
-    report_id: Optional[UUID] = None
+    document_id: UUID
     filename: str
-    file_path: str
-    file_type: str
     status: DocumentStatus
-    page_count: Optional[int] = None
-    language: Optional[str] = None
 
 
-# ── POST /documents/upload ────────────────────────────────────────────────
-@router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=DocumentResponse)
+async def _get_or_create_default_company(db: AsyncSession) -> Company:
+    result = await db.execute(select(Company).where(Company.name == DEFAULT_COMPANY_NAME))
+    company = result.scalar_one_or_none()
+    if company is not None:
+        return company
+    company = Company(
+        name=DEFAULT_COMPANY_NAME,
+        industry="banking",
+        country="Egypt",
+    )
+    db.add(company)
+    await db.flush()
+    await db.refresh(company)
+    return company
+
+
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DocumentUploadResponse,
+)
 async def upload_document(
     file: UploadFile = File(...),
-    company_id: UUID = Query(...),
-    report_id: Optional[UUID] = Query(None),
-    user: User = Depends(get_current_user),
+    company_id: Optional[UUID] = Form(default=None),
     db: AsyncSession = Depends(get_db),
-):
-    """Upload a document file and create a database record.
+) -> DocumentUploadResponse:
+    """Accept a multipart PDF and persist it to disk + DB."""
+    try:
+        if file.filename is None or not file.filename.lower().endswith(".pdf"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Only .pdf uploads are accepted in Iteration 1",
+            )
 
-    The file is saved to disk under ``uploads/<company_id>/``.
-    User must have access to the target company.
-    """
-    assert_company_access(user, company_id)
+        if company_id is None:
+            company = await _get_or_create_default_company(db)
+            company_id = company.id
+        else:
+            result = await db.execute(select(Company).where(Company.id == company_id))
+            if result.scalar_one_or_none() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Company {company_id} not found",
+                )
 
-    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        content = await file.read()
+        max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        if len(content) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds {settings.max_upload_size_mb} MB limit",
+            )
+        if len(content) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Uploaded file is empty",
+            )
 
-    # Validate extension
-    suffix = Path(file.filename or "unknown").suffix.lower()
-    allowed = {".pdf", ".xlsx", ".xls", ".csv", ".png", ".jpg", ".jpeg", ".tiff", ".tif"}
-    if suffix not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type {suffix!r}. Allowed: {sorted(allowed)}",
+        company_dir = UPLOAD_ROOT / str(company_id)
+        company_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = f"{uuid.uuid4().hex}.pdf"
+        dest_path = company_dir / safe_name
+        dest_path.write_bytes(content)
+
+        doc = Document(
+            company_id=company_id,
+            filename=file.filename,
+            file_path=str(dest_path),
+            file_type="pdf",
+            status=DocumentStatus.uploaded,
         )
+        db.add(doc)
+        await db.flush()
+        await db.refresh(doc)
 
-    # Save file to disk
-    company_dir = _UPLOAD_DIR / str(company_id)
-    company_dir.mkdir(parents=True, exist_ok=True)
-
-    safe_name = f"{uuid.uuid4().hex}{suffix}"
-    dest_path = company_dir / safe_name
-
-    content = await file.read()
-    if len(content) > max_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File exceeds {settings.max_upload_size_mb} MB limit",
+        return DocumentUploadResponse(
+            document_id=doc.id,
+            filename=doc.filename,
+            status=doc.status,
         )
-
-    dest_path.write_bytes(content)
-
-    doc = Document(
-        company_id=company_id,
-        report_id=report_id,
-        filename=file.filename or "unknown",
-        file_path=str(dest_path),
-        file_type=suffix.lstrip("."),
-        status=DocumentStatus.pending,
-        uploaded_by=user.id,
-    )
-    db.add(doc)
-    await db.flush()
-    await db.refresh(doc)
-
-    return doc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Upload failed: {exc}",
+        ) from exc
 
 
-# ── GET /documents/ ───────────────────────────────────────────────────────
-@router.get("/", response_model=list[DocumentResponse])
-async def list_documents(
-    company_id: Optional[UUID] = Query(None),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List documents. Automatically scoped to user's accessible companies."""
-    stmt = select(Document).order_by(Document.created_at.desc())
-
-    if company_id:
-        # Explicit filter — verify access
-        assert_company_access(user, company_id)
-        stmt = stmt.where(Document.company_id == company_id)
-    else:
-        # Auto-scope by user's access
-        allowed = get_accessible_company_ids(user)
-        if allowed is not None:
-            stmt = stmt.where(Document.company_id.in_(allowed))
-
-    result = await db.execute(stmt)
-    return result.scalars().all()
-
-
-# ── GET /documents/{document_id} ──────────────────────────────────────────
-@router.get("/{document_id}", response_model=DocumentResponse)
+@router.get("/{document_id}", response_model=DocumentSchema)
 async def get_document(
     document_id: UUID,
-    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """Get a single document by ID."""
-    result = await db.execute(select(Document).where(Document.id == document_id))
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    assert_company_access(user, doc.company_id)
-    return doc
-
-
-# ── DELETE /documents/{document_id} ───────────────────────────────────────
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document(
-    document_id: UUID,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Delete a document record and its file from disk."""
-    result = await db.execute(select(Document).where(Document.id == document_id))
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    assert_company_access(user, doc.company_id)
-
-    file_path = Path(doc.file_path)
-    if file_path.exists():
-        file_path.unlink()
-
-    await db.delete(doc)
+) -> Document:
+    """Return current metadata + status for a document."""
+    try:
+        result = await db.execute(select(Document).where(Document.id == document_id))
+        doc = result.scalar_one_or_none()
+        if doc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+        return doc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Lookup failed: {exc}",
+        ) from exc

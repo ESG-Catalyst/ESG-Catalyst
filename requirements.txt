@@ -62,6 +62,10 @@ structlog>=24.0.0
 # ── MLflow experiment tracking ────────────────────────────
 mlflow>=2.13.0
 
+# ── Frontend ──────────────────────────────────────────────
+streamlit>=1.36.0
+requests>=2.32.0
+
 # ── Utilities ─────────────────────────────────────────────
 numpy>=1.26.0
 python-dotenv>=1.0.0
