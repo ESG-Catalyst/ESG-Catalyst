@@ -32,8 +32,8 @@ class Document(Base):
     page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # ISO 639-1 code: "ar", "en", or "ar+en" for mixed
     language: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-    uploaded_by: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    uploaded_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

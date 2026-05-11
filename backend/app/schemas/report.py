@@ -41,6 +41,6 @@ class ReportResponse(BaseModel):
     fra_score: float | None
     sasb_score: float | None
     pdf_path: str | None
-    created_by: UUID
+    created_by: UUID | None
     created_at: datetime
     updated_at: datetime

@@ -1,152 +1,196 @@
-"""Reports API — create, list, and export ESG reports (auth + scoping)."""
+"""Reports API — trigger M5 generation and stream the resulting PDF."""
 
 from __future__ import annotations
 
-import io
-import json
+from pathlib import Path
+from typing import Any, Optional
 from uuid import UUID
 
+from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import assert_company_access, get_accessible_company_ids, get_current_user
 from app.database import get_db
-from app.models.enums import ReportStatus
+from app.models.document import Document
+from app.models.enums import MetricStatus, ReportStatus
 from app.models.metric import ExtractedMetric
 from app.models.report import Report
-from app.models.user import User
-from app.schemas.report import ReportCreate, ReportResponse
+from app.schemas.report import ReportResponse
+from app.workers.celery_app import celery_app
+from app.workers.tasks import generate_report_task
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 
-# ── POST /reports/generate ────────────────────────────────────────────────
-@router.post("/generate", status_code=status.HTTP_201_CREATED, response_model=ReportResponse)
+# ── Request / response schemas ─────────────────────────────────────────────
+class ReportGenerateRequest(BaseModel):
+    document_id: UUID
+
+
+class ReportGenerateResponse(BaseModel):
+    report_id: UUID
+    job_id: str
+    status: str  # "generating"
+
+
+class ReportStatusResponse(ReportResponse):
+    """Same as ReportResponse but with the latest Celery job state inlined."""
+
+    job_state: Optional[str] = None
+
+
+# Celery state → public phase
+_REPORT_STATE_MAP: dict[str, str] = {
+    "PENDING": "queued",
+    "RECEIVED": "queued",
+    "STARTED": "generating",
+    "BUILDING": "generating",
+    "NARRATING": "generating",
+    "RENDERING": "generating",
+    "SUCCESS": "ready",
+    "FAILURE": "failed",
+    "REVOKED": "failed",
+}
+
+
+# ── POST /reports/generate ─────────────────────────────────────────────────
+@router.post(
+    "/generate",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ReportGenerateResponse,
+)
 async def generate_report(
-    body: ReportCreate,
-    user: User = Depends(get_current_user),
+    body: ReportGenerateRequest,
     db: AsyncSession = Depends(get_db),
-):
-    """Create a new report record. User must have access to the company."""
-    assert_company_access(user, body.company_id)
+) -> ReportGenerateResponse:
+    """Queue M5 report generation for the document's report.
 
-    report = Report(
-        company_id=body.company_id,
-        title=body.title,
-        reporting_year=body.reporting_year,
-        frameworks=body.frameworks,
-        status=ReportStatus.draft,
-        created_by=user.id,
-    )
-    db.add(report)
-    await db.flush()
-    await db.refresh(report)
-    return report
+    Requires that the pipeline has already run for this document and that
+    at least one extracted metric has been approved by a reviewer.
+    """
+    try:
+        doc_result = await db.execute(select(Document).where(Document.id == body.document_id))
+        doc = doc_result.scalar_one_or_none()
+        if doc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+        if doc.report_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Pipeline has not been run for this document yet",
+            )
+
+        approved_count = (
+            await db.execute(
+                select(func.count(ExtractedMetric.id)).where(
+                    ExtractedMetric.report_id == doc.report_id,
+                    ExtractedMetric.status == MetricStatus.approved,
+                )
+            )
+        ).scalar_one()
+        if approved_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Report generation requires at least one approved metric",
+            )
+
+        async_result = generate_report_task.delay(report_id=str(doc.report_id))
+
+        return ReportGenerateResponse(
+            report_id=doc.report_id,
+            job_id=async_result.id,
+            status="generating",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to enqueue report generation: {exc}",
+        ) from exc
 
 
-# ── GET /reports/ ─────────────────────────────────────────────────────────
-@router.get("/", response_model=list[ReportResponse])
-async def list_reports(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List reports. Automatically scoped to user's accessible companies."""
-    stmt = select(Report).order_by(Report.created_at.desc())
-
-    allowed = get_accessible_company_ids(user)
-    if allowed is not None:
-        stmt = stmt.where(Report.company_id.in_(allowed))
-
-    result = await db.execute(stmt)
-    return result.scalars().all()
-
-
-# ── GET /reports/{report_id} ──────────────────────────────────────────────
-@router.get("/{report_id}", response_model=ReportResponse)
+# ── GET /reports/{report_id} ───────────────────────────────────────────────
+@router.get("/{report_id}", response_model=ReportStatusResponse)
 async def get_report(
     report_id: UUID,
-    user: User = Depends(get_current_user),
+    job_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-):
-    """Get a single report by ID."""
-    result = await db.execute(select(Report).where(Report.id == report_id))
-    report = result.scalar_one_or_none()
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+) -> ReportStatusResponse:
+    """Return the Report row + (optionally) the latest job state."""
+    try:
+        result = await db.execute(select(Report).where(Report.id == report_id))
+        report = result.scalar_one_or_none()
+        if report is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Report not found",
+            )
 
-    assert_company_access(user, report.company_id)
-    return report
+        job_state: Optional[str] = None
+        if job_id:
+            celery_state = AsyncResult(job_id, app=celery_app).state or "PENDING"
+            job_state = _REPORT_STATE_MAP.get(celery_state, celery_state.lower())
+        elif report.pdf_path:
+            job_state = "ready"
+        elif report.status == ReportStatus.published:
+            job_state = "ready"
+        else:
+            job_state = "draft"
+
+        payload: dict[str, Any] = ReportResponse.model_validate(report).model_dump()
+        payload["job_state"] = job_state
+        return ReportStatusResponse(**payload)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Report lookup failed: {exc}",
+        ) from exc
 
 
-# ── GET /reports/export/{report_id} ───────────────────────────────────────
-@router.get("/export/{report_id}")
-async def export_report(
+# ── GET /reports/{report_id}/pdf ───────────────────────────────────────────
+@router.get("/{report_id}/pdf")
+async def download_report_pdf(
     report_id: UUID,
-    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export a report as a downloadable JSON summary."""
-    result = await db.execute(select(Report).where(Report.id == report_id))
-    report = result.scalar_one_or_none()
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+    """Stream the rendered PDF (404 if generation has not produced a file yet)."""
+    try:
+        result = await db.execute(select(Report).where(Report.id == report_id))
+        report = result.scalar_one_or_none()
+        if report is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Report not found",
+            )
+        if not report.pdf_path:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Report PDF not ready",
+            )
+        pdf_file = Path(report.pdf_path)
+        if not pdf_file.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Report PDF file missing on disk",
+            )
 
-    assert_company_access(user, report.company_id)
-
-    metrics_result = await db.execute(
-        select(ExtractedMetric)
-        .where(ExtractedMetric.report_id == report_id)
-        .order_by(ExtractedMetric.gri_code)
-    )
-    metrics = metrics_result.scalars().all()
-
-    export_data = {
-        "report": {
-            "id": str(report.id),
-            "title": report.title,
-            "reporting_year": report.reporting_year,
-            "status": report.status.value,
-            "frameworks": report.frameworks,
-            "scores": {
-                "total": report.total_score,
-                "gri": report.gri_score,
-                "fra": report.fra_score,
-                "sasb": report.sasb_score,
-            },
-        },
-        "metrics": [
-            {
-                "gri_code": m.gri_code,
-                "label": m.label,
-                "value": m.value,
-                "unit": m.unit,
-                "original_value": m.original_value,
-                "confidence": m.confidence,
-                "status": m.status.value,
-                "evidence": m.evidence_chunk,
-                "source_file": m.source_file,
-                "source_page": m.source_page,
-                "note": m.note,
-            }
-            for m in metrics
-        ],
-        "summary": {
-            "total_metrics": len(metrics),
-            "extracted": sum(1 for m in metrics if m.status.value == "extracted"),
-            "approved": sum(1 for m in metrics if m.status.value == "approved"),
-            "missing": sum(1 for m in metrics if m.status.value == "missing"),
-            "ambiguous": sum(1 for m in metrics if m.status.value == "ambiguous"),
-        },
-    }
-
-    content = json.dumps(export_data, indent=2, ensure_ascii=False)
-    buffer = io.BytesIO(content.encode("utf-8"))
-
-    filename = f"esg_report_{report.title.replace(' ', '_')}_{report.reporting_year}.json"
-    return StreamingResponse(
-        buffer,
-        media_type="application/json",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+        return FileResponse(
+            path=str(pdf_file),
+            media_type="application/pdf" if pdf_file.suffix.lower() == ".pdf" else "text/html",
+            filename=pdf_file.name,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"PDF download failed: {exc}",
+        ) from exc

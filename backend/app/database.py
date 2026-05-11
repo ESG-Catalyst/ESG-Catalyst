@@ -3,6 +3,7 @@ from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.config import settings
 
@@ -23,13 +24,18 @@ class Base(DeclarativeBase):
 # ---------------------------------------------------------------------------
 @lru_cache(maxsize=1)
 def get_engine() -> AsyncEngine:
-    """Create and cache the async engine (one per process)."""
+    """Create and cache the async engine (one per process).
+
+    Uses ``NullPool`` so every checkout opens a fresh asyncpg connection on
+    the current event loop and closes it on release. This avoids the
+    'NoneType' has no attribute 'send' crash that happens when a pooled
+    asyncpg transport survives across the ``asyncio.run()`` boundary that
+    Celery's solo pool draws between tasks.
+    """
     return create_async_engine(
         settings.database_url,
         echo=settings.environment == "development",
-        pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
+        poolclass=NullPool,
     )
 
 
