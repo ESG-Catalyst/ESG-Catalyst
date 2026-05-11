@@ -1,0 +1,61 @@
+# Keep the build context small — anything matched here is NOT sent
+# to the Docker daemon, so it can't be COPY'd into an image even by
+# accident. Patterns are relative to the build context root.
+
+# ── Python ────────────────────────────────────────────────────────
+__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# ── Virtualenvs (host-only; container installs its own) ───────────
+.venv
+venv
+env
+ENV
+
+# ── Secrets (passed in at runtime via env_file, never baked) ──────
+.env
+.env.local
+.env.*.local
+
+# ── Git ───────────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ── IDE / editor ──────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# ── Docker meta ───────────────────────────────────────────────────
+Dockerfile*
+docker-compose.yml
+.dockerignore
+
+# ── Runtime artifacts (mounted as volumes, not baked) ─────────────
+# IMPORTANT: do NOT exclude `data/` wholesale —
+# Dockerfile.worker copies data/gri_indicators.json into the image.
+data/uploads
+data/generated_reports
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs ──────────────────────────────────────────────────────────
+*.log
+logs
+
+# ── Docs / misc ───────────────────────────────────────────────────
+README.md
+CLAUDE.md
+*.md
+mlflow

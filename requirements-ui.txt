@@ -1,0 +1,11 @@
+# ============================================================
+# ESG Catalyst — Streamlit UI dependencies
+# ============================================================
+# Installed by the streamlit container (inline in docker-compose).
+# Pure HTTP client — does NOT import anything under backend/app,
+# so it doesn't need any of the api/worker dependencies.
+# ============================================================
+
+streamlit>=1.36.0
+requests>=2.32.0
+pandas>=2.0.0     # used by st.dataframe for the metrics table

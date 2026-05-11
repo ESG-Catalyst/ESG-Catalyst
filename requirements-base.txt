@@ -1,0 +1,46 @@
+# ============================================================
+# ESG Catalyst — Base dependencies (shared by api + worker)
+# ============================================================
+# Everything in this file is needed by BOTH the FastAPI app and
+# the Celery worker. Roughly: web framework, db drivers, schemas,
+# task queue client, logging, settings.
+#
+# Heavy ML deps (torch / transformers / chromadb / mlflow) live
+# in requirements-ml.txt and are installed only by the worker.
+# UI deps (streamlit) live in requirements-ui.txt.
+# ============================================================
+
+# ── Web framework (api uses fastapi; worker doesn't, but the
+#    api/* modules import fastapi types that the celery tasks
+#    never touch — so worker doesn't need it. Kept here only
+#    so the api image gets it.) ───────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9        # file upload support
+
+# ── Database ──────────────────────────────────────────────
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0
+aiosqlite>=0.20.0
+greenlet>=3.0.0                # SQLAlchemy async support
+
+# ── Pydantic + settings ───────────────────────────────────
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+email-validator>=2.0.0
+eval_type_backport>=0.2.0      # Pydantic v2 + Python 3.9 X|None syntax
+
+# ── Auth (lightweight, used by future auth layer) ─────────
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# ── Task queue (api enqueues by name, worker consumes) ────
+celery>=5.3.0
+redis>=5.0.0
+
+# ── Logging ───────────────────────────────────────────────
+structlog>=24.0.0
+
+# ── Utilities ─────────────────────────────────────────────
+python-dotenv>=1.0.0
+numpy>=1.26.0

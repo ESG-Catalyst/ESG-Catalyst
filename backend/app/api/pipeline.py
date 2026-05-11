@@ -17,7 +17,6 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus, ReportStatus
 from app.models.report import Report
 from app.workers.celery_app import celery_app
-from app.workers.tasks import run_extraction_pipeline
 
 router = APIRouter(prefix="/api/v1/pipeline", tags=["pipeline"])
 
@@ -105,10 +104,13 @@ async def run_pipeline(
             doc.report_id = report.id
             await db.flush()
 
-        async_result = run_extraction_pipeline.delay(
-            document_id=str(doc.id),
-            company_id=str(doc.company_id),
-            report_id=str(report.id),
+        async_result = celery_app.send_task(
+            "pipeline.run_extraction",
+            kwargs={
+                "document_id": str(doc.id),
+                "company_id": str(doc.company_id),
+                "report_id": str(report.id),
+            },
         )
 
         return PipelineRunResponse(

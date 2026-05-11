@@ -17,6 +17,7 @@ Run:
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
@@ -24,7 +25,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 POLL_INTERVAL_SECONDS = 2
 PIPELINE_TERMINAL_STAGES = {"complete", "failed"}
 REPORT_TERMINAL_STATES = {"ready", "failed"}

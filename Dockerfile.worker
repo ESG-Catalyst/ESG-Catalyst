@@ -1,0 +1,61 @@
+# ============================================================
+# ESG Catalyst — Celery worker (pipeline M1–M5 + MLflow tracking)
+# ============================================================
+# Runs the actual extraction pipeline (ingestion → chunker →
+# classifier → extractor → scorer → report). Pulls jobs from the
+# Redis broker queued by the API container.
+#
+# This image is the heavy one — it bundles torch, transformers and
+# sentence-transformers (embedder + ClimateBERT classifier). HF
+# weights are NOT baked in; they download on first use to the
+# mounted hf_cache volume, then persist across rebuilds.
+#
+# Solo pool is mandatory: see CLAUDE.md session log 2026-05-11 —
+# Celery prefork on Windows + asyncpg = stale-transport crash.
+# NullPool in database.py is the matching fix on the DB side.
+# ============================================================
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/backend \
+    HF_HOME=/root/.cache/huggingface
+
+# libgomp1 is required by PyTorch on slim images (OpenMP runtime).
+# build-essential is needed for any deps lacking prebuilt wheels.
+# tesseract-ocr + ara/eng language packs are wired in for the
+# Iteration 2 OCR work — installed now so the worker image is
+# ready when that lands; safe to remove if you want a leaner image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libgomp1 \
+        tesseract-ocr \
+        tesseract-ocr-ara \
+        tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Worker installs base + ml. The ml file pins torch to the CPU-only
+# wheel index, which alone saves ~3GB vs the default GPU wheel.
+COPY requirements-base.txt requirements-ml.txt ./
+RUN pip install --upgrade pip \
+    && pip install -r requirements-base.txt \
+    && pip install -r requirements-ml.txt
+
+# Worker needs backend code + the GRI indicator dataset under data/.
+# Uploaded PDFs and generated reports come in via the runtime volume
+# mount of ./data — don't COPY those.
+COPY backend ./backend
+COPY data/gri_indicators.json ./data/gri_indicators.json
+COPY scripts ./scripts
+
+# No EXPOSE — the worker doesn't serve HTTP. It connects out to
+# Redis (broker) and Postgres (results). Celery has no built-in
+# health endpoint; `celery inspect ping` is the canonical check.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD celery -A app.workers.celery_app inspect ping -d celery@$HOSTNAME || exit 1
+
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--pool=solo"]

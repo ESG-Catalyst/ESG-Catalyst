@@ -20,7 +20,6 @@ from app.models.metric import ExtractedMetric
 from app.models.report import Report
 from app.schemas.report import ReportResponse
 from app.workers.celery_app import celery_app
-from app.workers.tasks import generate_report_task
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
@@ -99,7 +98,10 @@ async def generate_report(
                 detail="Report generation requires at least one approved metric",
             )
 
-        async_result = generate_report_task.delay(report_id=str(doc.report_id))
+        async_result = celery_app.send_task(
+            "report.generate",
+            kwargs={"report_id": str(doc.report_id)},
+        )
 
         return ReportGenerateResponse(
             report_id=doc.report_id,

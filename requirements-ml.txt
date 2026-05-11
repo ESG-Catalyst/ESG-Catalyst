@@ -1,0 +1,40 @@
+# ============================================================
+# ESG Catalyst — ML / pipeline dependencies (worker only)
+# ============================================================
+# Installed ON TOP of requirements-base.txt by the worker image.
+# Everything here is for the M1–M5 pipeline: document parsing,
+# embeddings, LLM calls, vector store, experiment tracking.
+#
+# torch is pinned to the CPU-only wheel index — saves ~3GB per
+# image (the default wheel bundles NVIDIA CUDA libs that the
+# container can't use anyway on Docker Desktop for Windows).
+# ============================================================
+
+# torch CPU-only wheel (saves ~3GB vs the default GPU wheel).
+# The --extra-index-url tells pip to fall back to PyPI for the
+# transitive deps that pytorch.org doesn't host.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2.0
+
+# ── LLM / LangChain ──────────────────────────────────────
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0
+openai>=1.30.0
+
+# ── Document parsing (M1 ingestion) ──────────────────────
+pymupdf>=1.24.0                # digital text extraction
+pillow>=10.0.0                 # OCR image handling
+pytesseract>=0.3.10            # Tesseract OCR wrapper
+openpyxl>=3.1.0                # XLSX parsing
+pandas>=2.0.0                  # CSV / Excel ingestion
+
+# ── Embeddings + classification (M2 NLP) ─────────────────
+sentence-transformers>=3.0.0
+transformers>=4.40.0
+
+# ── Vector store (M2 retrieval) ──────────────────────────
+chromadb>=0.5.0
+
+# ── MLflow experiment tracking (M3) ──────────────────────
+mlflow>=2.13.0

@@ -179,6 +179,8 @@ async def _run_pipeline_async(
         report_id=report_id,
         source_file=source_file,
         indicator_codes=indicator_codes,
+        document_id=document_id,
+        n_chunks_processed=len(relevant_chunks) if len(relevant_chunks) >= 3 else len(chunks),
     )
     logger.info("pipeline.extracted", metrics=len(metrics))
 
