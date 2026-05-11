@@ -28,6 +28,14 @@ from app.core.extraction.prompts import SYSTEM_PROMPT, build_user_prompt
 from app.core.extraction.validator import clamp, safe_float, safe_int
 from app.core.gri.indicators import get_all_indicators, get_indicator
 from app.core.llm.router import model_router
+from app.core.tracking.mlflow_tracker import (
+    log_json_artifact,
+    log_metric,
+    log_metrics,
+    log_params,
+    sanitize_metric_key,
+    start_extraction_run,
+)
 from app.models.enums import ExtractionMethod, MetricStatus
 from app.schemas.metric import ExtractedMetricCreate
 
@@ -44,6 +52,8 @@ async def extract_metrics(
     report_id: UUID,
     source_file: str | None = None,
     indicator_codes: list[str] | None = None,
+    document_id: UUID | None = None,
+    n_chunks_processed: int | None = None,
 ) -> list[ExtractedMetricCreate]:
     """Extract ESG metrics from document text for specified GRI indicators.
 
@@ -72,41 +82,90 @@ async def extract_metrics(
         )
 
     metrics: list[ExtractedMetricCreate] = []
+    raw_responses: dict[str, str] = {}
 
-    for indicator in indicators:
-        try:
-            metric = await _extract_single(
-                indicator=indicator,
-                document_text=doc_text,
-                company_id=company_id,
-                report_id=report_id,
-                source_file=source_file,
-            )
-            metrics.append(metric)
-            logger.info(
-                "extractor.indicator_ok",
-                code=indicator["code"],
-                status=metric.status.value,
-                confidence=metric.confidence,
-            )
-        except Exception as exc:
-            logger.error(
-                "extractor.indicator_failed",
-                code=indicator["code"],
-                error=str(exc),
-            )
-            metrics.append(_missing_metric(indicator, company_id, report_id, source_file, exc))
+    model_name = settings.models.get("extraction", "unknown")
 
-    extracted = sum(1 for m in metrics if m.status == MetricStatus.extracted)
-    ambiguous = sum(1 for m in metrics if m.status == MetricStatus.ambiguous)
-    missing = sum(1 for m in metrics if m.status == MetricStatus.missing)
-    logger.info(
-        "extractor.complete",
-        total=len(metrics),
-        extracted=extracted,
-        ambiguous=ambiguous,
-        missing=missing,
-    )
+    with start_extraction_run(
+        run_name=f"extract-{str(document_id)[:8] if document_id else 'adhoc'}"
+    ):
+        log_params({
+            "document_id": str(document_id) if document_id else "",
+            "report_id": str(report_id),
+            "company_id": str(company_id),
+            "source_file": source_file or "",
+            "model_name": model_name,
+            "n_chunks_processed": n_chunks_processed if n_chunks_processed is not None else "",
+            "n_indicators_attempted": len(indicators),
+            "document_chars": len(document_text),
+            "document_chars_kept": len(doc_text),
+        })
+
+        for indicator in indicators:
+            try:
+                metric, raw = await _extract_single(
+                    indicator=indicator,
+                    document_text=doc_text,
+                    company_id=company_id,
+                    report_id=report_id,
+                    source_file=source_file,
+                )
+                metrics.append(metric)
+                raw_responses[indicator["code"]] = raw
+                logger.info(
+                    "extractor.indicator_ok",
+                    code=indicator["code"],
+                    status=metric.status.value,
+                    confidence=metric.confidence,
+                )
+            except Exception as exc:
+                logger.error(
+                    "extractor.indicator_failed",
+                    code=indicator["code"],
+                    error=str(exc),
+                )
+                metrics.append(_missing_metric(indicator, company_id, report_id, source_file, exc))
+                raw_responses[indicator["code"]] = f"<error: {exc}>"
+
+        extracted = sum(1 for m in metrics if m.status == MetricStatus.extracted)
+        ambiguous = sum(1 for m in metrics if m.status == MetricStatus.ambiguous)
+        missing = sum(1 for m in metrics if m.status == MetricStatus.missing)
+
+        confidences = [m.confidence for m in metrics]
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+        n_high = sum(1 for c in confidences if c > 0.80)
+        n_low = len(confidences) - n_high
+
+        log_metrics({
+            "n_metrics_extracted": float(extracted),
+            "n_metrics_ambiguous": float(ambiguous),
+            "n_metrics_missing": float(missing),
+            "n_metrics_total": float(len(metrics)),
+            "avg_confidence": float(avg_conf),
+            "n_high_confidence": float(n_high),
+            "n_low_confidence": float(n_low),
+        })
+
+        for m in metrics:
+            log_metric(f"confidence.{sanitize_metric_key(m.gri_code)}", m.confidence)
+
+        log_json_artifact(
+            "raw_llm_responses.json",
+            {
+                "model_name": model_name,
+                "document_id": str(document_id) if document_id else None,
+                "report_id": str(report_id),
+                "responses": raw_responses,
+            },
+        )
+
+        logger.info(
+            "extractor.complete",
+            total=len(metrics),
+            extracted=extracted,
+            ambiguous=ambiguous,
+            missing=missing,
+        )
     return metrics
 
 
@@ -117,8 +176,11 @@ async def _extract_single(
     company_id: UUID,
     report_id: UUID,
     source_file: str | None,
-) -> ExtractedMetricCreate:
-    """Send one indicator prompt to the LLM and parse the response."""
+) -> tuple[ExtractedMetricCreate, str]:
+    """Send one indicator prompt to the LLM and parse the response.
+
+    Returns the parsed metric and the raw LLM response text (for tracking).
+    """
 
     # Phase 1.5 stub: inject few-shot corrections here
     # corrections_context = await _fetch_corrections(indicator["code"])
@@ -132,7 +194,8 @@ async def _extract_single(
     ]
 
     response = await model_router.ainvoke_with_fallback("extraction", messages)
-    parsed = _parse_llm_json(response.content)
+    raw_content = response.content if isinstance(response.content, str) else str(response.content)
+    parsed = _parse_llm_json(raw_content)
 
     status = _map_status(parsed.get("status", "missing"))
     confidence = clamp(float(parsed.get("confidence", 0.0)), 0.0, 1.0)
@@ -140,7 +203,7 @@ async def _extract_single(
     if status == MetricStatus.extracted and confidence < settings.confidence_threshold:
         status = MetricStatus.ambiguous
 
-    return ExtractedMetricCreate(
+    metric = ExtractedMetricCreate(
         company_id=company_id,
         report_id=report_id,
         gri_code=indicator["code"],
@@ -159,6 +222,7 @@ async def _extract_single(
         extraction_method=ExtractionMethod.llm,
         note=parsed.get("note"),
     )
+    return metric, raw_content
 
 
 # ── Response parsing ─────────────────────────────────────────────────────
