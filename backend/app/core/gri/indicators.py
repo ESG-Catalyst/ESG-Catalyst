@@ -61,7 +61,7 @@ def get_indicator(code: str) -> dict[str, Any]:
 
 
 def get_indicators_by_pillar(pillar: str) -> list[dict[str, Any]]:
-    """Return all indicators for a given ESG pillar (``"E"``, ``"S"``, ``"G"``, ``"governance"``)."""
+    """Return all indicators for a given ESG pillar (``"E"``, ``"S"``, ``"G"``)."""
     return [ind for ind in get_all_indicators() if ind["pillar"] == pillar]
 
 
@@ -73,3 +73,47 @@ def get_indicator_codes() -> list[str]:
 def get_extraction_prompt(code: str) -> str:
     """Shorthand — return just the extraction prompt for an indicator code."""
     return get_indicator(code)["extraction_prompt"]
+
+
+# ── Iteration 2 helpers — framework + sector aware lookups ────────────────
+def get_indicators_by_framework(framework: str) -> list[dict[str, Any]]:
+    """Return all indicators belonging to a given framework.
+
+    Examples:
+        ``"GRI"``, ``"SASB-FN-CF"``, ``"SASB-FN-MF"``, ``"SASB-FN-IN"``, ``"FRA"``.
+
+    Pre-Iteration-2 indicators that lack the ``framework`` key are treated as GRI.
+    """
+    target = framework.strip()
+    return [
+        ind
+        for ind in get_all_indicators()
+        if ind.get("framework", "GRI") == target
+    ]
+
+
+def get_indicators_for_sector(sector: str) -> list[dict[str, Any]]:
+    """Return indicators applicable to a finance sub-sector.
+
+    Examples:
+        ``"banking"``, ``"insurance"``, ``"consumer_finance"``,
+        ``"mortgage_finance"``, ``"investment_banking"``, ``"asset_management"``.
+
+    Indicators with no ``applicable_sectors`` field are assumed universal.
+    """
+    target = sector.strip()
+    return [
+        ind
+        for ind in get_all_indicators()
+        if not ind.get("applicable_sectors") or target in ind["applicable_sectors"]
+    ]
+
+
+def get_indicators_by_metric_type(metric_type: str) -> list[dict[str, Any]]:
+    """Return indicators of a given metric type (``quantitative`` / ``monetary`` / ``rate`` / ``qualitative`` / ``activity``)."""
+    target = metric_type.strip()
+    return [
+        ind
+        for ind in get_all_indicators()
+        if ind.get("metric_type", "quantitative") == target
+    ]

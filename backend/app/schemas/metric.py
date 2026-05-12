@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import ExtractionMethod, MetricStatus
+from app.models.enums import ExtractionMethod, MetricFramework, MetricStatus, MetricType
 
 
 class ExtractedMetricCreate(BaseModel):
@@ -29,6 +30,16 @@ class ExtractedMetricCreate(BaseModel):
     extraction_method: ExtractionMethod
     note: str | None = None
 
+    # Iteration 2 additions — finance-sector GRI + SASB support.
+    # All optional / nullable, never break existing rows or extraction code.
+    framework: MetricFramework | None = None
+    metric_type: MetricType | None = None
+    sector_standard_ref: str | None = None
+    currency: str | None = None
+    reporting_period_start: date | None = None
+    reporting_period_end: date | None = None
+    breakdown: dict[str, Any] | None = None
+
 
 class ExtractedMetricUpdate(BaseModel):
     """Fields a reviewer may change during the review workflow."""
@@ -39,6 +50,8 @@ class ExtractedMetricUpdate(BaseModel):
     note: str | None = None
     reviewer_id: UUID | None = None
     reviewed_at: datetime | None = None
+    currency: str | None = None
+    breakdown: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +66,7 @@ class ExtractedMetricSchema(BaseModel):
     report_id: UUID
     gri_code: str                  # e.g. "GRI 302-1"
     fra_code: str | None           # e.g. "FRA-36-SCOPE1"
-    sasb_code: str | None          # e.g. "FN-CB-430a.1"
+    sasb_code: str | None          # e.g. "FN-CB-230a.1"
     label: str                     # "Energy consumption within org"
     value: float | None
     unit: str | None               # normalised: "GJ", "tCO2e", "m3"
@@ -70,3 +83,13 @@ class ExtractedMetricSchema(BaseModel):
     note: str | None
     created_at: datetime
     updated_at: datetime
+
+    # Iteration 2 — finance-sector GRI + SASB additions.
+    # Strictly additive + nullable; legacy rows simply have these as None.
+    framework: MetricFramework | None = None
+    metric_type: MetricType | None = None
+    sector_standard_ref: str | None = None     # "XX.1.7" (GRI), "FN-IN-410c.1" (SASB)
+    currency: str | None = None                # for monetary metrics: "EGP", "USD", ...
+    reporting_period_start: date | None = None
+    reporting_period_end: date | None = None
+    breakdown: dict[str, Any] | None = None    # nested sub-values (e.g., by_sector, by_country)
