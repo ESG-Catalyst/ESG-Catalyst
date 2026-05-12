@@ -25,7 +25,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import settings
 from app.core.extraction.prompts import SYSTEM_PROMPT, build_user_prompt
-from app.core.extraction.validator import clamp, safe_float, safe_int
+from app.core.extraction.validator import (
+    clamp,
+    normalize_currency,
+    parse_monetary,
+    safe_float,
+    safe_int,
+)
 from app.core.gri.indicators import get_all_indicators, get_indicator
 from app.core.llm.router import model_router
 from app.core.tracking.mlflow_tracker import (
@@ -36,7 +42,7 @@ from app.core.tracking.mlflow_tracker import (
     sanitize_metric_key,
     start_extraction_run,
 )
-from app.models.enums import ExtractionMethod, MetricStatus
+from app.models.enums import ExtractionMethod, MetricFramework, MetricStatus, MetricType
 from app.schemas.metric import ExtractedMetricCreate
 
 logger = structlog.get_logger(__name__)
@@ -203,6 +209,34 @@ async def _extract_single(
     if status == MetricStatus.extracted and confidence < settings.confidence_threshold:
         status = MetricStatus.ambiguous
 
+    framework = _coerce_framework(indicator.get("framework"))
+    metric_type = _coerce_metric_type(indicator.get("metric_type"))
+
+    # For monetary metrics, prefer the LLM's structured currency; fall back to
+    # parsing the original_value string (handles "EGP 1.2 billion" etc.).
+    value = safe_float(parsed.get("value"))
+    currency = normalize_currency(parsed.get("currency"))
+    if metric_type == MetricType.monetary:
+        raw_original = parsed.get("original_value")
+        parsed_val, parsed_curr = parse_monetary(raw_original) if isinstance(raw_original, str) else (None, None)
+        if value is None and parsed_val is not None:
+            value = parsed_val
+        if currency is None and parsed_curr is not None:
+            currency = parsed_curr
+
+    breakdown = parsed.get("breakdown")
+    if isinstance(breakdown, str):
+        # Some LLMs return a JSON-encoded string instead of a nested object.
+        try:
+            breakdown = json.loads(breakdown)
+        except json.JSONDecodeError:
+            breakdown = {"raw": breakdown}
+    elif breakdown is not None and not isinstance(breakdown, dict):
+        breakdown = {"raw": breakdown}
+
+    reporting_start = _parse_iso_date(parsed.get("reporting_period_start"))
+    reporting_end = _parse_iso_date(parsed.get("reporting_period_end"))
+
     metric = ExtractedMetricCreate(
         company_id=company_id,
         report_id=report_id,
@@ -210,7 +244,7 @@ async def _extract_single(
         fra_code=indicator.get("fra_code"),
         sasb_code=indicator.get("sasb_code"),
         label=indicator["name"],
-        value=safe_float(parsed.get("value")),
+        value=value,
         unit=parsed.get("unit"),
         original_value=parsed.get("original_value"),
         original_unit=parsed.get("original_unit"),
@@ -221,6 +255,13 @@ async def _extract_single(
         evidence_chunk=parsed.get("evidence"),
         extraction_method=ExtractionMethod.llm,
         note=parsed.get("note"),
+        framework=framework,
+        metric_type=metric_type,
+        sector_standard_ref=indicator.get("sector_standard_ref"),
+        currency=currency,
+        reporting_period_start=reporting_start,
+        reporting_period_end=reporting_end,
+        breakdown=breakdown,
     )
     return metric, raw_content
 
@@ -285,4 +326,40 @@ def _missing_metric(
         extraction_method=ExtractionMethod.llm,
         source_file=source_file,
         note=f"Extraction failed: {exc}",
+        framework=_coerce_framework(indicator.get("framework")),
+        metric_type=_coerce_metric_type(indicator.get("metric_type")),
+        sector_standard_ref=indicator.get("sector_standard_ref"),
     )
+
+
+# ── Iteration 2 helpers — coerce string fields from gri_indicators.json ──
+def _coerce_framework(raw: object) -> MetricFramework | None:
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        return MetricFramework(raw)
+    except ValueError:
+        logger.warning("extractor.unknown_framework", value=raw)
+        return None
+
+
+def _coerce_metric_type(raw: object) -> MetricType | None:
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        return MetricType(raw)
+    except ValueError:
+        logger.warning("extractor.unknown_metric_type", value=raw)
+        return None
+
+
+def _parse_iso_date(raw: object):
+    """Parse an ISO YYYY-MM-DD string into a date. Returns None on failure."""
+    if not isinstance(raw, str) or not raw:
+        return None
+    from datetime import date
+
+    try:
+        return date.fromisoformat(raw[:10])
+    except (ValueError, TypeError):
+        return None
