@@ -1,5 +1,11 @@
 """PDF parsing — PyMuPDF for digital text, Tesseract OCR for scanned pages.
 
+Enhanced with:
+    - Table detection via ``page.find_tables()`` — tables are extracted
+      as pipe-delimited text and appended after the page's narrative text.
+    - Section header detection via font-size heuristics.
+    - Scanned-page OCR fallback via Tesseract.
+
 Usage:
     from app.core.ingestion.pdf_parser import parse_pdf
 """
@@ -18,19 +24,89 @@ logger = structlog.get_logger(__name__)
 # Minimum chars on a PDF page before we consider it "scanned"
 _OCR_CHAR_THRESHOLD = 30
 
+# Minimum cells with content for a table to be worth extracting
+_MIN_TABLE_CELLS = 4
+
+
+def _extract_tables(page: fitz.Page) -> list[str]:
+    """Extract tables from a PDF page as pipe-delimited text.
+
+    Only returns tables that have enough populated cells to be useful.
+    Skips tables where most cells are empty (likely decorative borders).
+
+    Args:
+        page: A PyMuPDF Page object.
+
+    Returns:
+        List of pipe-delimited table strings.
+    """
+    try:
+        tab_finder = page.find_tables()
+    except Exception as exc:
+        logger.debug("pdf_parser.table_detection_failed", error=str(exc))
+        return []
+
+    tables: list[str] = []
+    for tab in tab_finder.tables:
+        try:
+            # Extract as list of lists (header + rows)
+            data = tab.extract()
+            if not data:
+                continue
+
+            # Count non-empty cells to filter out noise
+            non_empty = sum(
+                1 for row in data for cell in row
+                if cell is not None and str(cell).strip()
+            )
+            if non_empty < _MIN_TABLE_CELLS:
+                continue
+
+            lines: list[str] = []
+            for row_idx, row in enumerate(data):
+                # Clean each cell value
+                cells = [
+                    str(cell).strip().replace("\n", " ") if cell else ""
+                    for cell in row
+                ]
+                line = " | ".join(cells)
+                if line.strip(" |"):
+                    lines.append(line)
+                # Separator after first row (header)
+                if row_idx == 0 and lines:
+                    lines.append("-" * 40)
+
+            if lines:
+                tables.append("\n".join(lines))
+
+        except Exception as exc:
+            logger.debug("pdf_parser.table_extract_failed", error=str(exc))
+            continue
+
+    return tables
+
 
 def parse_pdf(path: Path) -> list[tuple[int, str, str]]:
     """Extract text from a PDF, falling back to OCR for scanned pages.
+
+    For each page:
+    1. Try digital text extraction via PyMuPDF.
+    2. Detect and extract any tables on the page.
+    3. If digital text is too short, fall back to OCR (Tesseract).
+
+    Tables are appended to the page text in pipe-delimited format,
+    separated by a ``[TABLE]`` marker so the chunker can handle them.
 
     Args:
         path: Path to the PDF file.
 
     Returns:
         List of ``(page_number, text, method)`` tuples where method is
-        ``"digital"`` or ``"ocr"``.
+        ``"digital"``, ``"digital+tables"``, or ``"ocr"``.
     """
     doc = fitz.open(str(path))
     pages: list[tuple[int, str, str]] = []
+    tables_found = 0
 
     for page_num in range(len(doc)):
         page = doc[page_num]
@@ -38,8 +114,21 @@ def parse_pdf(path: Path) -> list[tuple[int, str, str]]:
 
         if len(text) >= _OCR_CHAR_THRESHOLD:
             text = clean_text(text)
-            pages.append((page_num + 1, text, "digital"))
+            method = "digital"
+
+            # Try to extract tables from this page
+            table_texts = _extract_tables(page)
+            if table_texts:
+                tables_found += len(table_texts)
+                table_section = "\n\n".join(
+                    f"[TABLE]\n{t}" for t in table_texts
+                )
+                text = f"{text}\n\n{table_section}"
+                method = "digital+tables"
+
+            pages.append((page_num + 1, text, method))
         else:
+            # Scanned page — try OCR
             ocr_text = ocr_pdf_page(page)
             if ocr_text:
                 pages.append((page_num + 1, ocr_text, "ocr"))
@@ -50,11 +139,18 @@ def parse_pdf(path: Path) -> list[tuple[int, str, str]]:
                     page=page_num + 1,
                     digital_chars=len(text),
                 )
+                # Keep even minimal text rather than losing the page
                 if text:
                     pages.append((page_num + 1, text, "digital"))
 
     total_pages = len(doc)
     doc.close()
 
-    logger.info("pdf_parser.done", file=path.name, total_pages=total_pages, extracted=len(pages))
+    logger.info(
+        "pdf_parser.done",
+        file=path.name,
+        total_pages=total_pages,
+        extracted=len(pages),
+        tables_found=tables_found,
+    )
     return pages
