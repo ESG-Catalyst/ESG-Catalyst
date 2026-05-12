@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     model_extraction_fallback: str = "openrouter/meta-llama/llama-3.3-70b-instruct:free"
     model_scoring: str = "openrouter/meta-llama/llama-3.1-70b-instruct"
     model_report: str = "openrouter/anthropic/claude-3.5-sonnet"
+    model_report_fallback: str = "openrouter/mistralai/mistral-7b-instruct:free"
 
     # Assembled dict used by ModelRouter: settings.models["extraction"]
     models: dict[str, str] = {}
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
         }
         self.model_fallbacks = {
             "extraction": self.model_extraction_fallback,
+            "report": self.model_report_fallback,
         }
         return self
 
