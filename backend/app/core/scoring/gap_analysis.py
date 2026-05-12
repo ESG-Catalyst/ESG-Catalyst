@@ -92,6 +92,19 @@ def _assess_indicator(
             recommendation=f"No data found. Look in: {primary_source}.",
         )
 
+    if metric.status == MetricStatus.missing:
+        return GapItem(
+            code=code,
+            name=name,
+            pillar=pillar,
+            status="missing",
+            confidence=0.0,
+            priority=priority,
+            why_it_matters=indicator.get("why_it_matters", "Required for framework compliance."),
+            source_document=primary_source,
+            recommendation=f"No data found. Look in: {primary_source}.",
+        )
+
     if metric.status == MetricStatus.rejected:
         return GapItem(
             code=code,
