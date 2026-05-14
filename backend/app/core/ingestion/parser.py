@@ -2,6 +2,7 @@
 
 Supported formats:
     - PDF (digital text via PyMuPDF, scanned/Arabic via Tesseract OCR)
+    - DOCX (via python-docx — paragraphs + tables)
     - XLSX / XLS (via openpyxl + pandas)
     - CSV
     - Images: PNG, JPG, TIFF (via Tesseract OCR)
@@ -26,11 +27,12 @@ logger = structlog.get_logger(__name__)
 
 # ── Supported file extensions ────────────────────────────────────────────
 _PDF_EXTS = {".pdf"}
+_DOCX_EXTS = {".docx"}
 _SPREADSHEET_EXTS = {".xlsx", ".xls"}
 _CSV_EXTS = {".csv"}
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp"}
 
-_ALL_SUPPORTED = _PDF_EXTS | _SPREADSHEET_EXTS | _CSV_EXTS | _IMAGE_EXTS
+_ALL_SUPPORTED = _PDF_EXTS | _DOCX_EXTS | _SPREADSHEET_EXTS | _CSV_EXTS | _IMAGE_EXTS
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -40,7 +42,7 @@ class PageContent:
 
     page_number: int
     text: str
-    method: str  # "digital", "ocr", "table"
+    method: str  # "digital", "ocr", "table", "docx"
 
 
 @dataclass
@@ -88,6 +90,8 @@ def ingest_document(file_path: str | Path) -> IngestedDocument:
 
     if ext in _PDF_EXTS:
         result = _parse_pdf(path)
+    elif ext in _DOCX_EXTS:
+        result = _parse_docx(path)
     elif ext in _SPREADSHEET_EXTS:
         result = _parse_spreadsheet(path)
     elif ext in _CSV_EXTS:
@@ -118,6 +122,25 @@ def _parse_pdf(path: Path) -> IngestedDocument:
     return IngestedDocument(
         source_file=path.name,
         file_type="pdf",
+        page_count=len(pages),
+        language=None,
+        pages=pages,
+    )
+
+
+def _parse_docx(path: Path) -> IngestedDocument:
+    """Parse a DOCX file extracting paragraphs and tables.
+
+    Tables are rendered as pipe-delimited text (same format as
+    spreadsheet parsing) so downstream chunking treats them uniformly.
+    """
+    from app.core.ingestion.docx_parser import parse_docx
+
+    raw_pages = parse_docx(path)
+    pages = [PageContent(page_number=n, text=t, method=m) for n, t, m in raw_pages]
+    return IngestedDocument(
+        source_file=path.name,
+        file_type="docx",
         page_count=len(pages),
         language=None,
         pages=pages,
@@ -155,6 +178,14 @@ def _parse_image(path: Path) -> IngestedDocument:
     from app.core.ingestion.ocr import parse_image
 
     text, file_type = parse_image(path)
+
+    if not text:
+        logger.warning(
+            "ingestion.image_empty",
+            file=path.name,
+            reason="OCR returned no text (Tesseract may not be installed)",
+        )
+
     return IngestedDocument(
         source_file=path.name,
         file_type=file_type,

@@ -1,4 +1,5 @@
 services:
+  # ── Infra services (unchanged) ────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: esg_postgres
@@ -64,8 +65,104 @@ services:
       timeout: 10s
       retries: 5
 
+  # ── App-tier services ─────────────────────────────────────────────
+  # api / worker / streamlit all read OPENROUTER_API_KEY, MODEL_*,
+  # HF_TOKEN, SECRET_KEY, etc. from .env via env_file. The
+  # `environment:` block then overrides hostnames so containers
+  # reach infra services via the compose network (service names,
+  # internal ports) — without us having to edit .env, which still
+  # uses localhost for host-based dev runs.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: esg_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/esg_catalyst
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: "8000"
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      # Uploads + generated PDFs are shared with the worker through
+      # this bind mount. Read-write from both sides.
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: esg_worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/esg_catalyst
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: "8000"
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./data:/app/data
+      # HuggingFace model cache — first worker call downloads the
+      # embedder + ClimateBERT (~650MB total); subsequent container
+      # rebuilds reuse this volume so we don't re-download.
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # chromadb / mlflow show "unhealthy" in `docker ps` only
+      # because their images lack curl for the healthcheck —
+      # the services themselves respond fine. We depend on
+      # service_started instead of service_healthy to avoid
+      # blocking startup on a cosmetic flag.
+      chromadb:
+        condition: service_started
+      mlflow:
+        condition: service_started
+
+  # Streamlit runs inline (no Dockerfile) per request. The base
+  # image installs only the three packages the UI needs, then
+  # bind-mounts the source so edits hot-reload without a rebuild.
+  # /root/.cache/pip is volume-mounted so the install layer is
+  # cached across `docker compose up` cycles.
+  streamlit:
+    image: python:3.11-slim
+    container_name: esg_streamlit
+    working_dir: /app
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+      PIP_NO_CACHE_DIR: "0"
+    volumes:
+      - ./frontend:/app/frontend:ro
+      - ./requirements-ui.txt:/app/requirements-ui.txt:ro
+      - pip_cache:/root/.cache/pip
+    command: >
+      bash -c "pip install --quiet -r /app/requirements-ui.txt
+      && streamlit run frontend/streamlit_app.py
+      --server.address=0.0.0.0
+      --server.port=8501
+      --server.headless=true"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
   chroma_data:
   mlflow_data:
+  hf_cache:
+  pip_cache:

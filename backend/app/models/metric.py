@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
-from typing import Optional
+from datetime import date, datetime
+from typing import Any, Optional
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.enums import ExtractionMethod, MetricStatus
+from app.models.enums import ExtractionMethod, MetricFramework, MetricStatus, MetricType
 
 
 class ExtractedMetric(Base):
@@ -76,3 +76,18 @@ class ExtractedMetric(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    # ── Iteration 2 — finance-sector GRI + SASB additions ────────────────
+    # Strictly additive + nullable. Legacy rows have these as NULL.
+    # For Postgres, JSON maps to JSONB-compatible; on SQLite it is TEXT.
+    framework: Mapped[Optional[MetricFramework]] = mapped_column(
+        Enum(MetricFramework), nullable=True, index=True
+    )
+    metric_type: Mapped[Optional[MetricType]] = mapped_column(
+        Enum(MetricType), nullable=True
+    )
+    sector_standard_ref: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    currency: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    reporting_period_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    reporting_period_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    breakdown: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)

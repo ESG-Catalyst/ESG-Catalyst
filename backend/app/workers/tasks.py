@@ -179,6 +179,8 @@ async def _run_pipeline_async(
         report_id=report_id,
         source_file=source_file,
         indicator_codes=indicator_codes,
+        document_id=document_id,
+        n_chunks_processed=len(relevant_chunks) if len(relevant_chunks) >= 3 else len(chunks),
     )
     logger.info("pipeline.extracted", metrics=len(metrics))
 
@@ -278,6 +280,119 @@ def _update_state(task, state: str, status: str) -> None:
     """Update Celery task meta so /extraction/status can report progress."""
     if task and task.request.id:
         task.update_state(state=state, meta={"status": status})
+
+
+@celery_app.task(
+    bind=True,
+    name="report.generate",
+    max_retries=1,
+    default_retry_delay=30,
+)
+def generate_report_task(self, report_id: str) -> dict[str, Any]:
+    """Build sections + narratives + PDF for *report_id*.
+
+    Reads metrics, the parent Company, and the Report row, runs the M5
+    pipeline (builder → narrative → renderer), writes the PDF under
+    ``data/generated_reports/<report_id>/``, and stores the path on the
+    Report row.
+    """
+    logger.info("report.generate.start", task_id=self.request.id, report_id=report_id)
+    try:
+        result = asyncio.run(_generate_report_async(self, uuid.UUID(report_id)))
+        logger.info("report.generate.complete", task_id=self.request.id, **result)
+        return result
+    except Exception as exc:
+        logger.error(
+            "report.generate.failed",
+            task_id=self.request.id,
+            report_id=report_id,
+            error=str(exc),
+        )
+        asyncio.run(_mark_report_failed(report_id))
+        raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
+
+
+async def _generate_report_async(task, report_id: uuid.UUID) -> dict[str, Any]:
+    """Async M5 driver: pull data from DB, render PDF, persist pdf_path."""
+    from pathlib import Path
+
+    from app.core.reporting.builder import CompanyProfile, build_report_sections
+    from app.core.reporting.narrative import generate_narratives
+    from app.core.reporting.renderer import render_pdf
+    from app.core.scoring.scorer import score_report
+    from app.models.company import Company
+
+    factory = get_session_factory()
+
+    async with factory() as session:
+        report_row = (
+            await session.execute(select(Report).where(Report.id == report_id))
+        ).scalar_one_or_none()
+        if report_row is None:
+            raise ValueError(f"Report {report_id} not found")
+
+        company_row = (
+            await session.execute(select(Company).where(Company.id == report_row.company_id))
+        ).scalar_one_or_none()
+        if company_row is None:
+            raise ValueError(f"Company {report_row.company_id} not found for report")
+
+        metric_rows = (
+            await session.execute(
+                select(ExtractedMetric).where(ExtractedMetric.report_id == report_id)
+            )
+        ).scalars().all()
+
+    _update_state(task, "BUILDING", "Building report sections...")
+
+    company_profile = CompanyProfile(
+        name=company_row.name,
+        sector=(company_row.industry or "default").lower(),
+        reporting_period=str(report_row.reporting_year),
+        headquarters=company_row.country or "",
+    )
+
+    score = score_report(list(metric_rows))
+    bundle = build_report_sections(metrics=list(metric_rows), score=score, company=company_profile)
+
+    _update_state(task, "NARRATING", "Generating narratives...")
+    bundle.sections = await generate_narratives(bundle.sections)
+
+    _update_state(task, "RENDERING", "Rendering PDF...")
+    out_dir = Path("data/generated_reports") / str(report_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    safe_company = "".join(c for c in company_row.name if c.isalnum() or c in "-_") or "company"
+    output_path = out_dir / f"{safe_company}_ESG_report.pdf"
+    final_path = render_pdf(bundle, output_path)
+
+    async with factory() as session:
+        await session.execute(
+            update(Report)
+            .where(Report.id == report_id)
+            .values(pdf_path=str(final_path), status=ReportStatus.published)
+        )
+        await session.commit()
+
+    return {
+        "report_id": str(report_id),
+        "pdf_path": str(final_path),
+        "sections": len(bundle.sections),
+        "metrics": len(metric_rows),
+    }
+
+
+async def _mark_report_failed(report_id: str) -> None:
+    try:
+        factory = get_session_factory()
+        async with factory() as session:
+            await session.execute(
+                update(Report)
+                .where(Report.id == uuid.UUID(report_id))
+                .values(status=ReportStatus.draft)
+            )
+            await session.commit()
+    except Exception as exc:
+        logger.error("report.mark_failed_error", error=str(exc))
 
 
 async def _mark_document_failed(document_id: str) -> None:

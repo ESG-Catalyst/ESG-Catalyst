@@ -1,607 +1,456 @@
 # ESG Catalyst — Claude Code Context
 
 ## What This Project Is
+AI-powered ESG reporting and scoring platform. Ingests Arabic and English company documents,
+extracts ESG metrics using NLP + LLMs, scores against GRI/FRA/SASB frameworks, and generates
+PDF reports with interactive dashboards.
 
-ESG Catalyst is an AI-powered ESG (Environmental, Social, and Governance) reporting and
-scoring platform built as a senior data science graduation project. It demonstrates applied
-NLP, document understanding, LLM-based extraction, and automated scoring at production quality.
-
-Companies upload their documents. The platform extracts ESG metrics, scores them against
-international frameworks, generates a gap analysis, and produces a formatted ESG report.
-
-**This is a data science showcase with a real product interface — not a prototype.**
+Two user portals: Consultant Portal (manages multiple clients) and Company Portal (self-service).
+Target: Egyptian banking sector (FRA-regulated NBFIs) first, then MENA expansion.
 
 ---
 
-## Important: Existing Codebase
-
-There is already code in this repository from an earlier build session.
-Before building anything new, Claude Code must:
-
-1. Read all existing files and understand what is there
-2. Keep anything that is correct and matches this CLAUDE.md
-3. Replace anything that contradicts this CLAUDE.md (wrong patterns, wrong structure)
-4. Delete anything that is no longer needed
-5. Never duplicate existing functionality
-
-Do not start from scratch blindly. Audit first, then build.
-
----
-
-## Graduation Scope — What Gets Built
-
-This is the complete product for graduation. Nothing is deferred except the items
-listed under Future Work at the end of this file.
+## Iteration Roadmap — Read This First
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        ESG CATALYST PLATFORM                        │
-│                                                                     │
-│  ┌─────────────┐     ┌──────────────────────────────────────────┐  │
-│  │  React Web  │────▶│              FastAPI Backend              │  │
-│  │  Frontend   │◀────│                                          │  │
-│  └─────────────┘     │  ┌────────────────────────────────────┐  │  │
-│                       │  │        AI Pipeline (Core DS Work)  │  │  │
-│                       │  │                                    │  │  │
-│                       │  │  Ingestion → NLP → Extraction      │  │  │
-│                       │  │      → Scoring → Report Gen        │  │  │
-│                       │  └────────────────────────────────────┘  │  │
-│                       │                                          │  │
-│                       │  PostgreSQL  │  ChromaDB  │  Redis       │  │
-│                       └──────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+Iteration 0  ✅ DONE      Thin end-to-end pipeline: PDF in → report PDF out (proof of concept)
+Iteration 1  🔧 NOW       Fix two blockers + rebuild API + wire Streamlit to API + MLflow
+Iteration 2  📋 NEXT      Deepen each module independently — each owner enhances their files
+Iteration 3  📋 PLANNED   LangGraph agents wrap the pipeline (no external changes)
+Iteration 4  📋 PLANNED   Human-in-the-Loop review UI + correction feedback loop
 ```
+
+**Do NOT skip iterations. Do NOT start Iteration 2 module work until Iteration 1 is confirmed end-to-end.**
+**Do NOT build LangGraph until Iteration 2 is stable.**
 
 ---
 
-## Team Module Split
+## Current State — Iteration 1
 
-Each module is independently buildable. Clear interfaces between them.
-One or two team members own each module.
+### What exists (Iteration 0 — thin, proof-of-concept quality)
+All modules exist and the pipeline runs end-to-end. Quality is minimal throughout.
+- M1 Ingestion: works on clean digital PDFs only
+- M2 NLP chain: logic correct — blocked by missing model downloads
+- M3 Extraction: logic correct — blocked by exhausted OpenRouter credits
+- M4 Scoring: GRI/FRA/SASB weights applied, benchmark tiers uncalibrated
+- M5 Report generation: PDFs generate, narrative generic, formatting plain
+- API: deleted (previous attempt broken — clean rebuild needed)
+- Streamlit: runs via direct Python imports, not wired to API yet
+- MLflow: in docker-compose, not wired to pipeline code
 
-| Module | Directory | What it does |
-|--------|-----------|--------------|
-| **M1 Ingestion** | `backend/app/core/ingestion/` | Parse any document format, OCR, extract raw text |
-| **M2 NLP Processing** | `backend/app/core/nlp/` | Chunk, embed, classify ESG relevance |
-| **M3 Extraction** | `backend/app/core/extraction/` | LLM-based metric extraction + confidence scoring |
-| **M4 Scoring** | `backend/app/core/scoring/` | GRI/SASB/TCFD scoring, gap analysis, materiality |
-| **M5 Report Generation** | `backend/app/core/reporting/` | Build structured report, generate narrative, render PDF |
-| **M6 API** | `backend/app/api/` | FastAPI routes, auth, job queue, data models |
-| **M7 Frontend** | `frontend/` | React web application |
+### Blocker 1 — HuggingFace models not downloaded
+`embedder.py` requires `paraphrase-multilingual-e5-base` (~400MB).
+`classifier.py` requires `climatebert/distilroberta-base-climate-detector` (~250MB).
+Neither is cached. Pipeline fails at M2 on any fresh machine.
 
-Each module exposes a clean Python interface. No module imports from another module's internals.
-All communication between modules goes through the defined input/output schemas in `backend/app/schemas/`.
+**Fix:** Create `scripts/download_models.py` — downloads and caches both models.
+Safe to re-run (skips if cached). Add to new-machine setup steps.
+Both files must load from cache — never re-download on every call.
+
+### Blocker 2 — OpenRouter credits exhausted
+`extractor.py` → `ModelRouter("extraction")` → HTTP 402 → zero metrics extracted.
+
+**Fix:** Add free-tier fallback to `core/models/router.py`.
+- Primary: `MODEL_EXTRACTION` from .env (unchanged)
+- Fallback: `MODEL_EXTRACTION_FALLBACK` from .env — activates only on HTTP 402
+- Log warning when fallback activates. If both fail, raise — never silently return empty.
+- Add `MODEL_EXTRACTION_FALLBACK=openrouter/mistralai/mistral-7b-instruct:free` to `.env.example`
+
+### Session log
+| Date | What was done | What's next |
+|------|---------------|-------------|
+| 2026-05-10 | M1→M5 confirmed end-to-end. PDFs generate. API deleted. Two blockers found. | Fix blockers, rebuild API |
+| 2026-05-10 | Blocker 1 resolved. download_models.py created. .env model ID fixed. M2 chain tested end-to-end (1479 chunks, 721 relevant, E/S/G classified). | Blocker 2 (ModelRouter fallback), API rebuild |
+| 2026-05-10 | Blocker 2 resolved. ModelRouter.ainvoke_with_fallback() fires on HTTP 402 / "insufficient credits" / "key limit exceeded"; logs "Primary model unavailable, using free fallback". MODEL_EXTRACTION updated to claude-sonnet-4.5 (old ID returned 404); MODEL_EXTRACTION_FALLBACK=openai/gpt-oss-20b:free. M3 verified on M2 relevant chunks (831 of 1479): GRI 305-1 extracted 960 tCO2e @ confidence 1.0 with evidence citation. Other 3 indicators still missing due to 60K char truncation + free-model capability — Iteration 2 work. | API rebuild, M3 Iteration 2 (indicator-aware chunk selection, prompt quality) |
+| 2026-05-10 | M5 quality pass. Full M1→M5 run on ADCB PDF produced 6-page PDF in `data/generated_reports/`. Fixed narrative.py (deterministic fallback no longer leaks raw 403/JSON error text; treats `original_value`-only metrics as disclosed; uses router credit-fallback path). Fixed renderer.py (robust status rendering via helper, color status pills, evidence excerpts under metrics, PyMuPDF `Story` added as 2nd PDF backend so PDFs render even without GTK3/WeasyPrint). Added `scripts/run_full_pipeline.py` end-to-end driver (DB-bypassing). Out-of-scope M4 issues found: gap_analysis returns 0 gaps despite 9 missing indicators; G pillar score = 0 even though FRA-36 was extracted; no `report` task fallback configured in ModelRouter. | Fix M4 gap_analysis + add MODEL_REPORT_FALLBACK, then rebuild API |
+| 2026-05-11 | Iteration 1 API rebuild. Deleted old `api/auth.py`, `api/companies.py`, `core/auth.py`; rewrote `documents.py`, `pipeline.py`, `metrics.py`, `reports.py`, `main.py` under `/api/v1/...` with no auth and `try/except → 422` on unexpected errors. Added `report.generate` Celery task (M5 driver: builder → narrative → renderer → persist `pdf_path`). Made `Document.uploaded_by` and `Report.created_by` nullable; added `DocumentStatus.uploaded`. Upload auto-creates a "Default Company" row; `/pipeline/run` auto-creates the `Report` row and links `Document.report_id`. Full end-to-end smoke against Postgres + Redis (dockerized) with host-run Celery solo worker: ADCB PDF uploaded → 13 metrics extracted (3 found, 10 missing — same M4 behavior flagged in previous session) → 1 metric approved via PATCH → published PDF (253 KB, magic bytes `%PDF-1.7`) streamed back from `/reports/{id}/pdf`. All four stages curl-confirmed; counter-cases (404 / 400 / 422) verified. | Iteration 2 module deepening (M3 indicator-aware chunking + prompt quality, M4 gap_analysis fix, add `MODEL_REPORT_FALLBACK`, wire Streamlit to the new API, MLflow tracking). Auth deferred until pipeline-via-API is exercised on more documents. |
+| 2026-05-11 | Recreated `frontend/streamlit_app.py` (deleted in commit 6bb6568) as a minimal single-file app wired entirely through HTTP to `/api/v1/...` — no `core.pipeline.*` imports. Five linear flows + session state: upload → pipeline run with 2s status polling + `st.progress`, metrics table (gri_code/value/unit/confidence/status) with per-row approve/reject PATCH, report generate with status polling, PDF download via `st.download_button`. `API_BASE_URL = "http://localhost:8000"` at top. Added `streamlit>=1.36.0` + `requests>=2.32.0` to `requirements.txt` and installed streamlit into venv. Contract smoke-test against the running API confirmed response shapes match the app's reads: upload (201 → `{document_id, filename, status}`), pipeline status with unknown job (200 → `{job_id, stage:"queued", progress:0, error:null}`), metrics/report 404 detail bodies. Full upload→PDF flow not run end-to-end (requires Celery worker + LLM credits + models). | User to run `streamlit run frontend/streamlit_app.py` against the live worker stack for an end-to-end check; then move on to Iteration 2 backlogs (M3 prompt quality, M4 gap_analysis, MLflow wiring). |
+
+| 2026-05-11 | M6 Celery worker bug fix surfaced by the new Streamlit app's first real upload→PDF run. Every pipeline task after the first failed with `AttributeError: 'NoneType' object has no attribute 'send'` inside asyncpg `transport.write` — root cause: SQLAlchemy's cached pool held asyncpg transports bound to the previous `asyncio.run()` event loop's proactor (closed between Celery solo-pool tasks); on the next task, `pool_pre_ping=True` validated those stale connections on the dead loop. First attempt (`await get_engine().dispose()` at the top of `_run_pipeline_async` / `_generate_report_async` / `_mark_*_failed` in `workers/tasks.py`) was insufficient because pre-ping still ran on stale connections returned from the pool. Final fix: switched `database.py` to `poolclass=NullPool` (one config line, removed the now-redundant dispose calls). Verified by running two back-to-back pipelines on the same worker process — both completed (ingestion → classifying → extracting → complete, 3 metrics each); before the fix only run #1 ever survived. Also noticed: uvicorn + celery must be launched from the project root with `PYTHONPATH=backend` so pydantic-settings finds `./.env` — running from `backend/` silently falls back to SQLite and reads an empty DB. | Iteration 2 backlogs: M3 prompt quality + indicator-aware chunk selection (still only 3/13 metrics extracted), M4 gap_analysis fix, add `MODEL_REPORT_FALLBACK`, MLflow wiring. Auth deferred until the API is exercised against more documents. |
+
+| 2026-05-11 | M3 MLflow wiring + full app-tier dockerization. (1) Created `backend/app/core/tracking/mlflow_tracker.py` with fail-safe helpers wrapping every MLflow call in try/except + structlog warning so a dead tracking server can't break the pipeline. Wired into `extractor.py`: per-run logs document_id/report_id/company_id/source_file/model_name/n_chunks_processed/n_indicators_attempted as params; n_metrics_extracted/avg_confidence/n_high_confidence (>0.80)/n_low_confidence plus one `confidence.<GRI_code>` metric per indicator; `raw_llm_responses.json` artifact for prompt-debug. `_extract_single` now returns `(metric, raw_response)` — plumbing only, extraction logic untouched. (2) Dockerized api + worker + streamlit. Initial pass with one shared `requirements.txt` produced api 10.2GB, worker 10.3GB, build cache 19GB (42GB total). Refactored to split requirements (`requirements-base.txt` shared, `requirements-ml.txt` worker-only with `torch` from `pytorch.org/whl/cpu`, `requirements-ui.txt` streamlit-only) — required decoupling api from `app.workers.tasks` imports: switched `api/pipeline.py` + `api/reports.py` from `task_fn.delay(...)` to `celery_app.send_task(name, kwargs=...)` so the API container never pulls torch/transformers/mlflow/pymupdf into its import graph. Final sizes: api 917MB (−91%), worker 3.67GB (−64% via CPU torch wheel), streamlit uses `python:3.11-slim` inline with `pip install -r requirements-ui.txt` from a bind mount + named `pip_cache` volume. Compose adds service-name hostname overrides via `environment:` blocks so `.env` keeps localhost for host dev. Named volumes: `hf_cache` (HF weights persist across rebuilds) + `pip_cache`. `frontend/streamlit_app.py` reads `API_BASE_URL` from env. Verified end-to-end through containers twice (10GB and slim builds): ADCB upload → pipeline → MLflow logging at `http://mlflow:5000` → metric approval → PDF generation (250KB, `%PDF-1.7`). Final docker disk: 8.1GB (was 42GB at peak, ~34GB reclaimed). | Iteration 2 backlogs unchanged: M3 prompt quality + indicator-aware chunk selection (still 2-3/13), M4 gap_analysis fix, `MODEL_REPORT_FALLBACK`. Auth still deferred. Use the now-stable MLflow baseline to A/B prompt-quality changes per GRI indicator. |
+
+| 2026-05-12 | Iteration 2 M3 - finance-sector GRI + SASB extraction expansion. (1) data/gri_indicators.json expanded 13 to 46 indicators using GRI Financial Services Sector Standards (Banking + Insurance Exposure Drafts, May 2025) and SASB FN-CF / FN-MF / FN-IN v2023-12+ (IFRS Foundation) as authoritative source - source files live under ESG_Catalyst_Wiki/raw/assets/Standards for metrics/. Each indicator now declares framework (GRI / SASB-FN-CF / SASB-FN-MF / SASB-FN-IN / FRA), metric_type (quantitative / monetary / rate / qualitative / activity), sector_standard_ref (e.g., XX.1.7 or FN-IN-410c.1), applicable_sectors, and expected_breakdown. All extraction prompts rewritten from the standards text - no more generic stubs. Coverage by framework: GRI 24, SASB-FN-CF 7, SASB-FN-MF 5, SASB-FN-IN 9, FRA 1. Coverage by sector: banking 25, insurance 30, consumer_finance 7, mortgage_finance 5. FN-CB and FN-IB SASB standards not in the wiki - only the existing FN-CB-230a.1 cross-reference retained; full FN-CB / FN-IB / FN-AC ingestion deferred until source docs are added. (2) Schema extended (CLAUDE.md previously flagged this as needing team discussion - additions are strictly nullable + backward-compatible so existing rows still load): 6 new fields on ExtractedMetricSchema / ExtractedMetricCreate / ExtractedMetric ORM - framework (MetricFramework enum), metric_type (MetricType enum), sector_standard_ref, currency, reporting_period_start/end, breakdown (JSON). New MetricFramework + MetricType enums in models/enums.py. (3) Project uses Base.metadata.create_all (no Alembic) - for fresh DBs the columns appear automatically. For existing Postgres DBs with rows to keep, added scripts/migrate_extracted_metrics_iter2.py - idempotent ALTER TABLE that checks information_schema before each ADD COLUMN; supports Postgres and SQLite. (4) core/gri/indicators.py gained get_indicators_by_framework(), get_indicators_for_sector(), get_indicators_by_metric_type() helpers - backward-compatible with original get_all_indicators() consumers. (5) core/extraction/prompts.py rewritten: system prompt expanded with currency, breakdown, reporting_period_start/end JSON keys; build_user_prompt() injects per-framework + per-metric-type guidance blocks so monetary metrics get currency-extraction instructions, qualitative metrics get summary-style instructions, activity metrics get scale-of-operations instructions. (6) core/extraction/validator.py gained normalize_currency() (ISO-4217 + Arabic/English aliases) and parse_monetary() (handles EGP 1.2 billion, USD 540 mn, $2500, Arabic-Indic digits, Arabic decimal U+066B / thousands U+066C separators). (7) core/extraction/extractor.py now coerces framework / metric_type enums per indicator, parses currency + breakdown from the LLM response, falls back to parse_monetary(original_value) if the LLM did not structure currency, parses reporting-period ISO dates, and propagates sector_standard_ref to the persisted metric. Smoke-tested all imports + helpers: 46 indicators load, 15 monetary metrics, prompt rendering verified, monetary parsing round-trips four MENA + US examples correctly. End-to-end LLM run on a real document NOT yet executed - that is next session work, ideally A/B against the existing MLflow baseline so confidence regression per indicator is visible. M4 gap_analysis fix and MODEL_REPORT_FALLBACK still open from prior sessions. Auth still deferred. | Run full pipeline against ADCB (or a fresh PDF) with the 46-indicator catalog; expect higher LLM cost and longer extraction; compare MLflow confidence-by-indicator vs the old 13-indicator baseline; tighten prompts where confidence < 0.6; run the Postgres migration script on dev DB; then M4 gap_analysis. |
+
+*Append a row here after every session.*
+
+---
+
+## Architecture
+
+### Sequential Pipeline (Iteration 0 — all modules exist)
+```
+Upload → Ingestion (PyMuPDF + Unstructured.io + Tesseract OCR)
+       → Chunker (semantic, preserves tables + section headers)
+       → Embedder (paraphrase-multilingual-e5-base — Arabic + English)
+       → ChromaDB (document_chunks collection)
+       → ClimateBERT (ESG relevance classifier)
+       → Extractor (LLM per GRI indicator via ModelRouter → ExtractedMetric)
+       → Scorer (GRI 50% + FRA 30% + SASB 20%, gap analysis)
+       → Report Builder → Narrative Generator → PDF Renderer (WeasyPrint)
+       → FastAPI + Celery ←→ Streamlit UI
+```
+
+### Iteration 1 — API rebuild
+```
+POST /api/v1/documents/upload          → save file + create Document record
+POST /api/v1/pipeline/run              → trigger M1→M4 Celery task → {job_id}
+GET  /api/v1/pipeline/status/{job_id}  → {stage, progress 0–100, error}
+GET  /api/v1/metrics/{document_id}     → list of ExtractedMetricSchema
+PATCH /api/v1/metrics/{metric_id}      → approve / reject / edit value+unit
+POST /api/v1/reports/generate          → trigger M5 Celery task (requires ≥1 approved metric)
+GET  /api/v1/reports/{id}/pdf          → stream PDF (404 if not ready)
+```
+No auth in first pass — add after all endpoints are curl-confirmed working.
+Routes call pipeline via Celery tasks only — never import core modules directly in routes.
+
+### Iteration 3 — LangGraph (Do NOT build yet)
+```
+Same pipeline — each module becomes a LangGraph node, functions unchanged.
+backend/app/core/agents/
+    graph.py        ← StateGraph definition
+    supervisor.py   ← conditional routing (retry, branch on confidence)
+    nodes/          ← one file per module, wraps existing functions
+workers/tasks.py: swap run_sequential_pipeline() → run_agent_graph()
+Everything else: unchanged.
+```
+
+### Iteration 4 — Human-in-the-Loop (Do NOT build yet)
+```
+Review Queue (Streamlit page → React later):
+    Metrics with confidence < 0.80 → consultant review
+    Approve / edit / reject per metric → Correction record (PostgreSQL)
+    Corrections embedded → ChromaDB corrections_store
+    PromptBuilder injects top-3 similar corrections as few-shot examples
+MLflow tracks accuracy per GRI indicator per prompt version.
+```
 
 ---
 
 ## Project Structure
-
 ```
 esg-catalyst/
 ├── CLAUDE.md
-├── .env                          ← never commit
+├── .env                             ← Never commit
 ├── .env.example
-├── docker-compose.yml            ← postgres, redis, chromadb, mlflow
-├── pyproject.toml
-├── requirements.txt
+├── docker-compose.yml               ✅
+├── pyproject.toml                   ✅
+├── requirements.txt                 ✅
+│
+├── scripts/
+│   └── download_models.py           ⬜ CREATE — Blocker 1 fix, run on every new machine
+│
+├── data/
+│   ├── gri_indicators.json          ✅
+│   ├── uploads/                     ✅ PDFs stored here per company_id
+│   └── generated_reports/           ✅ M5 output
 │
 ├── backend/
 │   └── app/
-│       ├── main.py               ← FastAPI entry point
-│       ├── config.py             ← Pydantic Settings from .env
-│       ├── database.py           ← SQLAlchemy async engine + session
+│       ├── main.py                  ✅
+│       ├── config.py                ✅
+│       ├── database.py              ✅
 │       │
-│       ├── models/               ← SQLAlchemy ORM (database tables)
-│       │   ├── base.py
-│       │   ├── company.py
-│       │   ├── user.py
-│       │   ├── document.py
-│       │   ├── metric.py
-│       │   └── report.py
+│       ├── models/                  ← SQLAlchemy ORM
+│       │   ├── company.py           ✅
+│       │   ├── user.py              ✅
+│       │   ├── document.py          ✅
+│       │   ├── metric.py            ✅ Mapped[Optional[X]] confirmed
+│       │   └── report.py            ✅ Mapped[Optional[X]] confirmed
 │       │
-│       ├── schemas/              ← Pydantic v2 (API contracts + pipeline contracts)
-│       │   ├── company.py
-│       │   ├── document.py
-│       │   ├── metric.py         ← ExtractedMetric — central contract
-│       │   ├── report.py
-│       │   └── pipeline.py       ← PipelineInput, PipelineOutput, PipelineState
+│       ├── schemas/                 ← Pydantic v2 — source of truth for all data contracts
+│       │   ├── company.py           ✅
+│       │   ├── metric.py            ✅ ExtractedMetricSchema — never change without team discussion
+│       │   └── report.py            ✅
 │       │
-│       ├── api/                  ← FastAPI routers
-│       │   ├── auth.py           ← /auth/register, /auth/login, /auth/refresh
-│       │   ├── companies.py      ← /companies/
-│       │   ├── documents.py      ← /documents/upload, /documents/{id}
-│       │   ├── pipeline.py       ← /pipeline/run, /pipeline/status/{job_id}
-│       │   ├── metrics.py        ← /metrics/{report_id}, /metrics/{id}/review
-│       │   └── reports.py        ← /reports/generate, /reports/{id}, /reports/{id}/pdf
+│       ├── api/                     ← DELETED — rebuild in Iteration 1
+│       │   ├── documents.py         ⬜
+│       │   ├── pipeline.py          ⬜
+│       │   ├── metrics.py           ⬜
+│       │   └── reports.py           ⬜
 │       │
 │       ├── core/
+│       │   ├── pipeline/            ← M1–M4 — iter0, do not refactor during Iteration 1
+│       │   │   ├── ingestion.py     ✅
+│       │   │   ├── chunker.py       ✅
+│       │   │   ├── embedder.py      ✅ blocked by Blocker 1
+│       │   │   ├── classifier.py    ✅ blocked by Blocker 1
+│       │   │   ├── extractor.py     ✅ blocked by Blocker 2
+│       │   │   └── scorer.py        ✅
 │       │   │
-│       │   ├── ingestion/        ← M1: Document parsing
-│       │   │   ├── __init__.py
-│       │   │   ├── parser.py     ← route by file type to correct parser
-│       │   │   ├── pdf_parser.py ← PyMuPDF (digital) + Unstructured (scanned)
-│       │   │   ├── ocr.py        ← Tesseract Arabic+English for image PDFs
-│       │   │   └── table_extractor.py ← preserve table structure from PDFs
+│       │   ├── report/              ← M5 — iter0, confirmed working
+│       │   │   ├── builder.py       ✅
+│       │   │   ├── narrative.py     ✅
+│       │   │   └── renderer.py      ✅
 │       │   │
-│       │   ├── nlp/              ← M2: Text processing
-│       │   │   ├── __init__.py
-│       │   │   ├── chunker.py    ← semantic chunking (NOT fixed-size)
-│       │   │   ├── embedder.py   ← multilingual sentence embeddings
-│       │   │   └── classifier.py ← ClimateBERT ESG relevance filter
+│       │   ├── models/
+│       │   │   └── router.py        ⚠️ needs free-tier fallback — Blocker 2 fix
 │       │   │
-│       │   ├── extraction/       ← M3: Metric extraction (core DS work)
-│       │   │   ├── __init__.py
-│       │   │   ├── extractor.py  ← orchestrates per-indicator extraction
-│       │   │   ├── prompts.py    ← extraction prompt templates per indicator
-│       │   │   ├── validator.py  ← validate + normalize extracted values
-│       │   │   └── confidence.py ← confidence scoring logic
+│       │   ├── gri/
+│       │   │   ├── indicators.py    ✅
+│       │   │   └── frameworks.py    ✅
 │       │   │
-│       │   ├── scoring/          ← M4: ESG scoring (core DS work)
-│       │   │   ├── __init__.py
-│       │   │   ├── scorer.py     ← orchestrates full scoring
-│       │   │   ├── gri_scorer.py ← GRI completeness scoring
-│       │   │   ├── sasb_scorer.py← SASB sector-specific scoring
-│       │   │   ├── tcfd_scorer.py← TCFD pillar scoring
-│       │   │   ├── gap_analysis.py ← missing disclosures + recommendations
-│       │   │   └── materiality.py  ← materiality assessment per sector
-│       │   │
-│       │   ├── reporting/        ← M5: Report generation
-│       │   │   ├── __init__.py
-│       │   │   ├── builder.py    ← structure metrics into report sections
-│       │   │   ├── narrative.py  ← LLM-generated narrative per section
-│       │   │   └── renderer.py   ← PDF rendering (WeasyPrint)
-│       │   │
-│       │   └── llm/              ← Shared LLM access (used by M3 + M5)
-│       │       ├── __init__.py
-│       │       └── router.py     ← ModelRouter — ALL LLM calls go here
+│       │   └── agents/              ← DO NOT CREATE — Iteration 3 only
 │       │
 │       └── workers/
-│           ├── celery_app.py     ← Celery + Redis config
-│           └── tasks.py          ← async pipeline tasks
+│           └── tasks.py             ✅ Celery orchestration
 │
-├── frontend/                     ← M7: React web application
-│   ├── package.json
-│   ├── src/
-│   │   ├── main.tsx
-│   │   ├── App.tsx
-│   │   ├── pages/
-│   │   │   ├── Landing.tsx       ← product homepage
-│   │   │   ├── Dashboard.tsx     ← company overview + past reports
-│   │   │   ├── Upload.tsx        ← document upload + pipeline trigger
-│   │   │   ├── Results.tsx       ← extraction results + review queue
-│   │   │   ├── Report.tsx        ← report viewer + PDF download
-│   │   │   └── Auth.tsx          ← login / register
-│   │   ├── components/
-│   │   │   ├── MetricCard.tsx    ← single metric with confidence + evidence
-│   │   │   ├── ScoreDashboard.tsx← E/S/G scores + gap heatmap
-│   │   │   ├── DocumentUpload.tsx← drag-and-drop uploader
-│   │   │   ├── PipelineStatus.tsx← live job progress
-│   │   │   └── GapAnalysis.tsx   ← missing metrics + recommendations
-│   │   └── api/
-│   │       └── client.ts         ← typed API calls to FastAPI
-│   └── public/
+├── frontend/
+│   └── streamlit_app.py             ✅ iter0 — direct imports, not wired to API yet
 │
-└── data/
-    ├── gri_indicators.json       ← GRI indicator definitions (seed data)
-    ├── sasb_standards.json       ← SASB sector materiality maps
-    └── emission_factors.json     ← emission conversion factors
+└── mlflow/                          ⬜ not wired to pipeline yet
 ```
 
 ---
 
-## The Central Data Contract
-
-Every piece of data the pipeline extracts must become an ExtractedMetric.
-This is the single contract between all modules. Never deviate.
+## The Single Most Important Data Schema
+Every extracted value must produce an `ExtractedMetric`.
+This is the contract between pipeline, API, review UI, and report generator.
+**Never change this schema without a full team discussion.**
 
 ```python
-# backend/app/schemas/metric.py
-
-class MetricStatus(str, Enum):
-    EXTRACTED  = "extracted"   # pipeline extracted, awaiting review
-    AMBIGUOUS  = "ambiguous"   # could map to multiple indicators
-    MISSING    = "missing"     # indicator required but not found
-    APPROVED   = "approved"    # human confirmed
-    REJECTED   = "rejected"    # human rejected
-    EDITED     = "edited"      # human corrected the value
-
-class ExtractedMetric(BaseModel):
-    id:                UUID
-    company_id:        UUID
-    report_id:         UUID
-
-    # Framework mapping
-    gri_code:          str
-    sasb_code:         Optional[str]
-    tcfd_pillar:       Optional[str]
-    label:             str
-
-    # The value
-    value:             Optional[float]
-    unit:              Optional[str]     # normalized: "GJ", "tCO2e", "m3"
-    original_value:    Optional[str]
-    original_unit:     Optional[str]
-
-    # Trust layer — non-negotiable
-    confidence:        float             # 0.0 to 1.0
-    status:            MetricStatus
-    source_file:       Optional[str]
-    source_page:       Optional[int]
-    evidence_chunk:    Optional[str]     # exact text passage used
-
-    # How it was obtained
-    extraction_method: str               # "llm" | "questionnaire" | "manual"
-
-    # Review trail
-    reviewer_id:       Optional[UUID]
-    reviewed_at:       Optional[datetime]
-    note:              Optional[str]
-
-    created_at:        datetime
-    updated_at:        datetime
+class ExtractedMetricSchema(BaseModel):
+    id: UUID
+    company_id: UUID
+    report_id: UUID
+    gri_code: str                    # "GRI 302-1"
+    fra_code: Optional[str]          # "FRA-36-SCOPE1"
+    sasb_code: Optional[str]         # "FN-CB-430a.1"
+    label: str
+    value: Optional[float]
+    unit: Optional[str]              # normalized: "GJ", "tCO2e", "m3"
+    original_value: Optional[str]
+    original_unit: Optional[str]
+    confidence: float                # 0.0 – 1.0
+    status: MetricStatus             # extracted|ambiguous|missing|rejected|approved
+    source_file: Optional[str]
+    source_page: Optional[int]
+    evidence_chunk: Optional[str]
+    extraction_method: str           # "llm" | "questionnaire" | "manual"
+    reviewer_id: Optional[UUID]
+    reviewed_at: Optional[datetime]
+    note: Optional[str]
+    created_at: datetime
+    updated_at: datetime
 ```
 
 ---
 
-## ESG Framework Knowledge
+## GRI Indicators in Scope (Banking Sector — v1)
 
-### GRI Standards (load from data/gri_indicators.json — never hardcode)
-
-**Universal (required for all companies):**
-- GRI 2: General disclosures — org profile, governance, strategy, stakeholders
-- GRI 3: Material topics determination process
-
-**Environmental 300 series:**
-- GRI 302: Energy — consumption, intensity, reductions
-- GRI 303: Water — withdrawal, consumption, discharge
-- GRI 305: Emissions — Scope 1, Scope 2, Scope 3, intensity
-- GRI 306: Waste — generation, diversion, disposal
-
-**Social 400 series:**
-- GRI 401: Employment — hires, turnover, parental leave
-- GRI 403: Occupational health and safety — incidents, fatalities, near-misses
-- GRI 404: Training and education — hours per employee, performance reviews
-- GRI 405: Diversity — board composition, gender pay ratio
-- GRI 406: Non-discrimination incidents and corrective actions
-- GRI 418: Customer privacy — substantiated complaints, data breaches
-
-**Governance:**
-- Board independence percentage
-- Audit committee existence and independence
-- Ethics violations and anti-corruption measures
-
-### SASB Materiality (load from data/sasb_standards.json)
-Sector-specific topics that matter most for scoring:
-banking, software, manufacturing, retail, oil_gas, utilities, pharma, food_beverage
-If sector unknown: use default materiality map
-
-### TCFD Pillars
-- Governance: board oversight, management role
-- Strategy: risks/opportunities identified, business impact, scenario resilience
-- Risk Management: identification process, management process, integration
-- Metrics & Targets: metrics used, Scope 1/2/3 emissions, targets + performance
-
-### Emission Factors (load from data/emission_factors.json)
-- electricity: 0.4409 kg CO2e per kWh
-- natural gas: 2.0 kg CO2e per m3
-- diesel: 2.68 kg CO2e per liter
-- gasoline: 2.31 kg CO2e per liter
-
-### Scoring Weights
-- Environmental: 40% of composite score
-- Social: 35% of composite score
-- Governance: 25% of composite score
-
-### Benchmark Tiers
-- 85–100: Leader
-- 70–84: Above average
-- 50–69: Average
-- 30–49: Below average
-- 0–29: Laggard
+| Code | Name | Primary Source | Difficulty |
+|------|------|---------------|------------|
+| GRI 2-1 | Organizational details | Annual report | Easy |
+| GRI 2-9 | Governance structure | Board report | Medium |
+| GRI 302-1 | Energy consumption | Electricity + gas bills | Hard (Arabic) |
+| GRI 302-3 | Energy intensity | Utility bills + revenue | Medium |
+| GRI 303-5 | Water consumption | Water bills | Hard (Arabic) |
+| GRI 305-1 | Direct GHG (Scope 1) | Fuel receipts | Hard |
+| GRI 305-2 | Indirect GHG (Scope 2) | Electricity bills | Medium |
+| GRI 305-4 | GHG intensity | Scope 1+2 + revenue | Medium |
+| GRI 401-1 | New hires + turnover | HR export | Easy |
+| GRI 403-9 | Work injuries | Safety logs | Medium |
+| GRI 405-1 | Board diversity | Board report | Easy |
+| GRI 418-1 | Privacy complaints | Compliance report | Medium |
+| FRA-36 | Total Scope 1+2 | Fuel + electricity | Hard |
 
 ---
 
-## Module Specifications
+## Team Ownership
 
-### M1 — Ingestion
+Each person works only in their listed files.
+Cross-module changes require team discussion first.
 
-Input: raw file + metadata
-Output: ParsedDocument — clean text, extracted tables, page count, detected language
+| Module | Files | Iteration 2 focus |
+|--------|-------|-------------------|
+| M1 Ingestion | `ingestion.py`, `chunker.py` | Scanned PDF + Arabic OCR + table extraction |
+| M2 NLP | `embedder.py`, `classifier.py`, `scripts/download_models.py` | Model caching + threshold tuning |
+| M3 Extraction | `extractor.py`, `core/models/router.py` | Prompt engineering + confidence calibration |
+| M4 Scoring | `scorer.py`, `core/gri/` | Benchmark calibration + gap analysis depth |
+| M5 Report | `core/report/` | Narrative quality + PDF formatting + GRI Content Index |
+| M6 API | `api/`, `workers/tasks.py` | Iteration 1 rebuild + MLflow wiring |
 
-Supported: PDF (digital), PDF (scanned), XLSX, CSV, PNG/JPG
-Arabic support: detect RTL, preserve Arabic numerals and units
-Table extraction: keep row-column relationships intact
-OCR: Tesseract ara+eng language pack
+---
 
-### M2 — NLP Processing
+## Iteration 2 — Module Enhancement Backlogs
 
-Input: ParsedDocument
-Output: list of Chunk objects stored in ChromaDB
+Start only after Iteration 1 is confirmed end-to-end. Each owner works their backlog independently.
 
-Chunking: semantic — split at paragraph/section boundaries, never mid-sentence.
-Keep table rows together. Keep footnotes with their reference.
-Target: 300-500 tokens per chunk, 50 token overlap.
+### M1 — Ingestion + Chunker
+```
+[ ] Scanned PDF handling — trigger Tesseract when PyMuPDF returns empty text
+[ ] Arabic OCR — verify Tesseract ara model, test on Arabic utility bills
+[ ] Table extraction — Unstructured.io table mode, preserve structure in chunks
+[ ] Section header tagging — tag each chunk with parent section heading
+[ ] Multi-file ingestion — accept zip of PDFs for one company
+[ ] Chunk size tuning — benchmark vs extraction accuracy
+[ ] Language detection — tag each chunk "ar" or "en"
+```
 
-Embeddings: paraphrase-multilingual-e5-base (Arabic + English in same space)
+### M2 — Embedder + Classifier
+```
+[ ] Fix Blocker 1 (download_models.py) — prerequisite for everything below
+[ ] Validate embedding quality — similarity search on known ESG vs non-ESG pairs
+[ ] Tune ClimateBERT threshold — test on 20+ labeled chunks, find optimal cutoff
+[ ] Log classification stats — N processed, N passed, N filtered per run
+[ ] Arabic recall — test retrieval specifically on Arabic chunks
+[ ] ChromaDB restart safety — handle "collection already exists" gracefully
+```
 
-ClimateBERT: climatebert/distilroberta-base-climate-detector
-Classify each chunk as ESG-relevant or not.
-Only ESG-relevant chunks proceed to extraction.
+### M3 — Extractor + ModelRouter
+```
+[ ] Fix Blocker 2 (fallback in router.py) — prerequisite for everything below
+[ ] Indicator-specific prompts — replace generic stubs for all 13 GRI codes
+    Each prompt: what it measures, expected units, Egyptian bank patterns, 2-3 examples
+[ ] Confidence calibration — run on 10 known PDFs, compare to ground truth
+[ ] Retry on malformed JSON — one retry with stricter prompt before failing
+[ ] Rate limit handling — exponential backoff on HTTP 429
+[ ] Token usage logging — prompt + completion tokens per call
+```
 
-### M3 — Extraction
-
-Input: ESG-relevant chunks + target GRI indicators
-Output: list of ExtractedMetric
-
-Per indicator flow:
-1. Vector search ChromaDB for top-5 most relevant chunks
-2. Build extraction prompt (system + indicator definition + evidence)
-3. Call LLM via ModelRouter("extraction")
-4. Parse JSON response
-5. Normalize unit + validate value
-6. Assign confidence score
-7. Return ExtractedMetric
-
-Prompt rule: extract only what is explicitly stated. Never infer, estimate, or hallucinate.
-If value is absent: return null with confidence 0.
-
-Confidence scoring:
-- Start at 1.0, reduce for: indirect language, approximate values, single source,
-  unit ambiguity, OCR-extracted text
-- Threshold: < 0.80 → flag for human review
-
-Unit normalization:
-- Energy → GJ (accept kWh, MWh, TJ, toe)
-- Emissions → tCO2e
-- Water → m3 (accept liters, gallons, ML)
-- Always store both normalized and original
-
-### M4 — Scoring
-
-Input: list of ExtractedMetric + company sector
-Output: ESGScore with overall, E/S/G breakdown, completeness, benchmark, gaps, recommendations
-
-GRI completeness: approved_count / required_for_sector
-SASB score: weight metrics by SASB materiality score for this sector
-TCFD score: % of TCFD disclosure elements present
-Benchmark: compare composite vs industry average from sasb_standards.json
-
-Gap analysis per missing indicator:
-- Why it matters
-- What document type would contain it
-- Priority: high/medium/low based on materiality score
+### M4 — Scorer
+```
+[ ] Benchmark tier calibration — research Egyptian NBFI ESG baselines, set realistic tiers
+[ ] FRA-36 mapping — verify against actual FRA carbon reporting circular
+[ ] Gap analysis depth — add: why it matters, difficulty to close, data source needed
+[ ] Partial credit — consider 50% weight for "ambiguous" status metrics
+```
 
 ### M5 — Report Generation
-
-Input: approved ExtractedMetrics + ESGScore + company profile
-Output: PDF file
-
-builder.py: group metrics by GRI topic → ordered ReportSection list
-narrative.py: LLM drafts narrative per section — factual only, English only,
-              reference specific values, note what is missing
-renderer.py: WeasyPrint HTML-to-PDF
-
-Report sections:
-Cover, Executive Summary, Company Profile, Materiality Assessment,
-Environmental, Social, Governance, GRI Content Index, Gap Analysis
+```
+[ ] Narrative quality — per section: what metric shows, YoY if available, compliance status, recommendation
+[ ] Cover page — company name, ESG Catalyst branding, report date, report ID
+[ ] Score summary box — E/S/G breakdown + overall tier on page 2
+[ ] Evidence citations — source_file + source_page footnote per metric value
+[ ] Gap analysis table — color-coded by severity (red/amber/green)
+[ ] GRI Content Index — required table: all indicators, status, page reference
+[ ] Appendix — raw metrics table including rejected, with confidence scores
+[ ] Report versioning — increment version on regeneration
+```
 
 ---
 
-## LLM Access — ModelRouter
-
-ALL LLM calls go through core/llm/router.py. No exceptions.
+## Model Abstraction Layer
+ALL LLM calls go through `ModelRouter`. Never call OpenRouter directly.
 
 ```python
+# core/models/router.py
 class ModelRouter:
     def get_model(self, task: str) -> BaseChatModel:
-        # task: "extraction" | "scoring" | "report"
-        model_id = settings.models[task]
+        model_id = settings.models[task]   # from .env — never hardcoded
         return self._load(model_id)
 ```
 
-.env model config:
-```
-MODEL_EXTRACTION=openrouter/anthropic/claude-3.5-sonnet
-MODEL_SCORING=openrouter/meta-llama/llama-3.1-70b-instruct
-MODEL_REPORT=openrouter/anthropic/claude-3.5-sonnet
-```
+Model swap = one line in `.env`. Zero code changes.
+Enables: OpenRouter → AWS Bedrock → self-hosted post-investment.
 
 ---
 
-## API Routes
+## Report Generation — Phase 2 Spec (COMPLETE — do not rebuild)
 
-```
-POST   /auth/register
-POST   /auth/login
-POST   /auth/refresh
-
-POST   /companies/
-GET    /companies/{id}
-PATCH  /companies/{id}
-
-POST   /documents/upload
-GET    /documents/{id}
-DELETE /documents/{id}
-
-POST   /pipeline/run
-GET    /pipeline/status/{job_id}
-
-GET    /metrics/{report_id}
-PATCH  /metrics/{id}
-GET    /metrics/{report_id}/export
-
-POST   /reports/generate
-GET    /reports/{id}
-GET    /reports/{id}/pdf
-GET    /reports/
-```
-
-Pipeline job states:
-queued → parsing → chunking → classifying → extracting → scoring → complete | failed
-
----
-
-## Frontend Pages
-
-/ — Landing page: product description, 3-step how-it-works, call to action
-/auth — Login and register
-/dashboard — Past reports list, score trend, quick stats, New Report button
-/upload — Drag-and-drop upload, pipeline progress with live stage labels
-/results/:id — Metric list (left) + evidence viewer (right), approve/edit/reject actions
-/report/:id — Score circles (E/S/G), benchmark badge, gap heatmap, PDF download
-
-Design: teal #0D7A7A primary, #0B2B3B dark, #E8A020 accent, Inter font, Tailwind CSS
-
----
-
-## Environment Variables
-
-```
-DATABASE_URL=sqlite+aiosqlite:///./esg_catalyst.db
-REDIS_URL=redis://localhost:6379/0
-OPENROUTER_API_KEY=sk-or-REPLACE_ME
-MODEL_EXTRACTION=openrouter/anthropic/claude-3.5-sonnet
-MODEL_SCORING=openrouter/meta-llama/llama-3.1-70b-instruct
-MODEL_REPORT=openrouter/anthropic/claude-3.5-sonnet
-CHROMA_HOST=localhost
-CHROMA_PORT=8001
-EMBEDDING_MODEL=paraphrase-multilingual-e5-base
-SECRET_KEY=dev-secret-key-replace-in-production
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-MLFLOW_TRACKING_URI=http://localhost:5001
-CONFIDENCE_THRESHOLD=0.80
-MAX_UPLOAD_SIZE_MB=50
-ENVIRONMENT=development
-```
-
----
-
-## Coding Standards
-
-Python:
-- Python 3.11+, async everywhere in FastAPI
-- SQLAlchemy 2.0: select() only, never .query()
-- Pydantic v2: model_validator not validator
-- Mapped[Optional[X]] — never Mapped[X | None]
-- Type hints on every function, Google docstrings on all core/ functions
-- Never hardcode GRI/SASB data — always load from data/*.json
-- Never hardcode model names — always from settings.models
-- Log and re-raise in pipeline — never swallow exceptions silently
-
-TypeScript/React:
-- Functional components only
-- Custom hooks for all API calls
-- Typed responses — no any
-- Loading and error states on every data-fetching component
-
----
-
-## Known Issues to Fix First
-
-1. ORM syntax: models/metric.py and models/report.py
-   Replace all Mapped[X | None] with Mapped[Optional[X]]
-
-2. Streamlit: delete frontend/streamlit_app.py if it exists
-   Remove streamlit from requirements.txt and pyproject.toml
-   The frontend is now React in frontend/
-
-3. Module structure: if existing core/ layout differs from this CLAUDE.md,
-   reorganize to match. Move files rather than rewrite where logic is correct.
-
----
-
-## Build Order
-
-Step 1  Audit existing code vs this CLAUDE.md. Fix ORM issues. Delete Streamlit.
-        Reorganize directory structure if needed.
-        Goal: uvicorn app.main:app --reload starts without errors.
-
-Step 2  Verify or complete M1 ingestion — test on a real PDF.
-        Output: ParsedDocument with clean text and extracted tables.
-
-Step 3  Verify or complete M2 NLP — test on ParsedDocument from Step 2.
-        Output: chunks in ChromaDB, ClimateBERT classifications visible.
-
-Step 4  Verify or complete M3 extraction — test on chunks from Step 3.
-        Output: list of ExtractedMetric objects with confidence scores.
-
-Step 5  Verify or complete M4 scoring — test on metrics from Step 4.
-        Output: ESGScore with E/S/G breakdown, benchmark tier, gap list.
-
-Step 6  Build M5 report generation — not yet implemented.
-        Output: downloadable PDF report from approved metrics.
-
-Step 7  Verify or complete M6 API — all routes working, auth working,
-        full pipeline triggerable via POST /pipeline/run.
-
-Step 8  Build M7 React frontend — all pages, connected to real API.
-        Output: working web application at localhost:5173.
-
-Step 9  End-to-end test: upload PDF → pipeline runs → review metrics
-        → generate report → download PDF. Fix any integration issues.
-
-Step 10 MLflow integration: log extraction accuracy metrics per run.
-        Demonstrate measurable model performance in graduation demo.
-
----
-
-## MLflow — Accuracy Tracking (Graduation Demo Evidence)
+**Trigger:** metrics with status = "approved" exist for a document.
 
 ```python
-with mlflow.start_run(run_name=f"extraction_{report_id}"):
-    mlflow.log_param("model", settings.models["extraction"])
-    mlflow.log_metric("indicators_extracted", extracted_count)
-    mlflow.log_metric("indicators_missing", missing_count)
-    mlflow.log_metric("avg_confidence", avg_confidence)
-    mlflow.log_metric("high_confidence_rate", high_conf_pct)
-    mlflow.log_metric("gri_completeness", gri_completeness)
+ReportSection(
+    title: str,         # "Energy"
+    gri_topic: str,     # "GRI 302"
+    metrics: list[ExtractedMetric],
+    narrative: str      # filled by narrative.py
+)
 ```
 
-Track accuracy across different documents and models.
-Use in the graduation presentation to show quantitative DS rigor.
+PDF sections: cover, company profile, methodology, GRI content index,
+topic disclosures, gap analysis, appendix.
+Branding: teal `#0D7A7A` headers, company name on cover.
+
+---
+
+## Environment Variables (.env)
+```
+# Database
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/esg_catalyst
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# LLM
+OPENROUTER_API_KEY=sk-or-...
+MODEL_EXTRACTION=openrouter/anthropic/claude-3.5-sonnet
+MODEL_EXTRACTION_FALLBACK=openrouter/mistralai/mistral-7b-instruct:free
+MODEL_SCORING=openrouter/meta-llama/llama-3.1-70b-instruct
+MODEL_REPORT=openrouter/anthropic/claude-3.5-sonnet
+
+# Vector Store
+CHROMA_HOST=localhost
+CHROMA_PORT=8001
+
+# Embeddings — run scripts/download_models.py once on each machine
+EMBEDDING_MODEL=paraphrase-multilingual-e5-base
+CLIMATEBERT_MODEL=climatebert/distilroberta-base-climate-detector
+
+# Auth
+SECRET_KEY=change-in-production
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# MLflow
+MLFLOW_TRACKING_URI=http://localhost:5001
+
+# App
+ENVIRONMENT=development
+MAX_UPLOAD_SIZE_MB=50
+CONFIDENCE_THRESHOLD=0.80
+```
+
+---
+
+## Coding Conventions
+- Python 3.11+
+- Async everywhere in FastAPI — `async def` for all route handlers
+- SQLAlchemy 2.0 style — `select()` not legacy `query()`
+- Pydantic v2 — `model_validator` not `validator`
+- `Mapped[Optional[X]]` not `Mapped[X | None]` — Python 3.9 compat
+- Type hints on every function — no bare `Any` without a comment
+- Docstrings on all public functions in `core/` — Google style
+- Never hardcode GRI indicators — they live in `data/gri_indicators.json`
+- Never hardcode model names — they come from `settings.models`
+- Never swallow exceptions silently — log and re-raise
+- Confidence: when uncertain, score lower. Never overstate.
+- Narrative: factual only — describe what metrics show, never extrapolate
 
 ---
 
 ## Running the Project
 
 ```bash
+# New machine setup
+python scripts/download_models.py   # one-time, ~650MB
+pip install -r requirements.txt
 docker-compose up -d
 
-# Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-
-# Celery worker
-cd backend
-celery -A app.workers.celery_app worker --loglevel=info
-
-# Frontend
-cd frontend
-npm install
-npm run dev
-
-# MLflow
+# Daily dev
+cd backend && uvicorn app.main:app --reload --port 8000
+cd backend && celery -A app.workers.celery_app worker --loglevel=info
+cd frontend && streamlit run streamlit_app.py
 mlflow ui --port 5001
 ```
 
-URLs: Frontend :5173 | API :8000 | Docs :8000/docs | ChromaDB :8001 | MLflow :5001
+| Service | URL |
+|---------|-----|
+| FastAPI | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+| Streamlit | http://localhost:8501 |
+| ChromaDB | http://localhost:8001 |
+| MLflow | http://localhost:5001 |
 
 ---
 
-## Future Work (Post-Graduation)
-
-**Technical roadmap:**
-- LangGraph agent orchestration replacing the sequential pipeline
-- Human-in-the-loop review interface with correction feedback loop
-- Correction store (ChromaDB) + Prompt Builder for few-shot learning
-- Fine-tuning pipeline on accumulated corrections (RL from human feedback)
-- Arabic report output (Arabic input only for graduation)
-
-**Business roadmap:**
-- Multi-tenant SaaS with team collaboration
-- White-label deployment for ESG certification partners
-- MENA market expansion (Egypt → Saudi Arabia → UAE)
-- ERP and HR system integrations
-- Investor portfolio ESG scoring module
-- Direct regulatory submission workflow
+## What NOT to Build Until Told
+- LangGraph / agents — Iteration 3
+- React frontend — Iteration 4+
+- Auth in API — after all endpoints curl-confirmed
+- Correction feedback loop — Iteration 4
+- Fine-tuning — post-investment
+- CDP/CSRD/TCFD — v2
+- Arabic report output — Arabic input only in v1
+- ERP integrations — v2
+- Investor portal — v2

@@ -21,7 +21,7 @@ class DocumentUploadResponse(BaseModel):
     status: DocumentStatus
     page_count: int | None
     language: str | None
-    uploaded_by: UUID
+    uploaded_by: UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -39,6 +39,6 @@ class DocumentSchema(BaseModel):
     status: DocumentStatus
     page_count: int | None
     language: str | None
-    uploaded_by: UUID
+    uploaded_by: UUID | None
     created_at: datetime
     updated_at: datetime

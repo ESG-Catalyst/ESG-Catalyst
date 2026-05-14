@@ -25,10 +25,24 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import settings
 from app.core.extraction.prompts import SYSTEM_PROMPT, build_user_prompt
-from app.core.extraction.validator import clamp, safe_float, safe_int
+from app.core.extraction.validator import (
+    clamp,
+    normalize_currency,
+    parse_monetary,
+    safe_float,
+    safe_int,
+)
 from app.core.gri.indicators import get_all_indicators, get_indicator
 from app.core.llm.router import model_router
-from app.models.enums import ExtractionMethod, MetricStatus
+from app.core.tracking.mlflow_tracker import (
+    log_json_artifact,
+    log_metric,
+    log_metrics,
+    log_params,
+    sanitize_metric_key,
+    start_extraction_run,
+)
+from app.models.enums import ExtractionMethod, MetricFramework, MetricStatus, MetricType
 from app.schemas.metric import ExtractedMetricCreate
 
 logger = structlog.get_logger(__name__)
@@ -44,6 +58,8 @@ async def extract_metrics(
     report_id: UUID,
     source_file: str | None = None,
     indicator_codes: list[str] | None = None,
+    document_id: UUID | None = None,
+    n_chunks_processed: int | None = None,
 ) -> list[ExtractedMetricCreate]:
     """Extract ESG metrics from document text for specified GRI indicators.
 
@@ -71,57 +87,106 @@ async def extract_metrics(
             kept=_MAX_DOCUMENT_CHARS,
         )
 
-    llm = model_router.get_model("extraction")
     metrics: list[ExtractedMetricCreate] = []
+    raw_responses: dict[str, str] = {}
 
-    for indicator in indicators:
-        try:
-            metric = await _extract_single(
-                llm=llm,
-                indicator=indicator,
-                document_text=doc_text,
-                company_id=company_id,
-                report_id=report_id,
-                source_file=source_file,
-            )
-            metrics.append(metric)
-            logger.info(
-                "extractor.indicator_ok",
-                code=indicator["code"],
-                status=metric.status.value,
-                confidence=metric.confidence,
-            )
-        except Exception as exc:
-            logger.error(
-                "extractor.indicator_failed",
-                code=indicator["code"],
-                error=str(exc),
-            )
-            metrics.append(_missing_metric(indicator, company_id, report_id, source_file, exc))
+    model_name = settings.models.get("extraction", "unknown")
 
-    extracted = sum(1 for m in metrics if m.status == MetricStatus.extracted)
-    ambiguous = sum(1 for m in metrics if m.status == MetricStatus.ambiguous)
-    missing = sum(1 for m in metrics if m.status == MetricStatus.missing)
-    logger.info(
-        "extractor.complete",
-        total=len(metrics),
-        extracted=extracted,
-        ambiguous=ambiguous,
-        missing=missing,
-    )
+    with start_extraction_run(
+        run_name=f"extract-{str(document_id)[:8] if document_id else 'adhoc'}"
+    ):
+        log_params({
+            "document_id": str(document_id) if document_id else "",
+            "report_id": str(report_id),
+            "company_id": str(company_id),
+            "source_file": source_file or "",
+            "model_name": model_name,
+            "n_chunks_processed": n_chunks_processed if n_chunks_processed is not None else "",
+            "n_indicators_attempted": len(indicators),
+            "document_chars": len(document_text),
+            "document_chars_kept": len(doc_text),
+        })
+
+        for indicator in indicators:
+            try:
+                metric, raw = await _extract_single(
+                    indicator=indicator,
+                    document_text=doc_text,
+                    company_id=company_id,
+                    report_id=report_id,
+                    source_file=source_file,
+                )
+                metrics.append(metric)
+                raw_responses[indicator["code"]] = raw
+                logger.info(
+                    "extractor.indicator_ok",
+                    code=indicator["code"],
+                    status=metric.status.value,
+                    confidence=metric.confidence,
+                )
+            except Exception as exc:
+                logger.error(
+                    "extractor.indicator_failed",
+                    code=indicator["code"],
+                    error=str(exc),
+                )
+                metrics.append(_missing_metric(indicator, company_id, report_id, source_file, exc))
+                raw_responses[indicator["code"]] = f"<error: {exc}>"
+
+        extracted = sum(1 for m in metrics if m.status == MetricStatus.extracted)
+        ambiguous = sum(1 for m in metrics if m.status == MetricStatus.ambiguous)
+        missing = sum(1 for m in metrics if m.status == MetricStatus.missing)
+
+        confidences = [m.confidence for m in metrics]
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+        n_high = sum(1 for c in confidences if c > 0.80)
+        n_low = len(confidences) - n_high
+
+        log_metrics({
+            "n_metrics_extracted": float(extracted),
+            "n_metrics_ambiguous": float(ambiguous),
+            "n_metrics_missing": float(missing),
+            "n_metrics_total": float(len(metrics)),
+            "avg_confidence": float(avg_conf),
+            "n_high_confidence": float(n_high),
+            "n_low_confidence": float(n_low),
+        })
+
+        for m in metrics:
+            log_metric(f"confidence.{sanitize_metric_key(m.gri_code)}", m.confidence)
+
+        log_json_artifact(
+            "raw_llm_responses.json",
+            {
+                "model_name": model_name,
+                "document_id": str(document_id) if document_id else None,
+                "report_id": str(report_id),
+                "responses": raw_responses,
+            },
+        )
+
+        logger.info(
+            "extractor.complete",
+            total=len(metrics),
+            extracted=extracted,
+            ambiguous=ambiguous,
+            missing=missing,
+        )
     return metrics
 
 
 # ── Single indicator extraction ──────────────────────────────────────────
 async def _extract_single(
-    llm,
     indicator: dict,
     document_text: str,
     company_id: UUID,
     report_id: UUID,
     source_file: str | None,
-) -> ExtractedMetricCreate:
-    """Send one indicator prompt to the LLM and parse the response."""
+) -> tuple[ExtractedMetricCreate, str]:
+    """Send one indicator prompt to the LLM and parse the response.
+
+    Returns the parsed metric and the raw LLM response text (for tracking).
+    """
 
     # Phase 1.5 stub: inject few-shot corrections here
     # corrections_context = await _fetch_corrections(indicator["code"])
@@ -134,8 +199,9 @@ async def _extract_single(
         HumanMessage(content=user_prompt),
     ]
 
-    response = await llm.ainvoke(messages)
-    parsed = _parse_llm_json(response.content)
+    response = await model_router.ainvoke_with_fallback("extraction", messages)
+    raw_content = response.content if isinstance(response.content, str) else str(response.content)
+    parsed = _parse_llm_json(raw_content)
 
     status = _map_status(parsed.get("status", "missing"))
     confidence = clamp(float(parsed.get("confidence", 0.0)), 0.0, 1.0)
@@ -143,14 +209,42 @@ async def _extract_single(
     if status == MetricStatus.extracted and confidence < settings.confidence_threshold:
         status = MetricStatus.ambiguous
 
-    return ExtractedMetricCreate(
+    framework = _coerce_framework(indicator.get("framework"))
+    metric_type = _coerce_metric_type(indicator.get("metric_type"))
+
+    # For monetary metrics, prefer the LLM's structured currency; fall back to
+    # parsing the original_value string (handles "EGP 1.2 billion" etc.).
+    value = safe_float(parsed.get("value"))
+    currency = normalize_currency(parsed.get("currency"))
+    if metric_type == MetricType.monetary:
+        raw_original = parsed.get("original_value")
+        parsed_val, parsed_curr = parse_monetary(raw_original) if isinstance(raw_original, str) else (None, None)
+        if value is None and parsed_val is not None:
+            value = parsed_val
+        if currency is None and parsed_curr is not None:
+            currency = parsed_curr
+
+    breakdown = parsed.get("breakdown")
+    if isinstance(breakdown, str):
+        # Some LLMs return a JSON-encoded string instead of a nested object.
+        try:
+            breakdown = json.loads(breakdown)
+        except json.JSONDecodeError:
+            breakdown = {"raw": breakdown}
+    elif breakdown is not None and not isinstance(breakdown, dict):
+        breakdown = {"raw": breakdown}
+
+    reporting_start = _parse_iso_date(parsed.get("reporting_period_start"))
+    reporting_end = _parse_iso_date(parsed.get("reporting_period_end"))
+
+    metric = ExtractedMetricCreate(
         company_id=company_id,
         report_id=report_id,
         gri_code=indicator["code"],
         fra_code=indicator.get("fra_code"),
         sasb_code=indicator.get("sasb_code"),
         label=indicator["name"],
-        value=safe_float(parsed.get("value")),
+        value=value,
         unit=parsed.get("unit"),
         original_value=parsed.get("original_value"),
         original_unit=parsed.get("original_unit"),
@@ -161,7 +255,15 @@ async def _extract_single(
         evidence_chunk=parsed.get("evidence"),
         extraction_method=ExtractionMethod.llm,
         note=parsed.get("note"),
+        framework=framework,
+        metric_type=metric_type,
+        sector_standard_ref=indicator.get("sector_standard_ref"),
+        currency=currency,
+        reporting_period_start=reporting_start,
+        reporting_period_end=reporting_end,
+        breakdown=breakdown,
     )
+    return metric, raw_content
 
 
 # ── Response parsing ─────────────────────────────────────────────────────
@@ -224,4 +326,40 @@ def _missing_metric(
         extraction_method=ExtractionMethod.llm,
         source_file=source_file,
         note=f"Extraction failed: {exc}",
+        framework=_coerce_framework(indicator.get("framework")),
+        metric_type=_coerce_metric_type(indicator.get("metric_type")),
+        sector_standard_ref=indicator.get("sector_standard_ref"),
     )
+
+
+# ── Iteration 2 helpers — coerce string fields from gri_indicators.json ──
+def _coerce_framework(raw: object) -> MetricFramework | None:
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        return MetricFramework(raw)
+    except ValueError:
+        logger.warning("extractor.unknown_framework", value=raw)
+        return None
+
+
+def _coerce_metric_type(raw: object) -> MetricType | None:
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        return MetricType(raw)
+    except ValueError:
+        logger.warning("extractor.unknown_metric_type", value=raw)
+        return None
+
+
+def _parse_iso_date(raw: object):
+    """Parse an ISO YYYY-MM-DD string into a date. Returns None on failure."""
+    if not isinstance(raw, str) or not raw:
+        return None
+    from datetime import date
+
+    try:
+        return date.fromisoformat(raw[:10])
+    except (ValueError, TypeError):
+        return None

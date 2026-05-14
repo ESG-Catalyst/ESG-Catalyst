@@ -20,11 +20,14 @@ class Settings(BaseSettings):
     # LLM — individual env vars, assembled into dict by validator below
     openrouter_api_key: str = ""
     model_extraction: str = "openrouter/anthropic/claude-3.5-sonnet"
+    model_extraction_fallback: str = "openrouter/meta-llama/llama-3.3-70b-instruct:free"
     model_scoring: str = "openrouter/meta-llama/llama-3.1-70b-instruct"
     model_report: str = "openrouter/anthropic/claude-3.5-sonnet"
+    model_report_fallback: str = "openrouter/mistralai/mistral-7b-instruct:free"
 
     # Assembled dict used by ModelRouter: settings.models["extraction"]
     models: dict[str, str] = {}
+    model_fallbacks: dict[str, str] = {}
 
     @model_validator(mode="after")
     def _build_models_dict(self) -> "Settings":
@@ -32,6 +35,10 @@ class Settings(BaseSettings):
             "extraction": self.model_extraction,
             "scoring": self.model_scoring,
             "report": self.model_report,
+        }
+        self.model_fallbacks = {
+            "extraction": self.model_extraction_fallback,
+            "report": self.model_report_fallback,
         }
         return self
 

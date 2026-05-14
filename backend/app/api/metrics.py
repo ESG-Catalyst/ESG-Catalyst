@@ -1,130 +1,107 @@
-"""Metrics API — list, review, and export extracted ESG metrics."""
+"""Metrics API — list a document's extracted metrics and apply review decisions."""
 
 from __future__ import annotations
 
-import csv
-import io
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import assert_company_access, get_current_user
 from app.database import get_db
+from app.models.document import Document
 from app.models.enums import MetricStatus
 from app.models.metric import ExtractedMetric
-from app.models.user import User
-from app.schemas.metric import ExtractedMetricSchema, ExtractedMetricUpdate
+from app.schemas.metric import ExtractedMetricSchema
 
-router = APIRouter(prefix="/metrics", tags=["metrics"])
+router = APIRouter(prefix="/api/v1/metrics", tags=["metrics"])
 
 
-# ── GET /metrics/{report_id} ──────────────────────────────────────────────
-@router.get("/{report_id}", response_model=list[ExtractedMetricSchema])
-async def list_metrics(
-    report_id: UUID,
-    user: User = Depends(get_current_user),
+class MetricReviewRequest(BaseModel):
+    """Reviewer decision body for PATCH /metrics/{id}."""
+
+    status: MetricStatus = Field(..., description="approved or rejected")
+    value: Optional[float] = None
+    unit: Optional[str] = None
+    note: Optional[str] = None
+
+
+_ALLOWED_REVIEW_STATUSES = {MetricStatus.approved, MetricStatus.rejected}
+
+
+@router.get("/{document_id}", response_model=list[ExtractedMetricSchema])
+async def list_document_metrics(
+    document_id: UUID,
     db: AsyncSession = Depends(get_db),
-):
-    """Fetch all extracted metrics for a given report. Company-scoped."""
-    result = await db.execute(
-        select(ExtractedMetric)
-        .where(ExtractedMetric.report_id == report_id)
-        .order_by(ExtractedMetric.gri_code)
-    )
-    metrics = result.scalars().all()
+) -> list[ExtractedMetric]:
+    """Return every extracted metric belonging to a document's report."""
+    try:
+        doc_result = await db.execute(select(Document).where(Document.id == document_id))
+        doc = doc_result.scalar_one_or_none()
+        if doc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+        if doc.report_id is None:
+            return []
 
-    if not metrics:
-        raise HTTPException(status_code=404, detail="No metrics found for this report")
+        metrics_result = await db.execute(
+            select(ExtractedMetric)
+            .where(ExtractedMetric.report_id == doc.report_id)
+            .order_by(ExtractedMetric.gri_code)
+        )
+        return list(metrics_result.scalars().all())
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Metric lookup failed: {exc}",
+        ) from exc
 
-    assert_company_access(user, metrics[0].company_id)
-    return metrics
 
-
-# ── PATCH /metrics/{id} ───────────────────────────────────────────────────
 @router.patch("/{metric_id}", response_model=ExtractedMetricSchema)
 async def review_metric(
     metric_id: UUID,
-    body: ExtractedMetricUpdate,
-    user: User = Depends(get_current_user),
+    body: MetricReviewRequest,
     db: AsyncSession = Depends(get_db),
-):
-    """Approve, reject, or edit a metric value. Requires company access."""
-    result = await db.execute(
-        select(ExtractedMetric).where(ExtractedMetric.id == metric_id)
-    )
-    metric = result.scalar_one_or_none()
+) -> ExtractedMetric:
+    """Apply a reviewer decision (approve / reject) to a single metric."""
+    try:
+        if body.status not in _ALLOWED_REVIEW_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="status must be one of: approved, rejected",
+            )
 
-    if not metric:
-        raise HTTPException(status_code=404, detail="Metric not found")
+        result = await db.execute(select(ExtractedMetric).where(ExtractedMetric.id == metric_id))
+        metric = result.scalar_one_or_none()
+        if metric is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Metric not found",
+            )
 
-    assert_company_access(user, metric.company_id)
+        metric.status = body.status
+        if body.value is not None:
+            metric.value = body.value
+        if body.unit is not None:
+            metric.unit = body.unit
+        if body.note is not None:
+            metric.note = body.note
+        metric.reviewed_at = datetime.now(timezone.utc)
 
-    update_data = body.model_dump(exclude_unset=True)
-
-    # Auto-stamp reviewer + timestamp when status changes to approved/rejected/edited
-    final_status = update_data.get("status", metric.status)
-    if final_status in (MetricStatus.approved, MetricStatus.rejected, MetricStatus.edited):
-        if "reviewer_id" not in update_data:
-            update_data["reviewer_id"] = user.id
-        if "reviewed_at" not in update_data:
-            update_data["reviewed_at"] = datetime.now(timezone.utc)
-
-    for field, value in update_data.items():
-        setattr(metric, field, value)
-
-    await db.flush()
-    await db.refresh(metric)
-    return metric
-
-
-# ── GET /metrics/{report_id}/export ──────────────────────────────────────
-@router.get("/{report_id}/export")
-async def export_metrics(
-    report_id: UUID,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Export all metrics for a report as a downloadable CSV."""
-    result = await db.execute(
-        select(ExtractedMetric)
-        .where(ExtractedMetric.report_id == report_id)
-        .order_by(ExtractedMetric.gri_code)
-    )
-    metrics = result.scalars().all()
-
-    if not metrics:
-        raise HTTPException(status_code=404, detail="No metrics found for this report")
-
-    assert_company_access(user, metrics[0].company_id)
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "gri_code", "label", "value", "unit",
-        "original_value", "original_unit",
-        "confidence", "status", "source_file", "source_page",
-        "evidence_chunk", "extraction_method", "note",
-    ])
-
-    for m in metrics:
-        writer.writerow([
-            m.gri_code, m.label, m.value, m.unit,
-            m.original_value, m.original_unit,
-            m.confidence, m.status.value, m.source_file, m.source_page,
-            m.evidence_chunk, m.extraction_method.value if m.extraction_method else "",
-            m.note,
-        ])
-
-    output.seek(0)
-    filename = f"metrics_{report_id}.csv"
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode("utf-8")),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+        await db.flush()
+        await db.refresh(metric)
+        return metric
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Metric update failed: {exc}",
+        ) from exc
