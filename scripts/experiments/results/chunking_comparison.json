@@ -1,0 +1,270 @@
+{
+  "pdf": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\data\\ingestion_test_files\\en_beltone_report_summary.pdf",
+  "doc_pages": 64,
+  "doc_chars": 176532,
+  "climatebert_threshold": 0.5,
+  "token_per_char": 0.3333333333333333,
+  "tokens_short": 50,
+  "tokens_long": 512,
+  "known_tables": [
+    {
+      "name": "stakeholder_engagement_p7_8",
+      "description": "Internal/external stakeholders matrix (pages 7-8).",
+      "signature": [
+        "BOARD OF DIRECTORS",
+        "REGULATORY AUTHORITIES",
+        "LEVEL OF"
+      ]
+    },
+    {
+      "name": "materiality_matrix_p9",
+      "description": "Materiality matrix — 14 topics with rank + H-H ratings (page 9).",
+      "signature": [
+        "CUSTOMER PRIVACY AND DATA SECURITY",
+        "GHG EMISSIONS",
+        "RESPONSIBLE PROCUREMENT"
+      ]
+    },
+    {
+      "name": "esg_risks_opportunities_p26",
+      "description": "ESG areas vs efforts/risks/opportunities (page 26).",
+      "signature": [
+        "Credit default risks",
+        "Sustainable loan growth",
+        "Green financing"
+      ]
+    }
+  ],
+  "strategies": {
+    "current": {
+      "stats": {
+        "name": "current",
+        "n_chunks": 479,
+        "avg_tokens": 122.9,
+        "min_tokens": 27,
+        "max_tokens": 668,
+        "std_tokens": 149.8,
+        "pct_too_short": 46.76,
+        "pct_too_long": 5.43,
+        "n_climate_passed": 161,
+        "pct_climate_passed": 33.61,
+        "tables": {
+          "stakeholder_engagement_p7_8": {
+            "description": "Internal/external stakeholders matrix (pages 7-8).",
+            "found_anywhere": false,
+            "intact_in_single_chunk": false
+          },
+          "materiality_matrix_p9": {
+            "description": "Materiality matrix — 14 topics with rank + H-H ratings (page 9).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": false
+          },
+          "esg_risks_opportunities_p26": {
+            "description": "ESG areas vs efforts/risks/opportunities (page 26).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          }
+        },
+        "elapsed_chunking_s": 0.01,
+        "elapsed_climate_s": 97.53
+      },
+      "params": {
+        "chunk_size_chars": 2000,
+        "chunk_overlap_chars": 200
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4\n8\n2\n6\n9\n3\n7\n10\n5\nBeltone Sustainability Report 2024\n28\n29\n1\nBeltone Sustainability Report 2024\n2.1 PROGRESS TOWARDS",
+        "SUSTAINABILITY\n\n2. SUSTAINABILITY\n\nAT OUR CORE\n\nECONOMIC HIGHLIGHTS\n\n•NBFIS Portfolio EGP 21.5 Bn.\n•EBITDA EGP 1,669.1 Bn.\n•NET PROFIT EGP 1.7 Bn.\n•AUMs EGP 22.6 Bn.",
+        "GOVERNANCE HIGHLIGHTS\n\n•3 females in the board composition.\n•Females represent 28% of top management.\n•26% of females are in managerial positions."
+      ]
+    },
+    "sentence_window": {
+      "stats": {
+        "name": "sentence_window",
+        "n_chunks": 717,
+        "avg_tokens": 244.8,
+        "min_tokens": 3,
+        "max_tokens": 2068,
+        "std_tokens": 215.7,
+        "pct_too_short": 2.79,
+        "pct_too_long": 6.42,
+        "n_climate_passed": 314,
+        "pct_climate_passed": 43.79,
+        "tables": {
+          "stakeholder_engagement_p7_8": {
+            "description": "Internal/external stakeholders matrix (pages 7-8).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          },
+          "materiality_matrix_p9": {
+            "description": "Materiality matrix — 14 topics with rank + H-H ratings (page 9).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          },
+          "esg_risks_opportunities_p26": {
+            "description": "ESG areas vs efforts/risks/opportunities (page 26).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          }
+        },
+        "elapsed_chunking_s": 0.01,
+        "elapsed_climate_s": 121.64
+      },
+      "params": {
+        "window_sentences": 3,
+        "stride_sentences": 1
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4 8 2 6 9 3 7 10 5 Beltone Sustainability Report 2024 28 29 1 Beltone Sustainability Report 2024 2.1 PROGRESS TOWARDS SUSTAINABILITY 2. SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHT",
+        "SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIG",
+        "GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIGHLIGHTS •70% local suppliers. •238 new employee hires. Out of these, 75 were women, representing 32% of total new hires. •A total of 3,814 hours"
+      ]
+    },
+    "semantic": {
+      "stats": {
+        "name": "semantic",
+        "n_chunks": 2,
+        "avg_tokens": 29359,
+        "min_tokens": 3852,
+        "max_tokens": 54866,
+        "std_tokens": 25507.0,
+        "pct_too_short": 0.0,
+        "pct_too_long": 100.0,
+        "n_climate_passed": 2,
+        "pct_climate_passed": 100.0,
+        "tables": {
+          "stakeholder_engagement_p7_8": {
+            "description": "Internal/external stakeholders matrix (pages 7-8).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          },
+          "materiality_matrix_p9": {
+            "description": "Materiality matrix — 14 topics with rank + H-H ratings (page 9).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          },
+          "esg_risks_opportunities_p26": {
+            "description": "ESG areas vs efforts/risks/opportunities (page 26).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          }
+        },
+        "elapsed_chunking_s": 114.34,
+        "elapsed_climate_s": 2.22
+      },
+      "params": {
+        "threshold_cosine": 0.7,
+        "embedding_model": "paraphrase-multilingual-e5-base"
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4 8 2 6 9 3 7 10 5 Beltone Sustainability Report 2024 28 29 1 Beltone Sustainability Report 2024 2.1 PROGRESS TOWARDS SUSTAINABILITY 2. SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHT",
+        "These include: 1. Waste Management & Recycling • Trash Track Program: Launching an initiative to reduce overall waste generation and implement structured recycling systems across operations. • Go Green Partnership: Collaborating with Bekia Waste Management, a tech-enabled Egyptian startup which exch"
+      ]
+    },
+    "section_aware": {
+      "stats": {
+        "name": "section_aware",
+        "n_chunks": 439,
+        "avg_tokens": 133.4,
+        "min_tokens": 1,
+        "max_tokens": 615,
+        "std_tokens": 162.4,
+        "pct_too_short": 51.25,
+        "pct_too_long": 0.23,
+        "n_climate_passed": 132,
+        "pct_climate_passed": 30.07,
+        "tables": {
+          "stakeholder_engagement_p7_8": {
+            "description": "Internal/external stakeholders matrix (pages 7-8).",
+            "found_anywhere": false,
+            "intact_in_single_chunk": false
+          },
+          "materiality_matrix_p9": {
+            "description": "Materiality matrix — 14 topics with rank + H-H ratings (page 9).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": false
+          },
+          "esg_risks_opportunities_p26": {
+            "description": "ESG areas vs efforts/risks/opportunities (page 26).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          }
+        },
+        "elapsed_chunking_s": 0.03,
+        "elapsed_climate_s": 118.71
+      },
+      "params": {
+        "max_tokens_per_chunk": 512
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4\n8\n2\n6\n9\n3\n7\n10\n5\nBeltone Sustainability Report 2024\n28\n29\n1\nBeltone Sustainability Report 2024",
+        "2.1 PROGRESS TOWARDS",
+        "SUSTAINABILITY"
+      ]
+    },
+    "recursive": {
+      "stats": {
+        "name": "recursive",
+        "n_chunks": 126,
+        "avg_tokens": 490.0,
+        "min_tokens": 29,
+        "max_tokens": 666,
+        "std_tokens": 194.6,
+        "pct_too_short": 0.79,
+        "pct_too_long": 56.35,
+        "n_climate_passed": 76,
+        "pct_climate_passed": 60.32,
+        "tables": {
+          "stakeholder_engagement_p7_8": {
+            "description": "Internal/external stakeholders matrix (pages 7-8).",
+            "found_anywhere": false,
+            "intact_in_single_chunk": false
+          },
+          "materiality_matrix_p9": {
+            "description": "Materiality matrix — 14 topics with rank + H-H ratings (page 9).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          },
+          "esg_risks_opportunities_p26": {
+            "description": "ESG areas vs efforts/risks/opportunities (page 26).",
+            "found_anywhere": true,
+            "intact_in_single_chunk": true
+          }
+        },
+        "elapsed_chunking_s": 0.81,
+        "elapsed_climate_s": 62.1
+      },
+      "params": {
+        "chunk_size_chars": 2000,
+        "chunk_overlap_chars": 200,
+        "separators": [
+          "\\n\\n",
+          "\\n",
+          ".",
+          " "
+        ]
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4\n8\n2\n6\n9\n3\n7\n10\n5\nBeltone Sustainability Report 2024\n28\n29\n1\nBeltone Sustainability Report 2024\n2.1 PROGRESS TOWARDS\nSUSTAINABILITY\n2. SUSTAINABILITY\nAT OUR CORE\nECONOMIC HIGHLIGHTS\n•NBFIS Portfolio EGP 21.5 Bn.\n•EBITDA EGP 1,669.1 Bn.\n•NET PROFIT EGP 1.7 Bn.\n•AUMs EGP 22.6 Bn.\nGOVERNANCE HIGHLIGHT",
+        "4\n8\n2\n6\n9\n3\n7\n10\n5\nBeltone Sustainability Report 2024\n30\n31\n1\nBeltone Sustainability Report 2024\nTHE SUSTAINABILITY DEPARTMENT’S\nRESPONSIBILITIES INCLUDE:\n2. Implementation & Continuous Improvement\n• Recommending and supporting the integration of sustainable practices across operations in\nline with ",
+        "ability action plan.\n2.2 SUSTAINABILITY GOVERNANCE:\nBeltone’s Sustainability Department, established in 2022, reflects the company’s commitment to\nboth national and international sustainability and ESG guidelines, including the United Nations\nSustainable Development Goals (SDGs) 2030, TCFD Reporting"
+      ]
+    }
+  },
+  "recommendation": {
+    "recommended": "sentence_window",
+    "rationale": "sentence_window: 3/3 known tables intact; 6.42% chunks >512 tokens; 2.79% <50 tokens; 314 chunks pass ClimateBERT.",
+    "ranking": [
+      "sentence_window",
+      "semantic",
+      "recursive",
+      "section_aware",
+      "current"
+    ]
+  }
+}

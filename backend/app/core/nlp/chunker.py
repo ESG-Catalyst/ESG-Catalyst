@@ -1,17 +1,26 @@
-"""Semantic chunking — split ingested documents into retrieval-ready chunks.
+"""Chunking strategies — split ingested documents into retrieval-ready chunks.
 
-Design principles:
+Two strategies are available, selected by ``settings.chunk_strategy``:
+
+  ``sentence_window`` *(default — A2 tuning winner)*
+      Per-page, 3-sentence window with stride 1 and a 1500-char hard cap.
+      Best ESG-relevance recall and lowest noise ratio on the Beltone PDF
+      under the post-C3 3-voter ensemble classifier
+      (see ``scripts/experiments/results/chunking_tuning.json``).
+
+  ``block_merge`` *(legacy)*
+      Original header/table-aware regex blocker that merges small blocks
+      and splits oversized ones with overlap. Retained for A/B tests.
+
+The public interface is unchanged:
+
+    from app.core.nlp.chunker import chunk_document
+    chunks = chunk_document(doc)   # uses settings.chunk_strategy
+
+Design principles still honoured by both strategies:
 - Section headers travel with their content (never orphaned).
 - Table rows and bullet-list blocks are never split mid-block.
-- Configurable chunk size with overlap for context continuity.
 - Each chunk carries metadata (page, section, type, offset).
-
-Usage:
-    from app.core.nlp.chunker import chunk_document
-    from app.core.ingestion.parser import ingest_document
-
-    doc = ingest_document("report.pdf")
-    chunks = chunk_document(doc)
 """
 
 from __future__ import annotations
@@ -23,6 +32,7 @@ from enum import Enum
 
 import structlog
 
+from app.config import settings
 from app.core.ingestion.parser import IngestedDocument
 
 logger = structlog.get_logger(__name__)
@@ -85,19 +95,67 @@ class _Block:
 # ── Public API ───────────────────────────────────────────────────────────
 def chunk_document(
     doc: IngestedDocument,
-    chunk_size: int = _DEFAULT_CHUNK_SIZE,
-    chunk_overlap: int = _DEFAULT_CHUNK_OVERLAP,
+    chunk_size: int | None = None,
+    chunk_overlap: int | None = None,
+    strategy: str | None = None,
 ) -> list[Chunk]:
     """Split an ``IngestedDocument`` into semantically meaningful chunks.
 
+    The active strategy comes from ``settings.chunk_strategy`` unless
+    overridden by the ``strategy`` argument — explicit kwarg wins for
+    A/B testing and for the comparison scripts under ``scripts/experiments/``.
+
     Args:
         doc: Output of ``ingest_document()``.
-        chunk_size: Target maximum characters per chunk.
-        chunk_overlap: Characters of overlap between consecutive chunks.
+        chunk_size: ``block_merge`` only — target max characters per chunk.
+            Defaults to ``settings.chunk_size_chars``.
+        chunk_overlap: ``block_merge`` only — characters of overlap between
+            consecutive chunks. Defaults to ``settings.chunk_overlap_chars``.
+        strategy: Override ``settings.chunk_strategy`` for one call.
+            One of ``"sentence_window"`` (default) or ``"block_merge"``.
 
     Returns:
         Ordered list of ``Chunk`` objects.
     """
+    active = (strategy or settings.chunk_strategy).lower()
+
+    if active == "sentence_window":
+        chunks = _chunk_sentence_window(
+            doc,
+            window=settings.chunk_window_sentences,
+            stride=settings.chunk_stride_sentences,
+            max_chars=settings.chunk_max_chars,
+        )
+    elif active == "block_merge":
+        chunks = _chunk_block_merge(
+            doc,
+            chunk_size=chunk_size if chunk_size is not None else settings.chunk_size_chars,
+            chunk_overlap=chunk_overlap if chunk_overlap is not None else settings.chunk_overlap_chars,
+        )
+    else:
+        raise ValueError(
+            f"Unknown chunk_strategy={active!r}. "
+            f"Valid: 'sentence_window' | 'block_merge'."
+        )
+
+    logger.info(
+        "chunker.done",
+        strategy=active,
+        file=doc.source_file,
+        pages=doc.page_count,
+        chunks=len(chunks),
+        avg_chars=sum(len(c.text) for c in chunks) // max(len(chunks), 1),
+    )
+    return chunks
+
+
+# ── Strategy: block_merge (legacy — original chunker logic) ─────────────
+def _chunk_block_merge(
+    doc: IngestedDocument,
+    chunk_size: int,
+    chunk_overlap: int,
+) -> list[Chunk]:
+    """Header/table-aware regex blocker + size-bounded merge with overlap."""
     all_chunks: list[Chunk] = []
 
     for page in doc.pages:
@@ -113,15 +171,107 @@ def chunk_document(
 
     # Drop tiny chunks (footers, page numbers, etc.)
     all_chunks = [c for c in all_chunks if len(c.text.strip()) >= _MIN_CHUNK_SIZE]
-
-    logger.info(
-        "chunker.done",
-        file=doc.source_file,
-        pages=doc.page_count,
-        chunks=len(all_chunks),
-        avg_chars=sum(len(c.text) for c in all_chunks) // max(len(all_chunks), 1),
-    )
     return all_chunks
+
+
+# ── Strategy: sentence_window (A2 tuning winner) ────────────────────────
+_SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z؀-ۿ])")
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Sentence splitter that's safe for English + Arabic-script starts."""
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    if not cleaned:
+        return []
+    parts = _SENT_SPLIT_RE.split(cleaned)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _nearest_header_above(text: str) -> str | None:
+    """Return the most recent header-shaped line at the start of ``text``.
+
+    Used so sentence-window chunks still carry the section_header metadata
+    that retrieval / report rendering relies on.
+    """
+    for line in text.split("\n")[:6]:
+        s = line.strip()
+        if not s or len(s) > 80:
+            continue
+        if _HEADER_RE.match(s):
+            return s
+    return None
+
+
+def _chunk_sentence_window(
+    doc: IngestedDocument,
+    window: int,
+    stride: int,
+    max_chars: int,
+) -> list[Chunk]:
+    """Per-page sentence window with a hard char cap.
+
+    Long single sentences (run-on table rows) are sub-split on sentence
+    boundaries inside the window — this is the knob that brings the long
+    tail of >512-token chunks from ~6% (A1 winner) down to ~1% (A2 winner).
+    """
+    chunks: list[Chunk] = []
+
+    for page in doc.pages:
+        page_header = _nearest_header_above(page.text)
+        sents = _split_sentences(page.text)
+        if not sents:
+            continue
+
+        i = 0
+        while i < len(sents):
+            window_sents = sents[i : i + window]
+            text = " ".join(window_sents).strip()
+
+            if len(text) > max_chars:
+                # Sub-pack sentences into multiple chunks under the cap.
+                acc = ""
+                for s in window_sents:
+                    candidate = (acc + " " + s).strip() if acc else s
+                    if len(candidate) > max_chars and acc:
+                        chunks.append(_emit_sentence_chunk(
+                            acc, page.page_number, page_header, doc.source_file,
+                        ))
+                        acc = s
+                    else:
+                        acc = candidate
+                if acc:
+                    chunks.append(_emit_sentence_chunk(
+                        acc, page.page_number, page_header, doc.source_file,
+                    ))
+            else:
+                if text:
+                    chunks.append(_emit_sentence_chunk(
+                        text, page.page_number, page_header, doc.source_file,
+                    ))
+
+            if i + window >= len(sents):
+                break
+            i += stride
+
+    return chunks
+
+
+def _emit_sentence_chunk(
+    text: str,
+    page_number: int,
+    section_header: str | None,
+    source_file: str,
+) -> Chunk:
+    """Construct a Chunk from a sentence-window slice."""
+    return Chunk(
+        chunk_id=uuid.uuid4().hex,
+        text=text,
+        page_number=page_number,
+        section_header=section_header,
+        chunk_type=ChunkType.text,
+        source_file=source_file,
+        char_offset=0,
+    )
 
 
 # ── Step 1: Parse page text into typed blocks ────────────────────────────

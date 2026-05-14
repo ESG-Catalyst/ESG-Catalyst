@@ -1,0 +1,2514 @@
+{
+  "documents": {
+    "beltone": {
+      "path": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\data\\ingestion_test_files\\en_beltone_report_summary.pdf",
+      "language": "en",
+      "page_count": 64,
+      "char_count": 176532,
+      "n_chunks": 479
+    },
+    "adib": {
+      "path": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\data\\ingestion_test_files\\ar-adib-esg-report-2022_ar.pdf",
+      "language": "ar",
+      "page_count": 71,
+      "char_count": 136617,
+      "n_chunks": 130
+    }
+  },
+  "chunk_size_chars": 2000,
+  "chunk_overlap_chars": 200,
+  "top_k": 5,
+  "test_set_path": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\scripts\\experiments\\retrieval_test_set.json",
+  "test_set_coverage": {
+    "queries_total": 20,
+    "queries_answerable": 20,
+    "unmatched_query_ids": []
+  },
+  "models": {
+    "e5-base": {
+      "result": {
+        "key": "e5-base",
+        "hf_name": "intfloat/multilingual-e5-base",
+        "note": "Current production baseline. ~278M params, 768d.",
+        "languages_evaluated": [
+          "en",
+          "ar"
+        ],
+        "n_chunks_total": 609,
+        "embed_time_sec": 125.81,
+        "embed_dim": 768,
+        "ram_before_mb": 501.5,
+        "ram_after_mb": 2111.8,
+        "ram_delta_mb": 1610.3,
+        "recall_at_1": 0.15,
+        "recall_at_5": 0.8,
+        "recall_at_1_by_lang": {
+          "en": 0.2,
+          "ar": 0.1
+        },
+        "recall_at_5_by_lang": {
+          "en": 0.8,
+          "ar": 0.8
+        },
+        "per_query": [
+          {
+            "id": "en-01",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone manage waste and recycling at its offices?",
+            "signature": [
+              "Trash Track"
+            ],
+            "top5_indices": [
+              27,
+              25,
+              160,
+              14,
+              5
+            ],
+            "top5_scores": [
+              0.8651,
+              0.8567,
+              0.8419,
+              0.8401,
+              0.8398
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-02",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What energy efficiency initiatives has Beltone implemented?",
+            "signature": [
+              "motion-sensor",
+              "renewable"
+            ],
+            "top5_indices": [
+              313,
+              140,
+              9,
+              454,
+              27
+            ],
+            "top5_scores": [
+              0.8607,
+              0.8581,
+              0.8579,
+              0.8546,
+              0.8485
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "en-03",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone treat GHG emissions in its materiality assessment?",
+            "signature": [
+              "GHG EMISSIONS",
+              "energy"
+            ],
+            "top5_indices": [
+              64,
+              59,
+              135,
+              126,
+              125
+            ],
+            "top5_scores": [
+              0.8841,
+              0.8577,
+              0.8534,
+              0.8492,
+              0.8467
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-04",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many new employee hires did Beltone make in 2024?",
+            "signature": [
+              "238 new employee hires"
+            ],
+            "top5_indices": [
+              389,
+              390,
+              397,
+              388,
+              298
+            ],
+            "top5_scores": [
+              0.8803,
+              0.8605,
+              0.8581,
+              0.8538,
+              0.8499
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-05",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many suppliers were assessed for environmental impacts versus the total supplier count?",
+            "signature": [
+              "200",
+              "387"
+            ],
+            "top5_indices": [
+              463,
+              464,
+              136,
+              465,
+              64
+            ],
+            "top5_scores": [
+              0.8667,
+              0.8085,
+              0.7959,
+              0.7923,
+              0.7894
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-06",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What pledge has Beltone signed to support equal representation for women in arbitration?",
+            "signature": [
+              "ERA Pledge"
+            ],
+            "top5_indices": [
+              444,
+              443,
+              437,
+              155,
+              440
+            ],
+            "top5_scores": [
+              0.92,
+              0.9001,
+              0.8294,
+              0.822,
+              0.8194
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-07",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many female directors are on Beltone's board?",
+            "signature": [
+              "3 females",
+              "board"
+            ],
+            "top5_indices": [
+              155,
+              145,
+              154,
+              410,
+              160
+            ],
+            "top5_scores": [
+              0.8592,
+              0.8316,
+              0.8243,
+              0.8196,
+              0.8167
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-08",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What percentage of Beltone's top management positions are held by women?",
+            "signature": [
+              "28%",
+              "top management"
+            ],
+            "top5_indices": [
+              155,
+              145,
+              388,
+              432,
+              410
+            ],
+            "top5_scores": [
+              0.8651,
+              0.8459,
+              0.8429,
+              0.8394,
+              0.8342
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-09",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What is Beltone's policy on bribery and corruption?",
+            "signature": [
+              "zero-tolerance",
+              "bribery"
+            ],
+            "top5_indices": [
+              167,
+              413,
+              9,
+              151,
+              168
+            ],
+            "top5_scores": [
+              0.856,
+              0.8535,
+              0.8293,
+              0.828,
+              0.8206
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-10",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What financial risks does Beltone manage and how?",
+            "signature": [
+              "CREDIT RISK",
+              "MARKET RISK",
+              "LIQUIDITY"
+            ],
+            "top5_indices": [
+              110,
+              125,
+              114,
+              194,
+              120
+            ],
+            "top5_scores": [
+              0.8696,
+              0.866,
+              0.8653,
+              0.8638,
+              0.8592
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-01",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "113",
+              "التمويل المتوافق"
+            ],
+            "top5_indices": [
+              66,
+              44,
+              81,
+              9,
+              65
+            ],
+            "top5_scores": [
+              0.8283,
+              0.8247,
+              0.8246,
+              0.8217,
+              0.8208
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-02",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+            "signature": [
+              "6.6",
+              "تمويل االستدامة"
+            ],
+            "top5_indices": [
+              33,
+              37,
+              63,
+              36,
+              57
+            ],
+            "top5_scores": [
+              0.866,
+              0.8652,
+              0.8564,
+              0.8545,
+              0.8521
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-03",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "17.2",
+              "كفاية رأس المال"
+            ],
+            "top5_indices": [
+              81,
+              44,
+              128,
+              11,
+              104
+            ],
+            "top5_scores": [
+              0.8385,
+              0.8364,
+              0.8268,
+              0.8259,
+              0.8254
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-04",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+            "signature": [
+              "12",
+              "اإلبالغ عن المخالفات"
+            ],
+            "top5_indices": [
+              70,
+              112,
+              100,
+              49,
+              101
+            ],
+            "top5_scores": [
+              0.8158,
+              0.8107,
+              0.809,
+              0.8032,
+              0.8018
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-05",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+            "signature": [
+              "100",
+              "غسيل االموال"
+            ],
+            "top5_indices": [
+              45,
+              101,
+              50,
+              6,
+              100
+            ],
+            "top5_scores": [
+              0.8419,
+              0.8334,
+              0.8221,
+              0.8198,
+              0.8106
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-06",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "A2",
+              "موديز"
+            ],
+            "top5_indices": [
+              44,
+              128,
+              83,
+              11,
+              89
+            ],
+            "top5_scores": [
+              0.8333,
+              0.8316,
+              0.8289,
+              0.828,
+              0.8252
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-07",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+            "signature": [
+              "2869"
+            ],
+            "top5_indices": [
+              80,
+              7,
+              5,
+              90,
+              104
+            ],
+            "top5_scores": [
+              0.8075,
+              0.8058,
+              0.7926,
+              0.7904,
+              0.7897
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-08",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+            "signature": [
+              "53,082"
+            ],
+            "top5_indices": [
+              122,
+              90,
+              87,
+              7,
+              65
+            ],
+            "top5_scores": [
+              0.8327,
+              0.8312,
+              0.8305,
+              0.8238,
+              0.8209
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-09",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "97.6",
+              "الشكاوي"
+            ],
+            "top5_indices": [
+              70,
+              112,
+              71,
+              107,
+              81
+            ],
+            "top5_scores": [
+              0.8675,
+              0.8434,
+              0.8428,
+              0.8322,
+              0.8274
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-10",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+            "signature": [
+              "900",
+              "ميغاوات"
+            ],
+            "top5_indices": [
+              59,
+              60,
+              108,
+              61,
+              128
+            ],
+            "top5_scores": [
+              0.8303,
+              0.8147,
+              0.8062,
+              0.8019,
+              0.8007
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          }
+        ],
+        "error": null
+      },
+      "mlflow_run_id": "0f5134d61b1c4f92a3d1c5319939de38"
+    },
+    "e5-large": {
+      "result": {
+        "key": "e5-large",
+        "hf_name": "intfloat/multilingual-e5-large",
+        "note": "Larger E5 — slower, expected higher recall. ~560M params, 1024d.",
+        "languages_evaluated": [
+          "en",
+          "ar"
+        ],
+        "n_chunks_total": 609,
+        "embed_time_sec": 440.35,
+        "embed_dim": 1024,
+        "ram_before_mb": 1438.0,
+        "ram_after_mb": 3790.4,
+        "ram_delta_mb": 2352.4,
+        "recall_at_1": 0.35,
+        "recall_at_5": 0.75,
+        "recall_at_1_by_lang": {
+          "en": 0.2,
+          "ar": 0.5
+        },
+        "recall_at_5_by_lang": {
+          "en": 0.7,
+          "ar": 0.8
+        },
+        "per_query": [
+          {
+            "id": "en-01",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone manage waste and recycling at its offices?",
+            "signature": [
+              "Trash Track"
+            ],
+            "top5_indices": [
+              27,
+              126,
+              25,
+              14,
+              9
+            ],
+            "top5_scores": [
+              0.8583,
+              0.8394,
+              0.8382,
+              0.8364,
+              0.8345
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-02",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What energy efficiency initiatives has Beltone implemented?",
+            "signature": [
+              "motion-sensor",
+              "renewable"
+            ],
+            "top5_indices": [
+              313,
+              9,
+              29,
+              370,
+              140
+            ],
+            "top5_scores": [
+              0.8549,
+              0.8525,
+              0.8427,
+              0.8419,
+              0.8372
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "en-03",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone treat GHG emissions in its materiality assessment?",
+            "signature": [
+              "GHG EMISSIONS",
+              "energy"
+            ],
+            "top5_indices": [
+              64,
+              59,
+              126,
+              125,
+              25
+            ],
+            "top5_scores": [
+              0.8668,
+              0.8506,
+              0.8444,
+              0.8363,
+              0.8328
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "en-04",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many new employee hires did Beltone make in 2024?",
+            "signature": [
+              "238 new employee hires"
+            ],
+            "top5_indices": [
+              389,
+              397,
+              388,
+              321,
+              410
+            ],
+            "top5_scores": [
+              0.8669,
+              0.8427,
+              0.8374,
+              0.8322,
+              0.8302
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-05",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many suppliers were assessed for environmental impacts versus the total supplier count?",
+            "signature": [
+              "200",
+              "387"
+            ],
+            "top5_indices": [
+              463,
+              464,
+              465,
+              136,
+              132
+            ],
+            "top5_scores": [
+              0.8609,
+              0.8168,
+              0.8032,
+              0.7999,
+              0.7958
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-06",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What pledge has Beltone signed to support equal representation for women in arbitration?",
+            "signature": [
+              "ERA Pledge"
+            ],
+            "top5_indices": [
+              443,
+              444,
+              155,
+              440,
+              9
+            ],
+            "top5_scores": [
+              0.8992,
+              0.8957,
+              0.8167,
+              0.8143,
+              0.8026
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-07",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many female directors are on Beltone's board?",
+            "signature": [
+              "3 females",
+              "board"
+            ],
+            "top5_indices": [
+              155,
+              145,
+              159,
+              154,
+              388
+            ],
+            "top5_scores": [
+              0.8428,
+              0.8154,
+              0.8105,
+              0.8088,
+              0.8074
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-08",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What percentage of Beltone's top management positions are held by women?",
+            "signature": [
+              "28%",
+              "top management"
+            ],
+            "top5_indices": [
+              155,
+              388,
+              390,
+              145,
+              432
+            ],
+            "top5_scores": [
+              0.8462,
+              0.8442,
+              0.8374,
+              0.8311,
+              0.8297
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-09",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What is Beltone's policy on bribery and corruption?",
+            "signature": [
+              "zero-tolerance",
+              "bribery"
+            ],
+            "top5_indices": [
+              413,
+              167,
+              9,
+              169,
+              170
+            ],
+            "top5_scores": [
+              0.8481,
+              0.8423,
+              0.8273,
+              0.8194,
+              0.8143
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-10",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What financial risks does Beltone manage and how?",
+            "signature": [
+              "CREDIT RISK",
+              "MARKET RISK",
+              "LIQUIDITY"
+            ],
+            "top5_indices": [
+              110,
+              125,
+              120,
+              194,
+              201
+            ],
+            "top5_scores": [
+              0.8673,
+              0.8618,
+              0.8604,
+              0.8594,
+              0.8576
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-01",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "113",
+              "التمويل المتوافق"
+            ],
+            "top5_indices": [
+              57,
+              65,
+              40,
+              66,
+              44
+            ],
+            "top5_scores": [
+              0.8415,
+              0.8408,
+              0.8401,
+              0.8396,
+              0.8386
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-02",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+            "signature": [
+              "6.6",
+              "تمويل االستدامة"
+            ],
+            "top5_indices": [
+              57,
+              33,
+              37,
+              58,
+              40
+            ],
+            "top5_scores": [
+              0.8732,
+              0.8623,
+              0.8593,
+              0.8577,
+              0.8566
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-03",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "17.2",
+              "كفاية رأس المال"
+            ],
+            "top5_indices": [
+              11,
+              5,
+              9,
+              57,
+              76
+            ],
+            "top5_scores": [
+              0.8265,
+              0.8255,
+              0.8238,
+              0.8226,
+              0.8224
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-04",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+            "signature": [
+              "12",
+              "اإلبالغ عن المخالفات"
+            ],
+            "top5_indices": [
+              71,
+              49,
+              70,
+              112,
+              52
+            ],
+            "top5_scores": [
+              0.8296,
+              0.8244,
+              0.8197,
+              0.8163,
+              0.7995
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-05",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+            "signature": [
+              "100",
+              "غسيل االموال"
+            ],
+            "top5_indices": [
+              101,
+              45,
+              50,
+              6,
+              100
+            ],
+            "top5_scores": [
+              0.8492,
+              0.8453,
+              0.8399,
+              0.822,
+              0.821
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-06",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "A2",
+              "موديز"
+            ],
+            "top5_indices": [
+              34,
+              107,
+              11,
+              128,
+              127
+            ],
+            "top5_scores": [
+              0.8196,
+              0.8188,
+              0.8187,
+              0.8169,
+              0.8158
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-07",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+            "signature": [
+              "2869"
+            ],
+            "top5_indices": [
+              80,
+              7,
+              108,
+              91,
+              111
+            ],
+            "top5_scores": [
+              0.8169,
+              0.8028,
+              0.8011,
+              0.7986,
+              0.7975
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-08",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+            "signature": [
+              "53,082"
+            ],
+            "top5_indices": [
+              87,
+              111,
+              122,
+              91,
+              90
+            ],
+            "top5_scores": [
+              0.8583,
+              0.8554,
+              0.8449,
+              0.8398,
+              0.8385
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-09",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "97.6",
+              "الشكاوي"
+            ],
+            "top5_indices": [
+              71,
+              70,
+              112,
+              107,
+              93
+            ],
+            "top5_scores": [
+              0.8675,
+              0.8565,
+              0.8529,
+              0.8484,
+              0.8286
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-10",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+            "signature": [
+              "900",
+              "ميغاوات"
+            ],
+            "top5_indices": [
+              60,
+              59,
+              108,
+              61,
+              74
+            ],
+            "top5_scores": [
+              0.8215,
+              0.8092,
+              0.7943,
+              0.792,
+              0.7873
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          }
+        ],
+        "error": null
+      },
+      "mlflow_run_id": "ece6bf0f558e467ba527d45f9be04e1e"
+    },
+    "mpnet-multi": {
+      "result": {
+        "key": "mpnet-multi",
+        "hf_name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        "note": "General multilingual sentence-transformer. ~278M params, 768d.",
+        "languages_evaluated": [
+          "en",
+          "ar"
+        ],
+        "n_chunks_total": 609,
+        "embed_time_sec": 63.16,
+        "embed_dim": 768,
+        "ram_before_mb": 2242.2,
+        "ram_after_mb": 2915.4,
+        "ram_delta_mb": 673.2,
+        "recall_at_1": 0.35,
+        "recall_at_5": 0.5,
+        "recall_at_1_by_lang": {
+          "en": 0.5,
+          "ar": 0.2
+        },
+        "recall_at_5_by_lang": {
+          "en": 0.7,
+          "ar": 0.3
+        },
+        "per_query": [
+          {
+            "id": "en-01",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone manage waste and recycling at its offices?",
+            "signature": [
+              "Trash Track"
+            ],
+            "top5_indices": [
+              25,
+              27,
+              9,
+              169,
+              424
+            ],
+            "top5_scores": [
+              0.7242,
+              0.685,
+              0.6767,
+              0.645,
+              0.6442
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-02",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What energy efficiency initiatives has Beltone implemented?",
+            "signature": [
+              "motion-sensor",
+              "renewable"
+            ],
+            "top5_indices": [
+              25,
+              9,
+              313,
+              140,
+              29
+            ],
+            "top5_scores": [
+              0.7443,
+              0.7172,
+              0.7171,
+              0.7161,
+              0.6954
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "en-03",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone treat GHG emissions in its materiality assessment?",
+            "signature": [
+              "GHG EMISSIONS",
+              "energy"
+            ],
+            "top5_indices": [
+              122,
+              64,
+              135,
+              466,
+              125
+            ],
+            "top5_scores": [
+              0.7731,
+              0.7293,
+              0.7155,
+              0.7146,
+              0.6999
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-04",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many new employee hires did Beltone make in 2024?",
+            "signature": [
+              "238 new employee hires"
+            ],
+            "top5_indices": [
+              389,
+              388,
+              390,
+              432,
+              209
+            ],
+            "top5_scores": [
+              0.7,
+              0.6852,
+              0.6361,
+              0.6316,
+              0.6084
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "en-05",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many suppliers were assessed for environmental impacts versus the total supplier count?",
+            "signature": [
+              "200",
+              "387"
+            ],
+            "top5_indices": [
+              463,
+              464,
+              113,
+              132,
+              465
+            ],
+            "top5_scores": [
+              0.862,
+              0.6825,
+              0.594,
+              0.5901,
+              0.5781
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-06",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What pledge has Beltone signed to support equal representation for women in arbitration?",
+            "signature": [
+              "ERA Pledge"
+            ],
+            "top5_indices": [
+              444,
+              443,
+              276,
+              442,
+              155
+            ],
+            "top5_scores": [
+              0.84,
+              0.8209,
+              0.6119,
+              0.5943,
+              0.5658
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-07",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many female directors are on Beltone's board?",
+            "signature": [
+              "3 females",
+              "board"
+            ],
+            "top5_indices": [
+              2,
+              155,
+              154,
+              145,
+              388
+            ],
+            "top5_scores": [
+              0.6759,
+              0.6616,
+              0.6038,
+              0.5906,
+              0.5896
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-08",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What percentage of Beltone's top management positions are held by women?",
+            "signature": [
+              "28%",
+              "top management"
+            ],
+            "top5_indices": [
+              2,
+              391,
+              388,
+              155,
+              145
+            ],
+            "top5_scores": [
+              0.7456,
+              0.7225,
+              0.7191,
+              0.6549,
+              0.6331
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-09",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What is Beltone's policy on bribery and corruption?",
+            "signature": [
+              "zero-tolerance",
+              "bribery"
+            ],
+            "top5_indices": [
+              167,
+              193,
+              148,
+              413,
+              151
+            ],
+            "top5_scores": [
+              0.6419,
+              0.6252,
+              0.6178,
+              0.5696,
+              0.5507
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-10",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What financial risks does Beltone manage and how?",
+            "signature": [
+              "CREDIT RISK",
+              "MARKET RISK",
+              "LIQUIDITY"
+            ],
+            "top5_indices": [
+              110,
+              114,
+              120,
+              182,
+              125
+            ],
+            "top5_scores": [
+              0.7951,
+              0.7862,
+              0.7623,
+              0.753,
+              0.7112
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-01",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "113",
+              "التمويل المتوافق"
+            ],
+            "top5_indices": [
+              44,
+              9,
+              115,
+              48,
+              62
+            ],
+            "top5_scores": [
+              0.729,
+              0.712,
+              0.6945,
+              0.6888,
+              0.6868
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-02",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+            "signature": [
+              "6.6",
+              "تمويل االستدامة"
+            ],
+            "top5_indices": [
+              58,
+              72,
+              57,
+              39,
+              99
+            ],
+            "top5_scores": [
+              0.805,
+              0.797,
+              0.7924,
+              0.7921,
+              0.7785
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-03",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "17.2",
+              "كفاية رأس المال"
+            ],
+            "top5_indices": [
+              9,
+              53,
+              54,
+              28,
+              15
+            ],
+            "top5_scores": [
+              0.7693,
+              0.7543,
+              0.7256,
+              0.6822,
+              0.6801
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-04",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+            "signature": [
+              "12",
+              "اإلبالغ عن المخالفات"
+            ],
+            "top5_indices": [
+              107,
+              71,
+              116,
+              49,
+              88
+            ],
+            "top5_scores": [
+              0.6295,
+              0.6101,
+              0.5996,
+              0.5926,
+              0.5713
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-05",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+            "signature": [
+              "100",
+              "غسيل االموال"
+            ],
+            "top5_indices": [
+              101,
+              45,
+              54,
+              50,
+              46
+            ],
+            "top5_scores": [
+              0.6645,
+              0.6137,
+              0.6103,
+              0.6002,
+              0.5897
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-06",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "A2",
+              "موديز"
+            ],
+            "top5_indices": [
+              115,
+              13,
+              65,
+              28,
+              128
+            ],
+            "top5_scores": [
+              0.747,
+              0.7248,
+              0.7151,
+              0.7109,
+              0.708
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-07",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+            "signature": [
+              "2869"
+            ],
+            "top5_indices": [
+              107,
+              7,
+              74,
+              111,
+              73
+            ],
+            "top5_scores": [
+              0.5109,
+              0.4968,
+              0.4916,
+              0.4701,
+              0.4642
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-08",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+            "signature": [
+              "53,082"
+            ],
+            "top5_indices": [
+              111,
+              104,
+              122,
+              54,
+              6
+            ],
+            "top5_scores": [
+              0.6984,
+              0.5947,
+              0.5873,
+              0.5322,
+              0.51
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-09",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "97.6",
+              "الشكاوي"
+            ],
+            "top5_indices": [
+              71,
+              44,
+              54,
+              9,
+              101
+            ],
+            "top5_scores": [
+              0.7718,
+              0.6709,
+              0.6663,
+              0.659,
+              0.6465
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-10",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+            "signature": [
+              "900",
+              "ميغاوات"
+            ],
+            "top5_indices": [
+              60,
+              59,
+              84,
+              66,
+              61
+            ],
+            "top5_scores": [
+              0.7464,
+              0.7322,
+              0.5075,
+              0.5,
+              0.4663
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          }
+        ],
+        "error": null
+      },
+      "mlflow_run_id": "d0a0fd14333c4470a2affa242e7953f2"
+    },
+    "bge-m3": {
+      "result": {
+        "key": "bge-m3",
+        "hf_name": "BAAI/bge-m3",
+        "note": "SOTA multilingual incl. Arabic. ~568M params, 1024d.",
+        "languages_evaluated": [
+          "en",
+          "ar"
+        ],
+        "n_chunks_total": 609,
+        "embed_time_sec": 695.61,
+        "embed_dim": 1024,
+        "ram_before_mb": 2268.5,
+        "ram_after_mb": 4890.3,
+        "ram_delta_mb": 2621.9,
+        "recall_at_1": 0.3,
+        "recall_at_5": 0.85,
+        "recall_at_1_by_lang": {
+          "en": 0.2,
+          "ar": 0.4
+        },
+        "recall_at_5_by_lang": {
+          "en": 0.8,
+          "ar": 0.9
+        },
+        "per_query": [
+          {
+            "id": "en-01",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone manage waste and recycling at its offices?",
+            "signature": [
+              "Trash Track"
+            ],
+            "top5_indices": [
+              27,
+              25,
+              126,
+              9,
+              167
+            ],
+            "top5_scores": [
+              0.6897,
+              0.6794,
+              0.6486,
+              0.6358,
+              0.6262
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-02",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What energy efficiency initiatives has Beltone implemented?",
+            "signature": [
+              "motion-sensor",
+              "renewable"
+            ],
+            "top5_indices": [
+              407,
+              313,
+              9,
+              25,
+              454
+            ],
+            "top5_scores": [
+              0.6485,
+              0.6447,
+              0.637,
+              0.635,
+              0.6233
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "en-03",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How does Beltone treat GHG emissions in its materiality assessment?",
+            "signature": [
+              "GHG EMISSIONS",
+              "energy"
+            ],
+            "top5_indices": [
+              64,
+              135,
+              126,
+              59,
+              125
+            ],
+            "top5_scores": [
+              0.6923,
+              0.6231,
+              0.6211,
+              0.6117,
+              0.597
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-04",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many new employee hires did Beltone make in 2024?",
+            "signature": [
+              "238 new employee hires"
+            ],
+            "top5_indices": [
+              389,
+              397,
+              321,
+              388,
+              323
+            ],
+            "top5_scores": [
+              0.6717,
+              0.6391,
+              0.6388,
+              0.6148,
+              0.6061
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-05",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many suppliers were assessed for environmental impacts versus the total supplier count?",
+            "signature": [
+              "200",
+              "387"
+            ],
+            "top5_indices": [
+              463,
+              464,
+              465,
+              136,
+              134
+            ],
+            "top5_scores": [
+              0.7549,
+              0.6256,
+              0.5844,
+              0.5411,
+              0.5182
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-06",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What pledge has Beltone signed to support equal representation for women in arbitration?",
+            "signature": [
+              "ERA Pledge"
+            ],
+            "top5_indices": [
+              444,
+              443,
+              155,
+              145,
+              440
+            ],
+            "top5_scores": [
+              0.743,
+              0.7211,
+              0.5817,
+              0.557,
+              0.5433
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-07",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "How many female directors are on Beltone's board?",
+            "signature": [
+              "3 females",
+              "board"
+            ],
+            "top5_indices": [
+              155,
+              388,
+              145,
+              6,
+              154
+            ],
+            "top5_scores": [
+              0.6846,
+              0.6235,
+              0.6192,
+              0.5902,
+              0.58
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-08",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What percentage of Beltone's top management positions are held by women?",
+            "signature": [
+              "28%",
+              "top management"
+            ],
+            "top5_indices": [
+              388,
+              155,
+              145,
+              397,
+              432
+            ],
+            "top5_scores": [
+              0.6902,
+              0.6841,
+              0.6699,
+              0.622,
+              0.6139
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-09",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What is Beltone's policy on bribery and corruption?",
+            "signature": [
+              "zero-tolerance",
+              "bribery"
+            ],
+            "top5_indices": [
+              167,
+              169,
+              413,
+              168,
+              6
+            ],
+            "top5_scores": [
+              0.6827,
+              0.5985,
+              0.5949,
+              0.5663,
+              0.5583
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "en-10",
+            "lang": "en",
+            "doc_key": "beltone",
+            "query": "What financial risks does Beltone manage and how?",
+            "signature": [
+              "CREDIT RISK",
+              "MARKET RISK",
+              "LIQUIDITY"
+            ],
+            "top5_indices": [
+              120,
+              182,
+              110,
+              135,
+              9
+            ],
+            "top5_scores": [
+              0.679,
+              0.6466,
+              0.6443,
+              0.6434,
+              0.6423
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-01",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "113",
+              "التمويل المتوافق"
+            ],
+            "top5_indices": [
+              66,
+              65,
+              54,
+              102,
+              40
+            ],
+            "top5_scores": [
+              0.6526,
+              0.6311,
+              0.5996,
+              0.5863,
+              0.5833
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-02",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+            "signature": [
+              "6.6",
+              "تمويل االستدامة"
+            ],
+            "top5_indices": [
+              57,
+              33,
+              58,
+              11,
+              65
+            ],
+            "top5_scores": [
+              0.7169,
+              0.6603,
+              0.6601,
+              0.6531,
+              0.6473
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-03",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "17.2",
+              "كفاية رأس المال"
+            ],
+            "top5_indices": [
+              11,
+              54,
+              91,
+              53,
+              102
+            ],
+            "top5_scores": [
+              0.628,
+              0.601,
+              0.5986,
+              0.5913,
+              0.5862
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-04",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+            "signature": [
+              "12",
+              "اإلبالغ عن المخالفات"
+            ],
+            "top5_indices": [
+              71,
+              70,
+              107,
+              84,
+              49
+            ],
+            "top5_scores": [
+              0.5843,
+              0.5813,
+              0.5797,
+              0.5676,
+              0.5476
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-05",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+            "signature": [
+              "100",
+              "غسيل االموال"
+            ],
+            "top5_indices": [
+              101,
+              102,
+              45,
+              6,
+              50
+            ],
+            "top5_scores": [
+              0.6201,
+              0.6068,
+              0.5928,
+              0.5823,
+              0.5607
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-06",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "A2",
+              "موديز"
+            ],
+            "top5_indices": [
+              7,
+              11,
+              54,
+              76,
+              102
+            ],
+            "top5_scores": [
+              0.5614,
+              0.552,
+              0.5476,
+              0.5406,
+              0.5292
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-07",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+            "signature": [
+              "2869"
+            ],
+            "top5_indices": [
+              108,
+              80,
+              7,
+              91,
+              111
+            ],
+            "top5_scores": [
+              0.5643,
+              0.541,
+              0.5363,
+              0.5331,
+              0.5203
+            ],
+            "hit_at_1": false,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-08",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+            "signature": [
+              "53,082"
+            ],
+            "top5_indices": [
+              87,
+              111,
+              91,
+              93,
+              90
+            ],
+            "top5_scores": [
+              0.6653,
+              0.6316,
+              0.603,
+              0.6029,
+              0.6015
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-09",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "97.6",
+              "الشكاوي"
+            ],
+            "top5_indices": [
+              71,
+              70,
+              7,
+              93,
+              112
+            ],
+            "top5_scores": [
+              0.7051,
+              0.6396,
+              0.6363,
+              0.6022,
+              0.5975
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          },
+          {
+            "id": "ar-10",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+            "signature": [
+              "900",
+              "ميغاوات"
+            ],
+            "top5_indices": [
+              60,
+              59,
+              61,
+              84,
+              108
+            ],
+            "top5_scores": [
+              0.7122,
+              0.5304,
+              0.4755,
+              0.4658,
+              0.4643
+            ],
+            "hit_at_1": true,
+            "hit_at_5": true
+          }
+        ],
+        "error": null
+      },
+      "mlflow_run_id": "4a1438e158f34aa0bd3323e7b9e5ac3c"
+    },
+    "arabertv2": {
+      "result": {
+        "key": "arabertv2",
+        "hf_name": "aubmindlab/bert-base-arabertv2",
+        "note": "Arabic-specific BERT (mean-pooled via SentenceTransformer). ~135M params, 768d.",
+        "languages_evaluated": [
+          "ar"
+        ],
+        "n_chunks_total": 130,
+        "embed_time_sec": 66.42,
+        "embed_dim": 768,
+        "ram_before_mb": 3379.6,
+        "ram_after_mb": 3782.5,
+        "ram_delta_mb": 402.9,
+        "recall_at_1": 0.0,
+        "recall_at_5": 0.0,
+        "recall_at_1_by_lang": {
+          "ar": 0.0
+        },
+        "recall_at_5_by_lang": {
+          "ar": 0.0
+        },
+        "per_query": [
+          {
+            "id": "ar-01",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "113",
+              "التمويل المتوافق"
+            ],
+            "top5_indices": [
+              75,
+              3,
+              11,
+              8,
+              10
+            ],
+            "top5_scores": [
+              0.6501,
+              0.6384,
+              0.6381,
+              0.6274,
+              0.627
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-02",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+            "signature": [
+              "6.6",
+              "تمويل االستدامة"
+            ],
+            "top5_indices": [
+              3,
+              10,
+              75,
+              39,
+              8
+            ],
+            "top5_scores": [
+              0.6617,
+              0.6557,
+              0.6553,
+              0.6546,
+              0.6393
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-03",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "17.2",
+              "كفاية رأس المال"
+            ],
+            "top5_indices": [
+              3,
+              10,
+              8,
+              39,
+              75
+            ],
+            "top5_scores": [
+              0.6658,
+              0.661,
+              0.6456,
+              0.6455,
+              0.6447
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-04",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+            "signature": [
+              "12",
+              "اإلبالغ عن المخالفات"
+            ],
+            "top5_indices": [
+              112,
+              8,
+              0,
+              39,
+              52
+            ],
+            "top5_scores": [
+              0.5621,
+              0.544,
+              0.5348,
+              0.5294,
+              0.5288
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-05",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+            "signature": [
+              "100",
+              "غسيل االموال"
+            ],
+            "top5_indices": [
+              8,
+              39,
+              10,
+              75,
+              52
+            ],
+            "top5_scores": [
+              0.7141,
+              0.6967,
+              0.6948,
+              0.6935,
+              0.6919
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-06",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "A2",
+              "موديز"
+            ],
+            "top5_indices": [
+              3,
+              10,
+              39,
+              75,
+              8
+            ],
+            "top5_scores": [
+              0.6362,
+              0.6181,
+              0.6083,
+              0.5997,
+              0.5969
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-07",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+            "signature": [
+              "2869"
+            ],
+            "top5_indices": [
+              8,
+              52,
+              77,
+              39,
+              95
+            ],
+            "top5_scores": [
+              0.579,
+              0.5772,
+              0.5724,
+              0.5707,
+              0.5659
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-08",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+            "signature": [
+              "53,082"
+            ],
+            "top5_indices": [
+              95,
+              52,
+              39,
+              0,
+              3
+            ],
+            "top5_scores": [
+              0.6104,
+              0.6071,
+              0.6035,
+              0.6033,
+              0.5927
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-09",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+            "signature": [
+              "97.6",
+              "الشكاوي"
+            ],
+            "top5_indices": [
+              10,
+              39,
+              8,
+              3,
+              77
+            ],
+            "top5_scores": [
+              0.6596,
+              0.6554,
+              0.6516,
+              0.6418,
+              0.6314
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          },
+          {
+            "id": "ar-10",
+            "lang": "ar",
+            "doc_key": "adib",
+            "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+            "signature": [
+              "900",
+              "ميغاوات"
+            ],
+            "top5_indices": [
+              0,
+              3,
+              77,
+              39,
+              10
+            ],
+            "top5_scores": [
+              0.6634,
+              0.6485,
+              0.6461,
+              0.6408,
+              0.6389
+            ],
+            "hit_at_1": false,
+            "hit_at_5": false
+          }
+        ],
+        "error": null
+      },
+      "mlflow_run_id": "79eff9314f654911ae6197087866c350"
+    }
+  },
+  "recommendation": {
+    "recommendation": {
+      "mode": "single_multilingual",
+      "model": "bge-m3",
+      "hf": "BAAI/bge-m3"
+    },
+    "best_en": "e5-base",
+    "best_ar": "bge-m3",
+    "best_multilingual": "bge-m3",
+    "rationale": "Best multilingual bge-m3 AR r@5 = 0.90; best AR specialist bge-m3 AR r@5 = 0.90 (Δ=+0.00). Below 0.10 threshold → single multilingual model preferred."
+  }
+}

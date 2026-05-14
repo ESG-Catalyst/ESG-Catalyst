@@ -1,0 +1,123 @@
+{
+  "pdf": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\data\\ingestion_test_files\\en_beltone_report_summary.pdf",
+  "doc_pages": 64,
+  "ensemble_threshold": 0.3,
+  "variations": {
+    "sw_w3_s1_cap1500": {
+      "params": {
+        "name": "sw_w3_s1_cap1500",
+        "window": 3,
+        "stride": 1,
+        "max_chars": 1500
+      },
+      "stats": {
+        "name": "sw_w3_s1_cap1500",
+        "window": 3,
+        "stride": 1,
+        "max_chars": 1500,
+        "n_chunks": 695,
+        "avg_tokens": 194.1,
+        "min_tokens": 3,
+        "max_tokens": 1191,
+        "std_tokens": 105.7,
+        "pct_too_short": 3.88,
+        "pct_too_long": 1.29,
+        "n_esg_relevant": 642,
+        "pct_esg_relevant": 92.37,
+        "n_E": 159,
+        "n_S": 286,
+        "n_G": 197,
+        "elapsed_chunking_s": 0.01,
+        "elapsed_classify_s": 424.16
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4 8 2 6 9 3 7 10 5 Beltone Sustainability Report 2024 28 29 1 Beltone Sustainability Report 2024 2.1 PROGRESS TOWARDS SUSTAINABILITY 2. SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHT",
+        "SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIG",
+        "GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIGHLIGHTS •70% local suppliers. •238 new employee hires. Out of these, 75 were women, representing 32% of total new hires. •A total of 3,814 hours"
+      ]
+    },
+    "sw_w5_s2_cap1500": {
+      "params": {
+        "name": "sw_w5_s2_cap1500",
+        "window": 5,
+        "stride": 2,
+        "max_chars": 1500
+      },
+      "stats": {
+        "name": "sw_w5_s2_cap1500",
+        "window": 5,
+        "stride": 2,
+        "max_chars": 1500,
+        "n_chunks": 368,
+        "avg_tokens": 290.3,
+        "min_tokens": 7,
+        "max_tokens": 1191,
+        "std_tokens": 116.1,
+        "pct_too_short": 2.72,
+        "pct_too_long": 1.9,
+        "n_esg_relevant": 351,
+        "pct_esg_relevant": 95.38,
+        "n_E": 91,
+        "n_S": 159,
+        "n_G": 101,
+        "elapsed_chunking_s": 0.01,
+        "elapsed_classify_s": 306.84
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4 8 2 6 9 3 7 10 5 Beltone Sustainability Report 2024 28 29 1 Beltone Sustainability Report 2024 2.1 PROGRESS TOWARDS SUSTAINABILITY 2. SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHT",
+        "GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIGHLIGHTS •70% local suppliers. •238 new employee hires. Out of these, 75 were women, representing 32% of total new hires. •A total of 3,814 hours",
+        "4 8 2 6 9 3 7 10 5 Beltone Sustainability Report 2024 30 31 1 Beltone Sustainability Report 2024 THE SUSTAINABILITY DEPARTMENT’S RESPONSIBILITIES INCLUDE: 2. Implementation & Continuous Improvement • Recommending and supporting the integration of sustainable practices across operations in line with "
+      ]
+    },
+    "sw_w3_s1_cap2000": {
+      "params": {
+        "name": "sw_w3_s1_cap2000",
+        "window": 3,
+        "stride": 1,
+        "max_chars": 2000
+      },
+      "stats": {
+        "name": "sw_w3_s1_cap2000",
+        "window": 3,
+        "stride": 1,
+        "max_chars": 2000,
+        "n_chunks": 679,
+        "avg_tokens": 198.6,
+        "min_tokens": 3,
+        "max_tokens": 1191,
+        "std_tokens": 117.0,
+        "pct_too_short": 3.83,
+        "pct_too_long": 3.24,
+        "n_esg_relevant": 627,
+        "pct_esg_relevant": 92.34,
+        "n_E": 154,
+        "n_S": 280,
+        "n_G": 193,
+        "elapsed_chunking_s": 0.02,
+        "elapsed_classify_s": 469.1
+      },
+      "mlflow_run_id": null,
+      "sample_chunks": [
+        "4 8 2 6 9 3 7 10 5 Beltone Sustainability Report 2024 28 29 1 Beltone Sustainability Report 2024 2.1 PROGRESS TOWARDS SUSTAINABILITY 2. SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHT",
+        "SUSTAINABILITY AT OUR CORE ECONOMIC HIGHLIGHTS •NBFIS Portfolio EGP 21.5 Bn. •EBITDA EGP 1,669.1 Bn. •NET PROFIT EGP 1.7 Bn. •AUMs EGP 22.6 Bn. GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIG",
+        "GOVERNANCE HIGHLIGHTS •3 females in the board composition. •Females represent 28% of top management. •26% of females are in managerial positions. SOCIAL HIGHLIGHTS •70% local suppliers. •238 new employee hires. Out of these, 75 were women, representing 32% of total new hires. •A total of 3,814 hours"
+      ]
+    }
+  },
+  "recommendation": {
+    "recommended": "sw_w3_s1_cap1500",
+    "rationale": "sw_w3_s1_cap1500: 642 ESG-relevant chunks (92.37%) with 3.88% short and 1.29% long; composite score 543.2.",
+    "ranking": [
+      "sw_w3_s1_cap1500",
+      "sw_w3_s1_cap2000",
+      "sw_w5_s2_cap1500"
+    ],
+    "scores": {
+      "sw_w3_s1_cap1500": 543.2,
+      "sw_w5_s2_cap1500": 296.0,
+      "sw_w3_s1_cap2000": 465.0
+    }
+  }
+}

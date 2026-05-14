@@ -1,0 +1,184 @@
+{
+  "documents": {
+    "beltone": {
+      "path": "data/ingestion_test_files/en_beltone_report_summary.pdf",
+      "title": "Beltone Sustainability Report 2024",
+      "language": "en"
+    },
+    "adib": {
+      "path": "data/ingestion_test_files/ar-adib-esg-report-2022_ar.pdf",
+      "title": "Abu Dhabi Islamic Bank ESG Report 2022",
+      "language": "ar"
+    }
+  },
+  "notes": [
+    "Each query has a `relevance_signature` — a list of substrings that should collectively appear in the union of the top-k retrieved chunks (standard RAG recall definition).",
+    "Each query also has a `doc_key` indicating which document's chunk set it should be retrieved against.",
+    "All signatures were pre-flighted against the production chunker on the relevant PDF — every substring is present somewhere in the chunk set, so recall@5 of 1.0 is achievable on every query."
+  ],
+  "languages_covered": ["en", "ar"],
+  "queries_en": [
+    {
+      "id": "en-01",
+      "doc_key": "beltone",
+      "query": "How does Beltone manage waste and recycling at its offices?",
+      "relevance_signature": ["Trash Track"],
+      "pillar": "E",
+      "gri_code": "GRI 306-2"
+    },
+    {
+      "id": "en-02",
+      "doc_key": "beltone",
+      "query": "What energy efficiency initiatives has Beltone implemented?",
+      "relevance_signature": ["motion-sensor", "renewable"],
+      "pillar": "E",
+      "gri_code": "GRI 302-4"
+    },
+    {
+      "id": "en-03",
+      "doc_key": "beltone",
+      "query": "How does Beltone treat GHG emissions in its materiality assessment?",
+      "relevance_signature": ["GHG EMISSIONS", "energy"],
+      "pillar": "E",
+      "gri_code": "GRI 305"
+    },
+    {
+      "id": "en-04",
+      "doc_key": "beltone",
+      "query": "How many new employee hires did Beltone make in 2024?",
+      "relevance_signature": ["238 new employee hires"],
+      "pillar": "S",
+      "gri_code": "GRI 401-1"
+    },
+    {
+      "id": "en-05",
+      "doc_key": "beltone",
+      "query": "How many suppliers were assessed for environmental impacts versus the total supplier count?",
+      "relevance_signature": ["200", "387"],
+      "pillar": "S",
+      "gri_code": "GRI 308-1"
+    },
+    {
+      "id": "en-06",
+      "doc_key": "beltone",
+      "query": "What pledge has Beltone signed to support equal representation for women in arbitration?",
+      "relevance_signature": ["ERA Pledge"],
+      "pillar": "S",
+      "gri_code": "GRI 405"
+    },
+    {
+      "id": "en-07",
+      "doc_key": "beltone",
+      "query": "How many female directors are on Beltone's board?",
+      "relevance_signature": ["3 females", "board"],
+      "pillar": "G",
+      "gri_code": "GRI 405-1"
+    },
+    {
+      "id": "en-08",
+      "doc_key": "beltone",
+      "query": "What percentage of Beltone's top management positions are held by women?",
+      "relevance_signature": ["28%", "top management"],
+      "pillar": "G",
+      "gri_code": "GRI 405-1"
+    },
+    {
+      "id": "en-09",
+      "doc_key": "beltone",
+      "query": "What is Beltone's policy on bribery and corruption?",
+      "relevance_signature": ["zero-tolerance", "bribery"],
+      "pillar": "G",
+      "gri_code": "GRI 205-2"
+    },
+    {
+      "id": "en-10",
+      "doc_key": "beltone",
+      "query": "What financial risks does Beltone manage and how?",
+      "relevance_signature": ["CREDIT RISK", "MARKET RISK", "LIQUIDITY"],
+      "pillar": "G",
+      "gri_code": "FRA-risk"
+    }
+  ],
+  "queries_ar": [
+    {
+      "id": "ar-01",
+      "doc_key": "adib",
+      "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+      "relevance_signature": ["113", "التمويل المتوافق"],
+      "pillar": "Financial",
+      "gri_code": "GRI 201"
+    },
+    {
+      "id": "ar-02",
+      "doc_key": "adib",
+      "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+      "relevance_signature": ["6.6", "تمويل االستدامة"],
+      "pillar": "Financial",
+      "gri_code": "GRI 201"
+    },
+    {
+      "id": "ar-03",
+      "doc_key": "adib",
+      "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+      "relevance_signature": ["17.2", "كفاية رأس المال"],
+      "pillar": "G",
+      "gri_code": "FRA-risk"
+    },
+    {
+      "id": "ar-04",
+      "doc_key": "adib",
+      "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+      "relevance_signature": ["12", "اإلبالغ عن المخالفات"],
+      "pillar": "G",
+      "gri_code": "GRI 205-3"
+    },
+    {
+      "id": "ar-05",
+      "doc_key": "adib",
+      "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+      "relevance_signature": ["100", "غسيل االموال"],
+      "pillar": "G",
+      "gri_code": "GRI 205-1"
+    },
+    {
+      "id": "ar-06",
+      "doc_key": "adib",
+      "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+      "relevance_signature": ["A2", "موديز"],
+      "pillar": "G",
+      "gri_code": "FRA-risk"
+    },
+    {
+      "id": "ar-07",
+      "doc_key": "adib",
+      "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+      "relevance_signature": ["2869"],
+      "pillar": "S",
+      "gri_code": "GRI 413"
+    },
+    {
+      "id": "ar-08",
+      "doc_key": "adib",
+      "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+      "relevance_signature": ["53,082"],
+      "pillar": "S",
+      "gri_code": "GRI 404-1"
+    },
+    {
+      "id": "ar-09",
+      "doc_key": "adib",
+      "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+      "relevance_signature": ["97.6", "الشكاوي"],
+      "pillar": "S",
+      "gri_code": "GRI 418"
+    },
+    {
+      "id": "ar-10",
+      "doc_key": "adib",
+      "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+      "relevance_signature": ["900", "ميغاوات"],
+      "pillar": "E",
+      "gri_code": "GRI 302"
+    }
+  ]
+}

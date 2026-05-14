@@ -1,0 +1,558 @@
+{
+  "test_set_path": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\scripts\\experiments\\retrieval_test_set.json",
+  "embedding_model_en": "intfloat/multilingual-e5-base",
+  "embedding_model_ar": "BAAI/bge-m3",
+  "chroma_host": "localhost",
+  "chroma_port": 8001,
+  "collections": {
+    "en": "document_chunks_en",
+    "ar": "document_chunks_ar"
+  },
+  "hnsw_space": "cosine",
+  "top_k": 5,
+  "summary": {
+    "en": {
+      "n": 10,
+      "recall_at_1": 0.2,
+      "recall_at_5": 0.8
+    },
+    "ar": {
+      "n": 10,
+      "recall_at_1": 0.4,
+      "recall_at_5": 0.9
+    },
+    "overall": {
+      "n": 20,
+      "recall_at_1": 0.3,
+      "recall_at_5": 0.85
+    }
+  },
+  "per_query": [
+    {
+      "id": "en-01",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "How does Beltone manage waste and recycling at its offices?",
+      "signature": [
+        "Trash Track"
+      ],
+      "top_ids": [
+        "ec9f4d61c81b4041bf94c31c76700c9c",
+        "361509c9862548648fd063d69dd6ac7f",
+        "520cbfbe9dda4654b70121ce720fb054",
+        "77c08c7fec214878930d5c7ff9972b0a",
+        "571c016765f64b0e9094fc822e789744"
+      ],
+      "top_distances": [
+        0.1349,
+        0.1433,
+        0.1581,
+        0.1599,
+        0.1602
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "What energy efficiency initiatives has Beltone implemented?",
+      "signature": [
+        "motion-sensor",
+        "renewable"
+      ],
+      "top_ids": [
+        "af0eb819f51c40d794d1a021c232ed36",
+        "1ce12089e4b44d0a8c192afb3a755471",
+        "ad4c3cc3884e459b98162405681473cd",
+        "93b1c31f46c24081a8e32335d992a7e3",
+        "ec9f4d61c81b4041bf94c31c76700c9c"
+      ],
+      "top_distances": [
+        0.1393,
+        0.1419,
+        0.1421,
+        0.1454,
+        0.1515
+      ],
+      "hit_at_1": false,
+      "hit_at_5": false
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "How does Beltone treat GHG emissions in its materiality assessment?",
+      "signature": [
+        "GHG EMISSIONS",
+        "energy"
+      ],
+      "top_ids": [
+        "87faf09ed4cc48769087616416c2cec4",
+        "f0a30dd5547a44729f29d6479b034697",
+        "aff8f909f2a44995a308145eb0cd4441",
+        "35401b8aee2b46a7821716b239faaf9c",
+        "c37168fdea5c4923b3c03bfc35ab34e8"
+      ],
+      "top_distances": [
+        0.1159,
+        0.1423,
+        0.1466,
+        0.1508,
+        0.1533
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "How many new employee hires did Beltone make in 2024?",
+      "signature": [
+        "238 new employee hires"
+      ],
+      "top_ids": [
+        "007e50c326be4667a799576daed900dc",
+        "3c36289fc06a4dafa476447575d5880e",
+        "5b0e3834ea4747caa3f59572402c1cd0",
+        "15c08e4507394524ae2fdba2fff825c0",
+        "e1603c6a2b394083bc8dc12bd288baf5"
+      ],
+      "top_distances": [
+        0.1197,
+        0.1395,
+        0.1419,
+        0.1462,
+        0.1501
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "How many suppliers were assessed for environmental impacts versus the total supplier count?",
+      "signature": [
+        "200",
+        "387"
+      ],
+      "top_ids": [
+        "ce8208ec44254daca9a87559a9d62e2c",
+        "1f61c1c57d1546fc9de554c01dfa3b2a",
+        "f65fc1e58d5f4128a9fa92c5a9fd5d5c",
+        "434905d70bfe4026b61e13f9f47eec8c",
+        "87faf09ed4cc48769087616416c2cec4"
+      ],
+      "top_distances": [
+        0.1333,
+        0.1915,
+        0.2041,
+        0.2077,
+        0.2106
+      ],
+      "hit_at_1": true,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "What pledge has Beltone signed to support equal representation for women in arbitration?",
+      "signature": [
+        "ERA Pledge"
+      ],
+      "top_ids": [
+        "ca7b413238dd4cfa969274d7c3b0f5ae",
+        "562e97796a9f43ec9a76925207ae1b2c",
+        "5502757dc2ab4476a406160679325ba6",
+        "98bc86cd7d004ad2ad29815f0d7186e9",
+        "0254995b0ba8471d9656e96eae98d161"
+      ],
+      "top_distances": [
+        0.08,
+        0.0999,
+        0.1706,
+        0.178,
+        0.1806
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "How many female directors are on Beltone's board?",
+      "signature": [
+        "3 females",
+        "board"
+      ],
+      "top_ids": [
+        "98bc86cd7d004ad2ad29815f0d7186e9",
+        "19900b3bf0fc4b12a43f6dba6508e1ab",
+        "449b17ee5177426e94f5b014b8e3d4c3",
+        "4dcdc04d390c41a482acdb13160e7ae2",
+        "520cbfbe9dda4654b70121ce720fb054"
+      ],
+      "top_distances": [
+        0.1408,
+        0.1684,
+        0.1757,
+        0.1804,
+        0.1833
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "What percentage of Beltone's top management positions are held by women?",
+      "signature": [
+        "28%",
+        "top management"
+      ],
+      "top_ids": [
+        "98bc86cd7d004ad2ad29815f0d7186e9",
+        "19900b3bf0fc4b12a43f6dba6508e1ab",
+        "15c08e4507394524ae2fdba2fff825c0",
+        "095cb2355f324256aa778cc2900960dd",
+        "4dcdc04d390c41a482acdb13160e7ae2"
+      ],
+      "top_distances": [
+        0.1349,
+        0.1541,
+        0.1571,
+        0.1606,
+        0.1658
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "What is Beltone's policy on bribery and corruption?",
+      "signature": [
+        "zero-tolerance",
+        "bribery"
+      ],
+      "top_ids": [
+        "4c6c751b4a2640ae98047ac1ea375a3f",
+        "3044a4c27ff74202bf6482417889d832",
+        "ad4c3cc3884e459b98162405681473cd",
+        "112dde21098a4c6fbce671746f2ece18",
+        "21162c6ed77c432784ca72c361c624c4"
+      ],
+      "top_distances": [
+        0.144,
+        0.1465,
+        0.1707,
+        0.172,
+        0.1794
+      ],
+      "hit_at_1": true,
+      "hit_at_5": true
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "doc_key": "beltone",
+      "query": "What financial risks does Beltone manage and how?",
+      "signature": [
+        "CREDIT RISK",
+        "MARKET RISK",
+        "LIQUIDITY"
+      ],
+      "top_ids": [
+        "d438cf7eaef043e9839b4ef41f78c718",
+        "c37168fdea5c4923b3c03bfc35ab34e8",
+        "101a736bef8f4e62a7a845c0c108ba84",
+        "143abb1865af47529f6107281f3e90f5",
+        "8ed94039b15245489ebbb5e6ea582dc8"
+      ],
+      "top_distances": [
+        0.1304,
+        0.134,
+        0.1347,
+        0.1362,
+        0.1408
+      ],
+      "hit_at_1": false,
+      "hit_at_5": false
+    },
+    {
+      "id": "ar-01",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما حجم محفظة التمويل المتوافق مع أحكام الشريعة الإسلامية لدى مصرف أبوظبي الإسلامي؟",
+      "signature": [
+        "113",
+        "التمويل المتوافق"
+      ],
+      "top_ids": [
+        "6ecb1a453f2d4923b6efe7c3c6f9feeb",
+        "623c0d6db47c41568ae9f1676385ee37",
+        "098ab7989ee2460e9329bd8adf9a48dd",
+        "82836c82dc79414e8ca8477d0393f768",
+        "b04ac5be230c451f9011fcac76f6442d"
+      ],
+      "top_distances": [
+        0.3474,
+        0.3689,
+        0.4004,
+        0.4137,
+        0.4167
+      ],
+      "hit_at_1": false,
+      "hit_at_5": false
+    },
+    {
+      "id": "ar-02",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما حجم التزام مصرف أبوظبي الإسلامي بتمويل الاستدامة؟",
+      "signature": [
+        "6.6",
+        "تمويل االستدامة"
+      ],
+      "top_ids": [
+        "80a9adff6dd3489287c9b224e2837387",
+        "e285a6b1d917483ba969601016728163",
+        "272a186e17e342a78e5165a342b6fddb",
+        "26635f68ff084ee2aaa1475c1d5fbfc0",
+        "623c0d6db47c41568ae9f1676385ee37"
+      ],
+      "top_distances": [
+        0.2831,
+        0.3397,
+        0.3399,
+        0.3469,
+        0.3527
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-03",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما هي نسبة كفاية رأس المال لدى مصرف أبوظبي الإسلامي؟",
+      "signature": [
+        "17.2",
+        "كفاية رأس المال"
+      ],
+      "top_ids": [
+        "26635f68ff084ee2aaa1475c1d5fbfc0",
+        "098ab7989ee2460e9329bd8adf9a48dd",
+        "94dac0b4f0084a92a8de56920018a6df",
+        "95a82a0c70e84ebba3009d8d07fe0929",
+        "82836c82dc79414e8ca8477d0393f768"
+      ],
+      "top_distances": [
+        0.372,
+        0.399,
+        0.4014,
+        0.4087,
+        0.4138
+      ],
+      "hit_at_1": true,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-04",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "كم بلاغًا تم استلامه من خلال سياسة الإبلاغ عن المخالفات في عام 2022؟",
+      "signature": [
+        "12",
+        "اإلبالغ عن المخالفات"
+      ],
+      "top_ids": [
+        "6a4aaf1274c74d7dadfea252825256ff",
+        "8a824b1a638d4707b49b72a5eb232569",
+        "b8db62620319470a94d4d8ee089b49bd",
+        "d68e5f96ca3f466daa1f76e7bfb7d436",
+        "45bd3da1d5e94c8e8c7e3cc01add8ce1"
+      ],
+      "top_distances": [
+        0.4157,
+        0.4187,
+        0.4203,
+        0.4324,
+        0.4524
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-05",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما هي نسبة فحص العمليات المصرفية للبحث عن مخاطر غسيل الأموال؟",
+      "signature": [
+        "100",
+        "غسيل االموال"
+      ],
+      "top_ids": [
+        "bf62b573462849d8a9c74c15b5488111",
+        "82836c82dc79414e8ca8477d0393f768",
+        "1a5b114639c74922bbd264dbb6df0066",
+        "77f2dbd63dcd4a27a50c5f4bb11025e2",
+        "e27e340be8f143b3be0ece1d4248ed1c"
+      ],
+      "top_distances": [
+        0.3799,
+        0.3932,
+        0.4072,
+        0.4177,
+        0.4393
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-06",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما هو تقييم وكالة موديز الائتماني لمصرف أبوظبي الإسلامي؟",
+      "signature": [
+        "A2",
+        "موديز"
+      ],
+      "top_ids": [
+        "9f34f8e1a7b647f4a5e42af7645c3d9a",
+        "26635f68ff084ee2aaa1475c1d5fbfc0",
+        "098ab7989ee2460e9329bd8adf9a48dd",
+        "36fd820cbda44614aa1e1a2fe67634d9",
+        "82836c82dc79414e8ca8477d0393f768"
+      ],
+      "top_distances": [
+        0.4386,
+        0.448,
+        0.4524,
+        0.4594,
+        0.4708
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-07",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "كم عدد الموظفين الذين تطوعوا في خدمة المجتمع خلال عام 2022؟",
+      "signature": [
+        "2869"
+      ],
+      "top_ids": [
+        "94a17411d30c4313958cd2b1d06dc008",
+        "298d684380fd40bc8e939832893cd5b8",
+        "9f34f8e1a7b647f4a5e42af7645c3d9a",
+        "94dac0b4f0084a92a8de56920018a6df",
+        "804489a7da184c8b9f163d48ad643df3"
+      ],
+      "top_distances": [
+        0.4357,
+        0.459,
+        0.4637,
+        0.4669,
+        0.4797
+      ],
+      "hit_at_1": false,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-08",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما إجمالي ساعات التدريب التي قدمها المصرف لموظفيه في عام 2022؟",
+      "signature": [
+        "53,082"
+      ],
+      "top_ids": [
+        "62e428ec4607453b85bdb1480cb2b1d5",
+        "804489a7da184c8b9f163d48ad643df3",
+        "94dac0b4f0084a92a8de56920018a6df",
+        "804ea4fbdfed48139cc7083c26f2fa31",
+        "745e4833c64c40cd87afd5b61a3a0ded"
+      ],
+      "top_distances": [
+        0.3347,
+        0.3684,
+        0.397,
+        0.3971,
+        0.3985
+      ],
+      "hit_at_1": true,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-09",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما هي نسبة حل شكاوى المتعاملين في مصرف أبوظبي الإسلامي؟",
+      "signature": [
+        "97.6",
+        "الشكاوي"
+      ],
+      "top_ids": [
+        "6a4aaf1274c74d7dadfea252825256ff",
+        "8a824b1a638d4707b49b72a5eb232569",
+        "9f34f8e1a7b647f4a5e42af7645c3d9a",
+        "804ea4fbdfed48139cc7083c26f2fa31",
+        "61fbca48ff334f73ac87c156b5782815"
+      ],
+      "top_distances": [
+        0.2949,
+        0.3604,
+        0.3637,
+        0.3978,
+        0.4025
+      ],
+      "hit_at_1": true,
+      "hit_at_5": true
+    },
+    {
+      "id": "ar-10",
+      "lang": "ar",
+      "doc_key": "adib",
+      "query": "ما حجم تمويل محطة الطاقة الشمسية شعاع للطاقة 3 وقدرتها الإنتاجية؟",
+      "signature": [
+        "900",
+        "ميغاوات"
+      ],
+      "top_ids": [
+        "1b31554883844c01becce12628a8e47a",
+        "13ce74da3ffd44c6ba7f128a3680cea4",
+        "670740d6f92e4982aa2ead13a9d14f83",
+        "d68e5f96ca3f466daa1f76e7bfb7d436",
+        "94a17411d30c4313958cd2b1d06dc008"
+      ],
+      "top_distances": [
+        0.2878,
+        0.4696,
+        0.5245,
+        0.5342,
+        0.5357
+      ],
+      "hit_at_1": true,
+      "hit_at_5": true
+    }
+  ],
+  "stored_ids": {
+    "beltone": {
+      "en": 479,
+      "ar": 0
+    },
+    "adib": {
+      "en": 20,
+      "ar": 110
+    }
+  }
+}

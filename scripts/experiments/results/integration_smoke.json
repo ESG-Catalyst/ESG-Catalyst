@@ -1,0 +1,17 @@
+{
+  "doc": "beltone",
+  "n_chunks": 479,
+  "n_passed": 396,
+  "pct_E": 28.28,
+  "pct_S": 38.64,
+  "pct_G": 33.08,
+  "pct_none": 0.0,
+  "elapsed_seconds": 738.7,
+  "ms_per_chunk": 1542.2,
+  "votes_for_distribution": {
+    "0": 12,
+    "1": 71,
+    "2": 273,
+    "3": 123
+  }
+}
