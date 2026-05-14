@@ -1,0 +1,8 @@
+# Experiments-only dependencies. NOT installed in api/worker images.
+# Used by scripts/experiments/* for the M2 classifier shootout.
+transformers>=4.40
+torch>=2.0
+# MLflow optional — script no-ops if server unreachable
+mlflow>=2.10
+# psutil — used by embedding_comparison.py for RSS measurement during encoding
+psutil>=5.9

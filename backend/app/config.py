@@ -46,8 +46,25 @@ class Settings(BaseSettings):
     chroma_host: str = "localhost"
     chroma_port: int = 8001
 
-    # Embeddings (local model — no API key)
+    # Embeddings (local models — no API key). Separate models per language:
+    # EN chunks → embedding_model_en; AR chunks → embedding_model_ar. The
+    # legacy ``embedding_model`` field is kept as a fallback for callers that
+    # haven't migrated, and mirrors the EN model.
+    embedding_model_en: str = "intfloat/multilingual-e5-base"
+    embedding_model_ar: str = "BAAI/bge-m3"
     embedding_model: str = "intfloat/multilingual-e5-base"
+
+    # Chunker — strategy + per-strategy knobs. Switching strategy is an
+    # env-var change (CHUNK_STRATEGY=...) — no code change required.
+    # Valid values:
+    #   "sentence_window" — A2 winner: 3-sentence window, stride 1, 1500-char cap
+    #   "block_merge"     — legacy header/table-aware merge of regex blocks
+    chunk_strategy: str = "sentence_window"
+    chunk_window_sentences: int = 3        # sentence_window only
+    chunk_stride_sentences: int = 1        # sentence_window only
+    chunk_max_chars: int = 1500            # sentence_window only — hard cap
+    chunk_size_chars: int = 2000           # block_merge only
+    chunk_overlap_chars: int = 200         # block_merge only
 
     # Auth
     secret_key: str = "dev-secret-change-in-production"
