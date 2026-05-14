@@ -1,0 +1,25 @@
+{
+  "pdf": "C:\\Users\\Joe\\CC\\ESG-Catalyst\\data\\ingestion_test_files\\en_beltone_report_summary.pdf",
+  "old_block_merge": {
+    "strategy": "block_merge",
+    "n_chunks": 479,
+    "n_esg_relevant": 396,
+    "pct_esg_relevant": 82.67,
+    "E": 112,
+    "S": 153,
+    "G": 131,
+    "elapsed_chunking_s": 0.01,
+    "elapsed_classify_s": 450.2
+  },
+  "new_sentence_window": {
+    "strategy": "sentence_window",
+    "n_chunks": 695,
+    "n_esg_relevant": 642,
+    "pct_esg_relevant": 92.37,
+    "E": 159,
+    "S": 286,
+    "G": 197,
+    "elapsed_chunking_s": 0.01,
+    "elapsed_classify_s": 526.4
+  }
+}
