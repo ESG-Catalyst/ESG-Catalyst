@@ -11,8 +11,9 @@
 # For host-based dev (running everything in one venv), keep
 # using `pip install -r requirements.txt` — it pulls all three.
 #
-# Tesseract OCR binary (system dep, not pip) is still needed
-# for scanned PDFs:
+# Tesseract OCR (system dep — DEFERRED to a later phase)
+# Scanned-PDF OCR is commented out in backend/app/core/ingestion/ocr.py.
+# Do NOT install unless re-enabling OCR:
 #   Windows: https://github.com/UB-Mannheim/tesseract/wiki
 #   Install ara + eng language packs
 # ============================================================

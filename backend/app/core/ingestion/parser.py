@@ -175,23 +175,20 @@ def _parse_csv(path: Path) -> IngestedDocument:
 
 
 def _parse_image(path: Path) -> IngestedDocument:
-    from app.core.ingestion.ocr import parse_image
-
-    text, file_type = parse_image(path)
-
-    if not text:
-        logger.warning(
-            "ingestion.image_empty",
-            file=path.name,
-            reason="OCR returned no text (Tesseract may not be installed)",
-        )
-
+    # OCR for standalone images is deferred to a later phase.
+    # TODO: re-enable parse_image() from ocr.py when Tesseract OCR is implemented.
+    file_type = path.suffix.lstrip(".").lower()
+    logger.warning(
+        "ingestion.image_skipped",
+        file=path.name,
+        reason="image OCR deferred — returning empty document",
+    )
     return IngestedDocument(
         source_file=path.name,
         file_type=file_type,
-        page_count=1,
+        page_count=0,
         language=None,
-        pages=[PageContent(page_number=1, text=text, method="ocr")],
+        pages=[],
     )
 
 
@@ -214,7 +211,10 @@ def _detect_language(text: str) -> str | None:
         return None
 
     arabic_ratio = arabic_chars / total
-    if arabic_ratio > 0.6:
+    # 0.45 threshold (not 0.60): MENA ESG reports embed Latin GRI codes,
+    # units (tCO2e, GJ) and brand names, so pure-Arabic docs often score
+    # only 45-55% Arabic by character count.
+    if arabic_ratio > 0.45:
         return "ar"
     elif arabic_ratio > 0.15:
         return "ar+en"

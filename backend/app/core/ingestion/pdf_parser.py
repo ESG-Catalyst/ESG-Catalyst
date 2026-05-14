@@ -1,10 +1,12 @@
-"""PDF parsing — PyMuPDF for digital text, Tesseract OCR for scanned pages.
+"""PDF parsing — PyMuPDF for digital text.
 
 Enhanced with:
+    - Arabic/RTL support: ``arabic-reshaper`` reconstructs ligatures split by
+      PyMuPDF's glyph extraction; ``python-bidi`` restores RTL reading order
+      via the Unicode BiDi algorithm. Applied automatically on Arabic pages.
     - Table detection via ``page.find_tables()`` — tables are extracted
       as pipe-delimited text and appended after the page's narrative text.
-    - Section header detection via font-size heuristics.
-    - Scanned-page OCR fallback via Tesseract.
+    - Scanned-page OCR: deferred to a later phase (see ocr.py).
 
 Usage:
     from app.core.ingestion.pdf_parser import parse_pdf
@@ -12,12 +14,14 @@ Usage:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import fitz  # PyMuPDF
 import structlog
 
-from app.core.ingestion.ocr import clean_text, ocr_pdf_page
+from app.core.ingestion.ocr import clean_text
+# ocr_pdf_page import deferred — Tesseract OCR for scanned pages is a later-phase feature
 
 logger = structlog.get_logger(__name__)
 
@@ -26,6 +30,13 @@ _OCR_CHAR_THRESHOLD = 30
 
 # Minimum cells with content for a table to be worth extracting
 _MIN_TABLE_CELLS = 4
+
+# Arabic char ratio above which we apply BiDi + reshaping on a page
+_ARABIC_RATIO_THRESHOLD = 0.15
+
+# Pre-compiled regex for Arabic Unicode ranges (same as parser._detect_language)
+_RE_ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\u0660-\u0669]")
+_RE_LATIN = re.compile(r"[a-zA-Z]")
 
 
 def _extract_tables(page: fitz.Page) -> list[str]:
@@ -86,6 +97,60 @@ def _extract_tables(page: fitz.Page) -> list[str]:
     return tables
 
 
+def _arabic_char_ratio(text: str) -> float:
+    """Return the fraction of script characters that are Arabic.
+
+    Args:
+        text: Raw extracted text from a PDF page.
+
+    Returns:
+        Float in [0, 1]; 0.0 if no script chars found.
+    """
+    arabic = len(_RE_ARABIC.findall(text))
+    latin = len(_RE_LATIN.findall(text))
+    total = arabic + latin
+    return arabic / total if total else 0.0
+
+
+def _fix_arabic_text(text: str) -> str:
+    """Reconstruct Arabic ligatures and restore RTL reading order.
+
+    PyMuPDF extracts Arabic glyphs in visual left-to-right order, which
+    reverses word sequences for RTL text and splits ligatures into individual
+    code points.  This function applies two corrections:
+
+    1. ``arabic_reshaper.reshape`` — reconnects isolated glyphs into the
+       correct ligature forms (e.g. لا instead of ل + ا).
+    2. ``bidi.algorithm.get_display`` — runs the Unicode BiDi algorithm to
+       reorder characters into logical (reading) order.
+
+    Falls back to the original text if either package is unavailable or
+    raises an unexpected error, so the pipeline is never broken.
+
+    Args:
+        text: Raw text extracted by PyMuPDF from an Arabic page.
+
+    Returns:
+        Text with correct ligatures and reading order restored.
+    """
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+    except ImportError:
+        logger.warning(
+            "pdf_parser.arabic_fix_skipped",
+            reason="arabic-reshaper or python-bidi not installed",
+        )
+        return text
+
+    try:
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except Exception as exc:
+        logger.warning("pdf_parser.arabic_fix_failed", error=str(exc))
+        return text
+
+
 def parse_pdf(path: Path) -> list[tuple[int, str, str]]:
     """Extract text from a PDF, falling back to OCR for scanned pages.
 
@@ -113,8 +178,17 @@ def parse_pdf(path: Path) -> list[tuple[int, str, str]]:
         text = page.get_text("text").strip()
 
         if len(text) >= _OCR_CHAR_THRESHOLD:
+            # Apply Arabic BiDi fix before general cleaning when the page
+            # has significant Arabic content.  clean_text() runs after so
+            # that any BiDi control chars inserted by the reshaper are
+            # stripped in the next step.
+            if _arabic_char_ratio(text) >= _ARABIC_RATIO_THRESHOLD:
+                text = _fix_arabic_text(text)
+                method = "digital+arabic"
+            else:
+                method = "digital"
+
             text = clean_text(text)
-            method = "digital"
 
             # Try to extract tables from this page
             table_texts = _extract_tables(page)
@@ -124,24 +198,24 @@ def parse_pdf(path: Path) -> list[tuple[int, str, str]]:
                     f"[TABLE]\n{t}" for t in table_texts
                 )
                 text = f"{text}\n\n{table_section}"
-                method = "digital+tables"
+                # Preserve arabic tag if already set
+                method = method.replace("digital", "digital") + "+tables"
 
             pages.append((page_num + 1, text, method))
         else:
-            # Scanned page — try OCR
-            ocr_text = ocr_pdf_page(page)
-            if ocr_text:
-                pages.append((page_num + 1, ocr_text, "ocr"))
-            else:
-                logger.warning(
-                    "pdf_parser.empty_page",
-                    file=path.name,
-                    page=page_num + 1,
-                    digital_chars=len(text),
-                )
-                # Keep even minimal text rather than losing the page
-                if text:
-                    pages.append((page_num + 1, text, "digital"))
+            # Scanned page — OCR via Tesseract is deferred to a later phase.
+            # Log and skip; the page will be absent from the output.
+            # TODO: re-enable ocr_pdf_page() when Tesseract OCR phase is implemented.
+            logger.warning(
+                "pdf_parser.empty_page",
+                file=path.name,
+                page=page_num + 1,
+                digital_chars=len(text),
+                reason="scanned page skipped — OCR deferred",
+            )
+            # Keep even minimal text rather than losing the page entirely
+            if text:
+                pages.append((page_num + 1, text, "digital"))
 
     total_pages = len(doc)
     doc.close()
