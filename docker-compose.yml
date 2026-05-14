@@ -46,6 +46,35 @@ services:
       timeout: 5s
       retries: 5
 
+  # Web UI for browsing ChromaDB collections. The existing community
+  # Docker admin images (fengzhichao/chromadb-admin, etc.) target the
+  # legacy /api/v1 path which ChromaDB 1.0 removed (410 Gone). Instead
+  # we run a small Streamlit-based browser that uses ChromaDB's official
+  # Python client — talks to v2 tenant-scoped endpoints natively.
+  chromadb_admin:
+    image: python:3.11-slim
+    container_name: esg_chromadb_admin
+    working_dir: /app
+    ports:
+      - "8502:8502"
+    environment:
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: "8000"
+      PIP_NO_CACHE_DIR: "0"
+    volumes:
+      - ./frontend/chromadb_admin.py:/app/chromadb_admin.py:ro
+      - pip_cache:/root/.cache/pip
+    command: >
+      bash -c "pip install --quiet streamlit>=1.36 chromadb>=0.5 pandas
+      && streamlit run /app/chromadb_admin.py
+      --server.address=0.0.0.0
+      --server.port=8502
+      --server.headless=true"
+    depends_on:
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.13.0
     container_name: esg_mlflow
