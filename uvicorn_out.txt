@@ -10,3 +10,4 @@
 2026-05-07 21:46:15,341 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("users")
 2026-05-07 21:46:15,341 INFO sqlalchemy.engine.Engine [raw sql] ()
 2026-05-07 21:46:15,342 INFO sqlalchemy.engine.Engine COMMIT
+pip install -r requirements.txt

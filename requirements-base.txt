@@ -44,3 +44,10 @@ structlog>=24.0.0
 # ── Utilities ─────────────────────────────────────────────
 python-dotenv>=1.0.0
 numpy>=1.26.0
+
+# ── Arabic / RTL text support ─────────────────────────────
+# Required for correct extraction from digitally-embedded Arabic PDFs.
+# arabic-reshaper: reconstructs Arabic ligatures split by PyMuPDF glyph extraction.
+# python-bidi:     applies the Unicode BiDi algorithm to restore RTL reading order.
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
