@@ -37,20 +37,21 @@ class ExtractionMethod(str, enum.Enum):
 
 
 class MetricType(str, enum.Enum):
-    """Shape of the extracted value — drives prompt + parsing.
+    """Scoring-function type for a metric — matches spec §2.1.
 
-    quantitative — plain number (counts, volumes, weights). value is a float.
-    monetary     — number with a currency. value is a float, currency is set.
-    rate         — ratio or percentage. value is the ratio; breakdown holds numerator + denominator.
-    qualitative  — narrative disclosure (SASB "Discussion and Analysis"). value is None; evidence_chunk holds the summary.
-    activity     — SASB activity metric quantifying scale (e.g., # accounts, # policies). value is a count.
+    BINARY      — yes/no disclosure; scored by score_binary().
+    QUANTITATIVE — numeric value; scored by score_quantitative() with optional
+                  benchmark and direction.
+    QUALITATIVE  — narrative disclosure; scored by score_qualitative() against
+                  a completeness_criteria list.
+    Q_PLUS_QL   — blended: numeric + narrative; scored by score_q_plus_ql()
+                  with configurable q_weight / ql_weight (default 0.6 / 0.4).
     """
 
-    quantitative = "quantitative"
-    monetary = "monetary"
-    rate = "rate"
-    qualitative = "qualitative"
-    activity = "activity"
+    BINARY = "binary"
+    QUANTITATIVE = "quantitative"
+    QUALITATIVE = "qualitative"
+    Q_PLUS_QL = "q_plus_ql"
 
 
 class MetricFramework(str, enum.Enum):
@@ -69,3 +70,74 @@ class MetricFramework(str, enum.Enum):
     SASB_FN_CF = "SASB-FN-CF"
     SASB_FN_MF = "SASB-FN-MF"
     FRA = "FRA"
+
+
+# ---------------------------------------------------------------------------
+# Scoring-engine enums — added for spec §1–2 compliance
+# ---------------------------------------------------------------------------
+
+class SectorType(str, enum.Enum):
+    """Which sector's weight table and topic hierarchy to apply.
+
+    FINANCIAL     — Egyptian NBFIs (banks, leasing, microfinance, insurance).
+                    Pillar weights: E=25%, S=40%, G=35%.
+    MANUFACTURING — Egyptian manufacturers (chemicals, food, metals, textiles).
+                    Pillar weights: E=45%, S=30%, G=25%.
+    """
+
+    FINANCIAL = "financial"
+    MANUFACTURING = "manufacturing"
+
+
+class FrameworkType(str, enum.Enum):
+    """Top-level framework source for a metric or scoring rule.
+
+    GRI       — GRI Universal or Sector Standards.
+    SASB      — SASB sector-specific standards (FN-CF, FN-IN, EM-MM, etc.).
+    FRA       — Egyptian FRA Stage 1 KPIs.
+    COMPOSITE — metric blends two or more frameworks (e.g. FRA + GRI 305).
+    """
+
+    GRI = "GRI"
+    SASB = "SASB"
+    FRA = "FRA"
+    COMPOSITE = "composite"
+
+
+class PillarType(str, enum.Enum):
+    """ESG pillar — used for pillar-level aggregation and weight lookup."""
+
+    ENVIRONMENTAL = "E"
+    SOCIAL = "S"
+    GOVERNANCE = "G"
+
+
+class MetricDirection(str, enum.Enum):
+    """Scoring direction for QUANTITATIVE metrics (spec §2.1 score_quantitative).
+
+    HIGHER_BETTER — higher value → better score (e.g. % renewable energy).
+    LOWER_BETTER  — lower value → better score (e.g. GHG intensity, injury rate).
+    NEUTRAL       — any disclosed value earns full existence score regardless
+                    of magnitude (e.g. headcount, waste volume).
+    """
+
+    HIGHER_BETTER = "higher_better"
+    LOWER_BETTER = "lower_better"
+    NEUTRAL = "neutral"
+
+
+class GradeLevel(str, enum.Enum):
+    """Letter grade mapped from composite ESG score (spec §2.4 score_to_grade).
+
+    A — score >= 85
+    B — score >= 70
+    C — score >= 55
+    D — score >= 40
+    F — score <  40
+    """
+
+    A = "A"   # >= 85
+    B = "B"   # >= 70
+    C = "C"   # >= 55
+    D = "D"   # >= 40
+    F = "F"   # <  40
