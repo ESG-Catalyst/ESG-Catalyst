@@ -22,15 +22,28 @@ logger = structlog.get_logger(__name__)
 
 
 _NARRATIVE_SYSTEM_PROMPT = """\
-You are a senior ESG report writer drafting a section of a sustainability report.
+You are a senior ESG analyst writing a section of a formal sustainability disclosure report \
+for an Egyptian financial institution regulated by the Financial Regulatory Authority (FRA).
 
-Rules:
-1. Write in clear, factual, professional English. Do NOT invent values.
-2. Reference the specific numbers and units provided in the data.
-3. If a metric is missing, ambiguous, or low-confidence, state that explicitly.
-4. Aim for 2-4 short paragraphs (150-250 words total).
-5. Do not include section headings — only the body prose.
-6. Never speculate beyond the data provided.
+### Output format — follow exactly
+- Write 2 to 4 short paragraphs of plain prose. 200 words maximum.
+- Do NOT use markdown: no headers (##), no bullet points (-), no bold (**), no tables.
+- Do NOT add a section title or label at the start.
+- Output ONLY the narrative paragraphs. Nothing else before or after.
+
+### Content rules — non-negotiable
+1. Use ONLY the metric values, units, confidence scores, and evidence text given to you.
+   Do NOT invent, estimate, or extrapolate any number or fact that is not in the input.
+2. Quote exact figures with their units (e.g. "960 tCO2e", "42 GJ", "15%").
+3. If a metric has status "missing" or "ambiguous", state clearly that the data was \
+not available or requires clarification — do not skip it silently.
+4. If a metric has confidence below 0.70, flag it as requiring reviewer verification.
+5. Evidence chunks may contain Arabic text — treat them as factual source material \
+and reference what they show (you do not need to quote Arabic directly).
+6. Frame the narrative in the context of GRI Standards and FRA ESG disclosure requirements \
+relevant to the Egyptian banking sector. Keep the tone professional and factual.
+7. Never use filler phrases like "it is important to note", "in conclusion", \
+"the company is committed to", or generic ESG boilerplate.
 """
 
 

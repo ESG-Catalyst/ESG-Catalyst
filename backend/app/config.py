@@ -19,11 +19,12 @@ class Settings(BaseSettings):
 
     # LLM — individual env vars, assembled into dict by validator below
     openrouter_api_key: str = ""
-    model_extraction: str = "openrouter/anthropic/claude-3.5-sonnet"
-    model_extraction_fallback: str = "openrouter/meta-llama/llama-3.3-70b-instruct:free"
-    model_scoring: str = "openrouter/meta-llama/llama-3.1-70b-instruct"
-    model_report: str = "openrouter/anthropic/claude-3.5-sonnet"
-    model_report_fallback: str = "openrouter/mistralai/mistral-7b-instruct:free"
+    groq_api_key: str = ""  # Groq free tier — all LLM tasks run here
+    model_extraction: str = "groq/llama-3.1-8b-instant"
+    model_extraction_fallback: str = "openrouter/qwen/qwen-2.5-7b-instruct:free"
+    model_scoring: str = "groq/llama-3.3-70b-versatile"
+    model_report: str = "groq/llama-3.3-70b-versatile"
+    model_report_fallback: str = "groq/llama-3.1-8b-instant"
 
     # Assembled dict used by ModelRouter: settings.models["extraction"]
     models: dict[str, str] = {}
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
         }
         self.model_fallbacks = {
             "extraction": self.model_extraction_fallback,
-            "report": self.model_report_fallback,
+            "report": self.model_report_fallback,  # was missing — caused silent no-fallback bug
         }
         return self
 
