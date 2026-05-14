@@ -42,7 +42,8 @@ class PageContent:
 
     page_number: int
     text: str
-    method: str  # "digital", "ocr", "table", "docx"
+    method: str  # "digital", "digital+arabic", "ocr", "table", "docx"
+    language: str | None = None  # "ar", "en", "ar+en" — per-page, may differ from doc
 
 
 @dataclass
@@ -81,9 +82,17 @@ def ingest_document(file_path: str | Path) -> IngestedDocument:
 
     ext = path.suffix.lower()
     if ext not in _ALL_SUPPORTED:
-        raise ValueError(
-            f"Unsupported file type {ext!r}. "
-            f"Supported: {sorted(_ALL_SUPPORTED)}"
+        logger.warning(
+            "ingestion.unsupported_file",
+            file=path.name,
+            reason=f"unsupported extension {ext!r} — returning empty document",
+        )
+        return IngestedDocument(
+            source_file=path.name,
+            file_type=ext.lstrip("."),
+            page_count=0,
+            language=None,
+            pages=[],
         )
 
     logger.info("ingestion.start", file=path.name, ext=ext)
@@ -118,7 +127,18 @@ def _parse_pdf(path: Path) -> IngestedDocument:
     from app.core.ingestion.pdf_parser import parse_pdf
 
     raw_pages = parse_pdf(path)
-    pages = [PageContent(page_number=n, text=t, method=m) for n, t, m in raw_pages]
+    pages = [
+        PageContent(
+            page_number=n,
+            text=t,
+            method=m,
+            # Derive per-page language from the method tag set by pdf_parser:
+            # "digital+arabic" or "digital+arabic+tables" → "ar"
+            # otherwise assume English until doc-level detection overrides it.
+            language="ar" if "arabic" in m else "en",
+        )
+        for n, t, m in raw_pages
+    ]
     return IngestedDocument(
         source_file=path.name,
         file_type="pdf",
@@ -151,7 +171,15 @@ def _parse_spreadsheet(path: Path) -> IngestedDocument:
     from app.core.ingestion.table_extractor import parse_spreadsheet
 
     raw_pages = parse_spreadsheet(path)
-    pages = [PageContent(page_number=n, text=t, method="table") for n, t in raw_pages]
+    pages = [
+        PageContent(
+            page_number=n,
+            text=t,
+            method="table",
+            language=_detect_language(t)
+        )
+        for n, t in raw_pages
+    ]
     return IngestedDocument(
         source_file=path.name,
         file_type="xlsx",
@@ -170,7 +198,7 @@ def _parse_csv(path: Path) -> IngestedDocument:
         file_type="csv",
         page_count=1,
         language=None,
-        pages=[PageContent(page_number=1, text=text, method="table")],
+        pages=[PageContent(page_number=1, text=text, method="table", language=_detect_language(text))],
     )
 
 

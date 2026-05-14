@@ -18,16 +18,47 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-def _render_dataframe(df: pd.DataFrame, sheet_label: str | None = None) -> str:
-    """Render a DataFrame as pipe-delimited text with optional summary.
+import re
 
-    Args:
-        df: The DataFrame to render.
-        sheet_label: Optional sheet name for the header line.
+_RE_ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\u0660-\u0669]")
+_RE_LATIN = re.compile(r"[a-zA-Z]")
+_RE_ARABIC_LOGICAL = re.compile(r"[\u0600-\u06ff\u0750-\u077f]")
+_RE_ARABIC_PRESENTATION = re.compile(r"[\ufb50-\ufdff\ufe70-\ufeff]")
 
-    Returns:
-        Pipe-delimited text representation.
+def _arabic_char_ratio(text: str) -> float:
+    arabic = len(_RE_ARABIC.findall(text))
+    latin = len(_RE_LATIN.findall(text))
+    total = arabic + latin
+    return arabic / total if total else 0.0
+
+def _fix_arabic_text(text: str) -> str:
+    """Reconstruct Arabic ligatures when text is in visual presentation form.
+
+    Returns the text unchanged if it is already in logical Unicode order
+    (U+0600–U+06FF). Only applies reshape+BiDi for presentation-form glyphs
+    (U+FB50–U+FEFF).
     """
+    logical_count = len(_RE_ARABIC_LOGICAL.findall(text))
+    presentation_count = len(_RE_ARABIC_PRESENTATION.findall(text))
+
+    if logical_count >= presentation_count:
+        return text
+
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+    except ImportError:
+        return text
+    try:
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except Exception:
+        return text
+
+def _render_dataframe(df: pd.DataFrame, sheet_label: str | None = None) -> str:
+    """Render a DataFrame as pipe-delimited text with optional summary."""
+    # Drop fully empty rows and columns
+    df = df.dropna(how="all").dropna(axis=1, how="all")
     df = df.fillna("")
     lines: list[str] = []
 
@@ -35,27 +66,28 @@ def _render_dataframe(df: pd.DataFrame, sheet_label: str | None = None) -> str:
         lines.append(f"=== Sheet: {sheet_label} ===")
         lines.append("")
 
-    # Header row
     if len(df.columns) > 0:
         lines.append(" | ".join(str(c) for c in df.columns))
         lines.append("-" * 40)
 
-    # Data rows — skip fully empty rows
     for _, row in df.iterrows():
-        values = [str(v) for v in row.values if str(v).strip()]
+        values = []
+        for v in row.values:
+            cell_str = str(v).strip().replace("\n", " ")
+            if cell_str and _arabic_char_ratio(cell_str) >= 0.15:
+                cell_str = _fix_arabic_text(cell_str)
+            values.append(cell_str)
+            
         row_text = " | ".join(values)
-        if row_text.strip():
+        if row_text.strip(" |"):
             lines.append(row_text)
 
-    # Summary: row count and numeric column aggregates
     n_rows = len(df)
     n_cols = len(df.columns)
     lines.append("")
     lines.append(f"[Summary: {n_rows} rows x {n_cols} columns]")
 
-    # Detect numeric columns and add min/max/sum
     for col in df.columns:
-        # Try to parse the column as numeric
         numeric = pd.to_numeric(df[col], errors="coerce")
         non_null = numeric.dropna()
         if len(non_null) > 0:
@@ -66,6 +98,7 @@ def _render_dataframe(df: pd.DataFrame, sheet_label: str | None = None) -> str:
             )
 
     return "\n".join(lines)
+
 
 
 def parse_spreadsheet(path: Path) -> list[tuple[int, str]]:

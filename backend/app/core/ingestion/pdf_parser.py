@@ -38,6 +38,11 @@ _ARABIC_RATIO_THRESHOLD = 0.15
 _RE_ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\u0660-\u0669]")
 _RE_LATIN = re.compile(r"[a-zA-Z]")
 
+# Logical Arabic (U+0600–U+06FF): already in correct Unicode reading order.
+# Presentation forms (U+FB50–U+FEFF): visual/isolated glyphs needing BiDi fix.
+_RE_ARABIC_LOGICAL = re.compile(r"[\u0600-\u06ff\u0750-\u077f]")
+_RE_ARABIC_PRESENTATION = re.compile(r"[\ufb50-\ufdff\ufe70-\ufeff]")
+
 
 def _extract_tables(page: fitz.Page) -> list[str]:
     """Extract tables from a PDF page as pipe-delimited text.
@@ -113,26 +118,43 @@ def _arabic_char_ratio(text: str) -> float:
 
 
 def _fix_arabic_text(text: str) -> str:
-    """Reconstruct Arabic ligatures and restore RTL reading order.
+    """Reconstruct Arabic ligatures and restore RTL reading order when needed.
 
-    PyMuPDF extracts Arabic glyphs in visual left-to-right order, which
-    reverses word sequences for RTL text and splits ligatures into individual
-    code points.  This function applies two corrections:
+    PyMuPDF can extract Arabic in two modes depending on how the PDF was
+    authored:
 
-    1. ``arabic_reshaper.reshape`` — reconnects isolated glyphs into the
-       correct ligature forms (e.g. لا instead of ل + ا).
-    2. ``bidi.algorithm.get_display`` — runs the Unicode BiDi algorithm to
-       reorder characters into logical (reading) order.
+    1. **Logical order** (codepoints U+0600–U+06FF): the text is already in
+       correct Unicode reading order — the same order an LLM tokenizer
+       expects.  Applying reshape+get_display here would *reverse* the text
+       and produce garbage.  We detect this case and return as-is.
 
-    Falls back to the original text if either package is unavailable or
-    raises an unexpected error, so the pipeline is never broken.
+    2. **Visual/presentation order** (codepoints U+FB50–U+FEFF): PyMuPDF
+       emitted isolated glyph forms in left-to-right visual sequence, which
+       is backwards and fragmented.  We apply arabic_reshaper to reconnect
+       ligatures and get_display to restore reading order.
+
+    Detection: count logical vs presentation-form Arabic codepoints.  If
+    logical chars dominate (≥ presentation chars), the text is already good.
 
     Args:
         text: Raw text extracted by PyMuPDF from an Arabic page.
 
     Returns:
-        Text with correct ligatures and reading order restored.
+        Text in correct logical Unicode reading order.
     """
+    logical_count = len(_RE_ARABIC_LOGICAL.findall(text))
+    presentation_count = len(_RE_ARABIC_PRESENTATION.findall(text))
+
+    if logical_count >= presentation_count:
+        # Text is already in correct logical order — do not touch it.
+        logger.debug(
+            "pdf_parser.arabic_already_logical",
+            logical=logical_count,
+            presentation=presentation_count,
+        )
+        return text
+
+    # Text is in visual presentation form — apply reshape + BiDi reorder.
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
