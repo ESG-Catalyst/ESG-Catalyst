@@ -20,6 +20,7 @@ torch>=2.2.0
 langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-openai>=0.1.0
+langchain-groq>=0.1.0              # Groq free-tier provider (scoring + report)
 openai>=1.30.0
 
 # ── Document parsing (M1 ingestion) ──────────────────────
