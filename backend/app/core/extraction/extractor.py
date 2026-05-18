@@ -42,7 +42,13 @@ from app.core.tracking.mlflow_tracker import (
     sanitize_metric_key,
     start_extraction_run,
 )
-from app.models.enums import ExtractionMethod, MetricFramework, MetricStatus, MetricType
+from app.models.enums import (
+    ExtractionMethod,
+    MetricFramework,
+    MetricStatus,
+    MetricType,
+    PillarType,
+)
 from app.schemas.metric import ExtractedMetricCreate
 
 logger = structlog.get_logger(__name__)
@@ -210,13 +216,14 @@ async def _extract_single(
         status = MetricStatus.ambiguous
 
     framework = _coerce_framework(indicator.get("framework"))
+    raw_metric_type = str(indicator.get("metric_type") or "").strip().lower()
     metric_type = _coerce_metric_type(indicator.get("metric_type"))
 
     # For monetary metrics, prefer the LLM's structured currency; fall back to
     # parsing the original_value string (handles "EGP 1.2 billion" etc.).
     value = safe_float(parsed.get("value"))
     currency = normalize_currency(parsed.get("currency"))
-    if metric_type == MetricType.monetary:
+    if raw_metric_type == "monetary":
         raw_original = parsed.get("original_value")
         parsed_val, parsed_curr = parse_monetary(raw_original) if isinstance(raw_original, str) else (None, None)
         if value is None and parsed_val is not None:
@@ -262,6 +269,8 @@ async def _extract_single(
         reporting_period_start=reporting_start,
         reporting_period_end=reporting_end,
         breakdown=breakdown,
+        pillar=_coerce_pillar(indicator.get("pillar")),
+        topic=_derive_topic(indicator["code"]),
     )
     return metric, raw_content
 
@@ -329,6 +338,8 @@ def _missing_metric(
         framework=_coerce_framework(indicator.get("framework")),
         metric_type=_coerce_metric_type(indicator.get("metric_type")),
         sector_standard_ref=indicator.get("sector_standard_ref"),
+        pillar=_coerce_pillar(indicator.get("pillar")),
+        topic=_derive_topic(indicator["code"]),
     )
 
 
@@ -343,14 +354,58 @@ def _coerce_framework(raw: object) -> MetricFramework | None:
         return None
 
 
+# Canonical extraction-shape -> scoring MetricType map. gri_indicators.json
+# declares shapes (quantitative/monetary/rate/activity/qualitative); the
+# scoring engine's MetricType is the scoring-function selector. monetary/
+# rate/activity all score as QUANTITATIVE. Mirrors the identical map in
+# core.scoring.gri_scorer / core.scoring.sasb_scorer.
+_METRIC_TYPE_MAP: dict[str, MetricType] = {
+    "quantitative": MetricType.QUANTITATIVE,
+    "monetary":     MetricType.QUANTITATIVE,
+    "rate":         MetricType.QUANTITATIVE,
+    "activity":     MetricType.QUANTITATIVE,
+    "qualitative":  MetricType.QUALITATIVE,
+    "binary":       MetricType.BINARY,
+    "q_plus_ql":    MetricType.Q_PLUS_QL,
+}
+
+
 def _coerce_metric_type(raw: object) -> MetricType | None:
+    """Map a gri_indicators.json metric_type shape to the scoring MetricType.
+
+    monetary/rate/activity are extraction shapes that all score as
+    QUANTITATIVE; the scoring MetricType only has BINARY/QUANTITATIVE/
+    QUALITATIVE/Q_PLUS_QL. Returns None (with a warning) for unknown shapes.
+    """
+    if not isinstance(raw, str) or not raw:
+        return None
+    mt = _METRIC_TYPE_MAP.get(raw.strip().lower())
+    if mt is None:
+        logger.warning("extractor.unknown_metric_type", value=raw)
+    return mt
+
+
+def _coerce_pillar(raw: object) -> PillarType | None:
+    """Coerce a gri_indicators.json pillar string ("E"|"S"|"G") to PillarType."""
     if not isinstance(raw, str) or not raw:
         return None
     try:
-        return MetricType(raw)
+        return PillarType(raw.strip().upper())
     except ValueError:
-        logger.warning("extractor.unknown_metric_type", value=raw)
+        logger.warning("extractor.unknown_pillar", value=raw)
         return None
+
+
+def _derive_topic(code: str) -> str | None:
+    """Human GRI/FRA topic for a metric, e.g. "GRI 305-1" -> "GRI 305".
+
+    Mirrors core.reporting.builder._topic_of so the review UI and report
+    generator group metrics under the same topic label.
+    """
+    if not isinstance(code, str) or not code:
+        return None
+    m = re.match(r"(GRI \d+|FRA)", code)
+    return m.group(1) if m else None
 
 
 def _parse_iso_date(raw: object):

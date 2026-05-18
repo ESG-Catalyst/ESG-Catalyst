@@ -46,13 +46,21 @@ services:
       timeout: 5s
       retries: 5
 
-  # Web UI for browsing ChromaDB collections. The existing community
-  # Docker admin images (fengzhichao/chromadb-admin, etc.) target the
-  # legacy /api/v1 path which ChromaDB 1.0 removed (410 Gone). Instead
-  # we run a small Streamlit-based browser that uses ChromaDB's official
-  # Python client — talks to v2 tenant-scoped endpoints natively.
+  # Web UI for browsing ChromaDB collections. The community Docker admin
+  # images (fengzhichao/chromadb-admin, etc.) target the legacy /api/v1
+  # path which ChromaDB 1.0 removed (410 Gone). Instead we run a small
+  # Streamlit browser on the official chromadb Python client (v2
+  # tenant-scoped natively).
+  #
+  # Based on the worker image so the production language-routed embedder
+  # (torch + sentence-transformers + backend code, all pre-baked) is
+  # importable — this enables the Semantic-query tab. Only `streamlit`
+  # is pip-installed on top (cached in pip_cache). The hf_cache volume
+  # is shared with the worker so the e5-base + bge-m3 weights are reused
+  # (first semantic query in a fresh env downloads ~2.7 GB once, then
+  # served from the volume forever after).
   chromadb_admin:
-    image: python:3.11-slim
+    image: esg-catalyst-worker:latest
     container_name: esg_chromadb_admin
     working_dir: /app
     ports:
@@ -60,19 +68,41 @@ services:
     environment:
       CHROMA_HOST: chromadb
       CHROMA_PORT: "8000"
+      EMBEDDING_MODEL_EN: intfloat/multilingual-e5-base
+      EMBEDDING_MODEL_AR: BAAI/bge-m3
       PIP_NO_CACHE_DIR: "0"
     volumes:
       - ./frontend/chromadb_admin.py:/app/chromadb_admin.py:ro
+      # Override the worker image's baked-in backend with current source —
+      # the prebuilt esg-catalyst-worker image predates the B2 bilingual
+      # embedder rewrite, so we mount the live code on top of it.
+      - ./backend:/app/backend:ro
+      - hf_cache:/root/.cache/huggingface
       - pip_cache:/root/.cache/pip
-    command: >
-      bash -c "pip install --quiet streamlit>=1.36 chromadb>=0.5 pandas
-      && streamlit run /app/chromadb_admin.py
-      --server.address=0.0.0.0
-      --server.port=8502
-      --server.headless=true"
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        pip install --quiet 'streamlit>=1.36'
+        && streamlit run /app/chromadb_admin.py
+        --server.address=0.0.0.0
+        --server.port=8502
+        --server.headless=true
     depends_on:
       chromadb:
         condition: service_started
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: esg_adminer
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   mlflow:
@@ -159,6 +189,23 @@ services:
         condition: service_started
       mlflow:
         condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: esg_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://api:8000
+    volumes:
+      - ./frontend/react/src:/app/src
+      - ./frontend/react/public:/app/public
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
   # Streamlit runs inline (no Dockerfile) per request. The base
   # image installs only the three packages the UI needs, then

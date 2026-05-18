@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for the ESG Catalyst API (Iteration 1)."""
+﻿"""FastAPI entrypoint for the ESG Catalyst API (Iteration 1)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import documents, metrics, pipeline, reports, scoring
+from app.api import auth, documents, metrics, pipeline, reports, scoring
 from app.config import settings
 from app.database import Base, get_engine
 
@@ -29,6 +29,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(auth.router)
+app.include_router(auth.admin_router)
 app.include_router(documents.router)
 app.include_router(pipeline.router)
 app.include_router(metrics.router)
@@ -39,3 +41,4 @@ app.include_router(scoring.router)
 @app.get("/health")
 async def health():
     return {"status": "ok", "environment": settings.environment}
+

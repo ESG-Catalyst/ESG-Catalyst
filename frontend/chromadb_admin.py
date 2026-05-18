@@ -20,12 +20,17 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-# Allow standalone host runs to import the production embedder for
-# semantic query encoding. In the Docker container this path isn't on
-# sys.path (and that's fine — we fall back to raw-vector mode).
-_BACKEND = Path(__file__).resolve().parents[1] / "backend"
-if _BACKEND.exists() and str(_BACKEND) not in sys.path:
-    sys.path.insert(0, str(_BACKEND))
+# Make the production embedder importable for semantic-query encoding.
+# Host run: <repo>/backend. Worker-image container: /app/backend (this
+# script is mounted at /app/chromadb_admin.py). Try each candidate.
+for _cand in (
+    Path(__file__).resolve().parents[1] / "backend",  # host: <repo>/backend
+    Path(__file__).resolve().parent / "backend",        # container: /app/backend
+    Path("/app/backend"),                               # absolute fallback
+):
+    if _cand.exists() and str(_cand) not in sys.path:
+        sys.path.insert(0, str(_cand))
+        break
 
 CHROMA_HOST = os.environ.get("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.environ.get("CHROMA_PORT", "8001"))

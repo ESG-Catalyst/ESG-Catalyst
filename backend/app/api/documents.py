@@ -126,6 +126,23 @@ async def upload_document(
         ) from exc
 
 
+@router.get("/", response_model=list[DocumentSchema])
+async def list_documents(
+    db: AsyncSession = Depends(get_db),
+) -> list[Document]:
+    """Return all documents ordered by creation time descending."""
+    try:
+        result = await db.execute(
+            select(Document).order_by(Document.created_at.desc())
+        )
+        return list(result.scalars().all())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"List failed: {exc}",
+        ) from exc
+
+
 @router.get("/{document_id}", response_model=DocumentSchema)
 async def get_document(
     document_id: UUID,

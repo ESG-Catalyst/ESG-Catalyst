@@ -1,0 +1,26 @@
+@import './tokens.css';
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0B1220;
+  --color-surface: #111827;
+  --color-surface-raised: #1F2937;
+  --color-border: #1F2937;
+  --color-border-subtle: #374151;
+  --color-primary: #0D9488;
+  --color-primary-hover: #0F766E;
+  --color-text: #F9FAFB;
+  --color-text-muted: #6B7280;
+  --color-text-subtle: #4B5563;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #38BDF8;
+
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius: 0.5rem;
+  --radius-lg: 0.75rem;
+}

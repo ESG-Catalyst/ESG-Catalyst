@@ -141,6 +141,12 @@ class ExtractedMetric(Base):
         Enum(PillarType), nullable=True, index=True
     )
 
+    # Human-readable GRI / classifier topic for this metric, e.g. "GRI 305",
+    # "GRI 401", "FRA". Distinct from topic_id (the scoring weight-registry
+    # bucket). Part of the ExtractedMetric contract — the review UI and report
+    # generator group metrics by pillar + topic.
+    topic: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
+
     # Topic bucket within the pillar, e.g. "FIN-E1", "MFG-S4".
     # Used by the topic aggregator to group metrics and apply topic weights.
     topic_id: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)

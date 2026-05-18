@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "upload": "Upload",
+    "pipeline": "Pipeline",
+    "results": "Results",
+    "report": "Report",
+    "consultant": "Consultant",
+    "admin": "Admin",
+    "logout": "Sign out",
+    "collapse": "Collapse"
+  },
+  "page": {
+    "dashboard": "Dashboard",
+    "upload": "Upload Document",
+    "pipeline": "Pipeline Progress",
+    "results": "Extraction Results",
+    "report": "Report",
+    "consultant": "Consultant Workspace",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Sign in",
+    "register": "Create account",
+    "email": "Email address",
+    "password": "Password",
+    "fullName": "Full name",
+    "submit_login": "Sign in",
+    "submit_register": "Create account",
+    "already_have_account": "Already have an account?",
+    "no_account": "Don't have an account?"
+  },
+  "upload": {
+    "title": "Upload Documents",
+    "subtitle": "Supported: PDF, Arabic and English. Max 50 MB per file.",
+    "drop_hint": "Drag your ESG documents here",
+    "browse": "or click to browse",
+    "button": "Start Analysis",
+    "max_size": "PDF only · Max 50 MB"
+  },
+  "pipeline": {
+    "queued": "Queued",
+    "ingesting": "Ingesting",
+    "classifying": "Classifying",
+    "extracting": "Extracting",
+    "scoring": "Scoring",
+    "complete": "Complete",
+    "failed": "Failed"
+  },
+  "metrics": {
+    "gri_code": "GRI Code",
+    "label": "Indicator",
+    "value": "Value",
+    "confidence": "Confidence",
+    "status": "Status",
+    "actions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "empty": "No metrics extracted yet."
+  },
+  "report": {
+    "generate": "Generate Report",
+    "download": "Download PDF",
+    "status_pending": "Generating report…",
+    "status_ready": "Report ready"
+  },
+  "framework": {
+    "GRI": "GRI",
+    "SASB": "SASB",
+    "FRA": "FRA"
+  },
+  "pillar": {
+    "E": "Environmental",
+    "S": "Social",
+    "G": "Governance"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back"
+  }
+}

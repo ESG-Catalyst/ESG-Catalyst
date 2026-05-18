@@ -1,4 +1,4 @@
-"""Reports API — trigger M5 generation and stream the resulting PDF."""
+﻿"""Reports API â€” trigger M5 generation and stream the resulting PDF."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from app.workers.celery_app import celery_app
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 
-# ── Request / response schemas ─────────────────────────────────────────────
+# â”€â”€ Request / response schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ReportGenerateRequest(BaseModel):
     document_id: UUID
 
@@ -41,7 +41,7 @@ class ReportStatusResponse(ReportResponse):
     job_state: Optional[str] = None
 
 
-# Celery state → public phase
+# Celery state â†’ public phase
 _REPORT_STATE_MAP: dict[str, str] = {
     "PENDING": "queued",
     "RECEIVED": "queued",
@@ -55,7 +55,25 @@ _REPORT_STATE_MAP: dict[str, str] = {
 }
 
 
-# ── POST /reports/generate ─────────────────────────────────────────────────
+# â”€â”€ POST /reports/generate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+
+# -- GET /reports/ -------------------------------------------------------------
+@router.get("/", response_model=list[ReportResponse])
+async def list_reports(
+    db: AsyncSession = Depends(get_db),
+) -> list[Report]:
+    """Return all reports ordered by creation time descending."""
+    try:
+        result = await db.execute(
+            select(Report).order_by(Report.created_at.desc())
+        )
+        return list(result.scalars().all())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"List failed: {exc}",
+        ) from exc
 @router.post(
     "/generate",
     status_code=status.HTTP_202_ACCEPTED,
@@ -117,7 +135,7 @@ async def generate_report(
         ) from exc
 
 
-# ── GET /reports/{report_id} ───────────────────────────────────────────────
+# â”€â”€ GET /reports/{report_id} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.get("/{report_id}", response_model=ReportStatusResponse)
 async def get_report(
     report_id: UUID,
@@ -157,7 +175,7 @@ async def get_report(
         ) from exc
 
 
-# ── GET /reports/{report_id}/pdf ───────────────────────────────────────────
+# â”€â”€ GET /reports/{report_id}/pdf â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.get("/{report_id}/pdf")
 async def download_report_pdf(
     report_id: UUID,
@@ -196,3 +214,4 @@ async def download_report_pdf(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"PDF download failed: {exc}",
         ) from exc
+

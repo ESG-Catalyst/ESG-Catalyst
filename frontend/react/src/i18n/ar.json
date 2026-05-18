@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "upload": "رفع ملف",
+    "pipeline": "خط المعالجة",
+    "results": "النتائج",
+    "report": "التقرير",
+    "consultant": "مساحة المستشار",
+    "admin": "الإدارة",
+    "logout": "تسجيل الخروج",
+    "collapse": "طي القائمة"
+  },
+  "page": {
+    "dashboard": "لوحة التحكم",
+    "upload": "رفع وثيقة",
+    "pipeline": "تقدم المعالجة",
+    "results": "نتائج الاستخراج",
+    "report": "التقرير",
+    "consultant": "مساحة المستشار",
+    "admin": "الإدارة"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "fullName": "الاسم الكامل",
+    "submit_login": "دخول",
+    "submit_register": "إنشاء حساب",
+    "already_have_account": "هل لديك حساب بالفعل؟",
+    "no_account": "ليس لديك حساب؟"
+  },
+  "upload": {
+    "title": "رفع المستندات",
+    "subtitle": "مدعوم: PDF، عربي وإنجليزي. الحد الأقصى 50 ميجابايت لكل ملف.",
+    "drop_hint": "اسحب مستندات ESG هنا",
+    "browse": "أو انقر للاستعراض",
+    "button": "بدء التحليل",
+    "max_size": "PDF فقط · 50 ميجابايت كحد أقصى"
+  },
+  "pipeline": {
+    "queued": "في الانتظار",
+    "ingesting": "جارٍ الاستيعاب",
+    "classifying": "جارٍ التصنيف",
+    "extracting": "جارٍ الاستخراج",
+    "scoring": "جارٍ التقييم",
+    "complete": "مكتمل",
+    "failed": "فشل"
+  },
+  "metrics": {
+    "gri_code": "رمز GRI",
+    "label": "المؤشر",
+    "value": "القيمة",
+    "confidence": "الثقة",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "empty": "لم يتم استخراج أي مقاييس بعد."
+  },
+  "report": {
+    "generate": "إنشاء التقرير",
+    "download": "تنزيل PDF",
+    "status_pending": "جارٍ إنشاء التقرير…",
+    "status_ready": "التقرير جاهز"
+  },
+  "framework": {
+    "GRI": "GRI",
+    "SASB": "SASB",
+    "FRA": "هيئة الرقابة المالية"
+  },
+  "pillar": {
+    "E": "البيئة",
+    "S": "المجتمع",
+    "G": "الحوكمة"
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ ما.",
+    "retry": "إعادة المحاولة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "back": "رجوع"
+  }
+}

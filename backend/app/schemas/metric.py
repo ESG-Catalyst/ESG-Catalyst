@@ -55,6 +55,11 @@ class ExtractedMetricCreate(BaseModel):
     reporting_period_end: date | None = None
     breakdown: dict[str, Any] | None = None
 
+    # Metric-contract pillar / topic. Team-approved schema extension
+    # (2026-05-18 diagnostic session — see CLAUDE.md session log).
+    pillar: PillarType | None = None
+    topic: str | None = None
+
 
 class ExtractedMetricUpdate(BaseModel):
     """Fields a reviewer may change during the review workflow."""
@@ -104,6 +109,12 @@ class ExtractedMetricSchema(BaseModel):
     reporting_period_start: date | None = None
     reporting_period_end: date | None = None
     breakdown: dict[str, Any] | None = None    # nested sub-values (e.g., by_sector, by_country)
+
+    # Metric-contract pillar / topic. ``pillar`` mirrors the ORM PillarType
+    # column ("E" | "S" | "G"); ``topic`` is the human-readable GRI / classifier
+    # topic (e.g. "GRI 305"). Team-approved schema extension (2026-05-18).
+    pillar: PillarType | None = None
+    topic: str | None = None
 
 
 # ---------------------------------------------------------------------------
