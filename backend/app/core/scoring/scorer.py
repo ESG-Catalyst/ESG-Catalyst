@@ -1,10 +1,47 @@
-"""ESG scoring engine — full implementation per esg_scoring_framework.md.
+"""ESG scoring engine.
 
-Implements all metric-level scoring functions (Spec §2.1), topic / pillar /
-composite aggregation (Spec §2.2-2.4), the FRA compliance gate (Spec §7), and
-the score-to-grade mapping (Spec §2.4).
+================================================================================
+ESG Scoring Methodology — v1 (disclosure-quality only)
+================================================================================
+Per-indicator score = disclosure_quality × confidence_factor
+Aggregated score    = weighted average across indicators in the group,
+                      with weights from data/gri_indicators.json
+                      [materiality_weights][sector]
+
+- disclosure_quality (0.0 – 1.0) reflects how completely the company disclosed
+  a metric: value, unit, source citation, evidence chunk.
+- confidence_factor (0.5 – 1.0) softens the score by extraction confidence.
+  A consultant-approved metric overrides confidence to 1.0.
+- materiality_weight is sector-specific and lives in the indicator catalog,
+  not in code. Omitted = out of scope = excluded from that sector's
+  denominator entirely (not counted as 0).
+
+v1 scope: financial services only (banking, insurance, consumer_finance,
+mortgage_finance) — the only sectors covered by the indicator catalog.
+
+Adding a new sector:
+  1. Add the sector's weight to materiality_weights on every relevant
+     indicator in gri_indicators.json. Omit non-applicable indicators.
+  2. Add the sector string to KNOWN_SECTORS below.
+  3. No code changes in this file.
+
+v1 deliberately does NOT do:
+  - Peer benchmarking (no proprietary dataset)
+  - Controversies / incidents adjustment
+  - YoY trend
+  - Third-party assurance verification
+  - Sector-specific weights that vary by company size or geography
+
+v2 backlog: wire score_metric() at line 237 into the pipeline; add per-metric
+disclosure-quality transparency to the UI; ingest a peer benchmark dataset.
+
+================================================================================
 
 Public surface:
+    # v1 orchestrator wired into the production pipeline
+    score_report          -> ScoringResult
+
+    # v2 surface (NOT wired into the pipeline yet — see v2 backlog above)
     score_binary          -> float
     score_quantitative    -> float
     score_qualitative     -> float
@@ -15,9 +52,6 @@ Public surface:
     score_composite       -> dict
     score_to_grade        -> str
     score_document        -> dict  (top-level orchestrator, Spec §2 end-to-end)
-
-    # Legacy orchestrator (kept for backward-compat with workers/tasks.py)
-    score_report          -> ScoringResult
 """
 
 from __future__ import annotations
@@ -482,84 +516,209 @@ class ScoringResult:
     gaps: list[GapItem] = field(default_factory=list)
 
 
-# ── Legacy public API ─────────────────────────────────────────────────────────
-# Spec: this function predates the new scoring engine.  It uses indicator
-# status/confidence as a proxy for the metric score, which is the Iteration-0
-# approach.  It is preserved unchanged so the existing pipeline does not break.
-# Replace with score_composite() + sector-aware topic/pillar aggregation in
-# Iteration 2 M4 work.
+# ═════════════════════════════════════════════════════════════════════════════
+# v1 disclosure-quality scoring — wired into workers/tasks.py
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Per-indicator score = _disclosure_quality(metric) × _confidence_factor(metric)
+# Aggregated pillar / framework score = materiality-weighted average across
+# indicators that have a weight > 0 in data/gri_indicators.json for the
+# given sector. Indicators omitted from materiality_weights are excluded
+# from the denominator — not counted as a zero.
+#
+# Composite = 0.40·E + 0.35·S + 0.25·G  (kept from prior version; financial-
+# services pillar mix favouring S/G is sector-appropriate per the M4 spec).
+#
+# FRA-36 is a binary regulatory gate, unchanged: pass via direct FRA-36
+# disclosure OR both Scope 1 + Scope 2. See _compute_fra_score below.
 
-# Legacy framework-level weights (Iteration-0 only — not spec-compliant)
-_W_GRI: float = 0.50
-_W_FRA: float = 0.30
-_W_SASB: float = 0.20
+KNOWN_SECTORS: frozenset[str] = frozenset({
+    "banking",
+    "insurance",
+    "consumer_finance",
+    "mortgage_finance",
+})
+
+# Composite weights (unchanged from prior version)
+_COMP_E: float = 0.40
+_COMP_S: float = 0.35
+_COMP_G: float = 0.25
 
 # FRA-36 can be satisfied by direct disclosure OR both Scope 1 + Scope 2
 _FRA36_DIRECT: str = "FRA-36"
 _FRA36_COMPONENTS: frozenset[str] = frozenset({"GRI 305-1", "GRI 305-2"})
 
-_SASB_CODES: frozenset[str] = frozenset({"GRI 418-1"})
 
+# ── Per-indicator score components ───────────────────────────────────────────
+
+def _disclosure_quality(metric) -> float:
+    """0.0–1.0 score reflecting how completely the company disclosed a metric.
+
+    Order matters — the no-value and explicit-reject cases short-circuit before
+    the completeness ladder. A rejected metric stays at 0 even if it had a
+    value, because the reviewer rejected the disclosure.
+    """
+    if metric is None:
+        return 0.0
+    status = getattr(metric, "status", None)
+    if status in (MetricStatus.missing, MetricStatus.rejected):
+        return 0.0
+    if metric.value is None and metric.original_value is None:
+        return 0.0
+    if status == MetricStatus.ambiguous:
+        return 0.4
+    # value or original_value present
+    if metric.value is None and metric.original_value is not None:
+        return 0.6  # qualitative-only disclosure
+    if metric.unit is None:
+        return 0.7  # numeric value but no unit
+    has_page = getattr(metric, "source_page", None) is not None
+    has_evidence = bool((getattr(metric, "evidence_chunk", None) or "").strip())
+    if has_page and has_evidence:
+        return 1.0
+    return 0.8
+
+
+def _confidence_factor(metric) -> float:
+    """0.5–1.0 multiplier softening the disclosure score by extraction trust.
+
+    Consultant-approved metrics override LLM confidence — the consultant has
+    eyeballed it, so trust the value at full weight regardless of what the
+    LLM thought.
+    """
+    if metric is None:
+        return 0.5
+    if getattr(metric, "status", None) == MetricStatus.approved:
+        return 1.0
+    confidence = float(getattr(metric, "confidence", 0.0) or 0.0)
+    if confidence >= 0.8:
+        return 1.0
+    if confidence >= 0.5:
+        return 0.7
+    return 0.5
+
+
+def _per_indicator_score(metric) -> float:
+    """Combine disclosure quality and confidence into a single 0–1 score."""
+    return _disclosure_quality(metric) * _confidence_factor(metric)
+
+
+# ── Sector-aware materiality + weighted aggregation ──────────────────────────
+
+def _materiality_weight(indicator: dict, sector: str) -> float:
+    """Read the sector's materiality weight from the indicator catalog.
+
+    Returns 0.0 if the indicator has no materiality_weights map at all
+    (catalog row hasn't been updated yet) OR if the sector is omitted
+    (indicator is not material for this sector — excluded from the
+    denominator at aggregation time, not counted as a zero).
+    """
+    weights = indicator.get("materiality_weights", {})
+    return float(weights.get(sector, 0.0))
+
+
+def _weighted_avg(
+    codes: list[str],
+    sector: str,
+    indicator_by_code: dict[str, dict],
+    metric_map: dict[str, object],
+) -> float:
+    """Materiality-weighted average of per-indicator scores across `codes`.
+
+    Indicators with materiality_weight == 0 for `sector` are excluded
+    entirely — they do not pull the average down. Returns 0–100.
+    """
+    total_w = 0.0
+    total_wr = 0.0
+    for code in codes:
+        ind = indicator_by_code.get(code)
+        if ind is None:
+            continue
+        w = _materiality_weight(ind, sector)
+        if w == 0.0:
+            continue  # out of scope for this sector
+        raw = _per_indicator_score(metric_map.get(code))
+        total_w += w
+        total_wr += raw * w
+    if total_w == 0.0:
+        return 0.0
+    return (total_wr / total_w) * 100
+
+
+# ── Public orchestrator ──────────────────────────────────────────────────────
 
 def score_report(
     metrics: list,
+    sector: str,
     indicator_codes: list[str] | None = None,
 ) -> ScoringResult:
-    """Score extracted metrics against GRI / FRA / SASB frameworks.
-
-    LEGACY ORCHESTRATOR — Iteration-0 approach.
-    Uses indicator status/confidence as a proxy score.
-    Does NOT apply sector-specific pillar weights, topic hierarchy, or FRA gate.
-    Preserved for backward-compatibility with workers/tasks.py.
+    """Materiality-weighted disclosure-quality scoring for one report.
 
     Args:
-        metrics:         Extracted metrics for one report.  Each object must
-                         expose gri_code, status, confidence, value, label.
-        indicator_codes: Override the indicator set to score against.
-                         None → all indicators.
+        metrics:         Extracted metrics. Each object exposes gri_code,
+                         status, confidence, value, unit, original_value,
+                         source_page, evidence_chunk.
+        sector:          Company sector. Must be one of KNOWN_SECTORS or it
+                         is rejected with a warning and replaced by "banking".
+        indicator_codes: Restrict to a subset of indicators by code. None
+                         means use the full catalog.
 
     Returns:
-        ScoringResult with per-framework scores and gap analysis.
+        ScoringResult with per-pillar, per-framework, composite scores.
     """
-    all_indicators = get_all_indicators()
+    if sector not in KNOWN_SECTORS:
+        logger.warning(
+            "score_report.unknown_sector",
+            sector=sector,
+            falling_back_to="banking",
+            known_sectors=sorted(KNOWN_SECTORS),
+        )
+        sector = "banking"
 
+    all_indicators = get_all_indicators()
     if indicator_codes is not None:
         all_indicators = [i for i in all_indicators if i["code"] in set(indicator_codes)]
 
+    indicator_by_code: dict[str, dict] = {i["code"]: i for i in all_indicators}
     metric_map: dict[str, object] = {m.gri_code: m for m in metrics}
 
-    # ── Per-indicator status/confidence proxy score ───────────────────────────
-    indicator_scores: dict[str, float] = {}
+    # In-scope indicators for this sector (materiality_weight > 0)
+    in_scope_codes = [
+        i["code"] for i in all_indicators if _materiality_weight(i, sector) > 0
+    ]
 
-    for ind in all_indicators:
-        code = ind["code"]
-        metric = metric_map.get(code)
+    # ── Pillar scores ─────────────────────────────────────────────────────────
+    e_codes = [c for c in in_scope_codes if indicator_by_code[c].get("pillar") == "E"]
+    s_codes = [c for c in in_scope_codes if indicator_by_code[c].get("pillar") == "S"]
+    g_codes = [c for c in in_scope_codes if indicator_by_code[c].get("pillar") == "G"]
 
-        if metric is None:
-            indicator_scores[code] = 0.0
-            continue
+    e_score = _weighted_avg(e_codes, sector, indicator_by_code, metric_map)
+    s_score = _weighted_avg(s_codes, sector, indicator_by_code, metric_map)
+    g_score = _weighted_avg(g_codes, sector, indicator_by_code, metric_map)
 
-        indicator_scores[code] = _legacy_score_indicator(metric)
+    # ── Framework scores ──────────────────────────────────────────────────────
+    gri_codes = [
+        c for c in in_scope_codes
+        if (indicator_by_code[c].get("framework") or "").startswith("GRI")
+    ]
+    sasb_codes = [
+        c for c in in_scope_codes
+        if (indicator_by_code[c].get("framework") or "").startswith("SASB")
+    ]
 
-    # ── GRI completeness score ────────────────────────────────────────────────
-    gri_codes = [i["code"] for i in all_indicators if i["code"].startswith("GRI")]
-    gri_scores = [indicator_scores.get(c, 0.0) for c in gri_codes]
-    gri_score = (sum(gri_scores) / len(gri_scores) * 100) if gri_scores else 0.0
+    gri_score = _weighted_avg(gri_codes, sector, indicator_by_code, metric_map)
+    sasb_score = _weighted_avg(sasb_codes, sector, indicator_by_code, metric_map)
 
-    # ── FRA-36 compliance score ───────────────────────────────────────────────
-    fra_score = _compute_fra_score(indicator_scores)
+    # FRA-36 stays as a binary regulatory gate. Feed it the new per-indicator
+    # scores (same 0–1 range as before; the >=0.8 threshold still reads as
+    # "well disclosed" under the new methodology).
+    fra_indicator_scores = {
+        c: _per_indicator_score(metric_map.get(c)) for c in in_scope_codes
+    }
+    fra_score = _compute_fra_score(fra_indicator_scores)
 
-    # ── SASB coverage score ───────────────────────────────────────────────────
-    sasb_scores = [indicator_scores.get(c, 0.0) for c in _SASB_CODES]
-    sasb_score = (sum(sasb_scores) / len(sasb_scores) * 100) if sasb_scores else 0.0
-
-    # ── E / S / G pillar scores (simple average, no topic hierarchy) ──────────
-    e_score = _legacy_pillar_score(all_indicators, indicator_scores, "E")
-    s_score = _legacy_pillar_score(all_indicators, indicator_scores, "S")
-    g_score = _legacy_pillar_score(all_indicators, indicator_scores, "G")
-
-    # ── Composite — legacy weights (NOT spec-compliant; Iteration-0 only) ─────
-    total_score = 0.40 * e_score + 0.35 * s_score + 0.25 * g_score
+    # ── Composite ─────────────────────────────────────────────────────────────
+    total_score = _COMP_E * e_score + _COMP_S * s_score + _COMP_G * g_score
 
     # ── Gap analysis ──────────────────────────────────────────────────────────
     gaps = build_gap_analysis(
@@ -568,10 +727,10 @@ def score_report(
         indicator_codes=indicator_codes,
     )
 
-    indicators_found = sum(
-        1
-        for m in metrics
-        if m.status in (MetricStatus.extracted, MetricStatus.approved)
+    # coverage_pct is now sector-scoped: how many of the in-scope indicators
+    # produced a non-zero disclosure-quality score.
+    indicators_with_disclosure = sum(
+        1 for c in in_scope_codes if _disclosure_quality(metric_map.get(c)) > 0
     )
 
     result = ScoringResult(
@@ -583,59 +742,39 @@ def score_report(
         social_score=round(s_score, 1),
         governance_score=round(g_score, 1),
         benchmark_tier=_benchmark_tier(total_score),
-        indicators_found=indicators_found,
-        indicators_total=len(all_indicators),
-        coverage_pct=round(indicators_found / max(len(all_indicators), 1) * 100, 1),
+        indicators_found=indicators_with_disclosure,
+        indicators_total=len(in_scope_codes),
+        coverage_pct=round(
+            indicators_with_disclosure / max(len(in_scope_codes), 1) * 100, 1
+        ),
         gaps=gaps,
     )
 
     logger.info(
         "score_report.done",
+        sector=sector,
         total=result.total_score,
         gri=result.gri_score,
+        sasb=result.sasb_score,
+        fra=result.fra_score,
         E=result.environmental_score,
         S=result.social_score,
         G=result.governance_score,
+        in_scope=len(in_scope_codes),
+        with_disclosure=indicators_with_disclosure,
         benchmark=result.benchmark_tier,
         gaps=len(gaps),
     )
     return result
 
 
-# ── Legacy helpers ────────────────────────────────────────────────────────────
-
-def _legacy_score_indicator(metric) -> float:
-    """Return a 0–1 proxy score from workflow status + confidence."""
-    status: MetricStatus = metric.status
-    confidence: float = metric.confidence
-    threshold: float = settings.confidence_threshold
-
-    if status == MetricStatus.approved:
-        return 1.0
-    if status == MetricStatus.extracted:
-        return confidence if confidence >= threshold else confidence * 0.7
-    if status == MetricStatus.ambiguous:
-        return 0.3
-    if status == MetricStatus.rejected:
-        return 0.0
-    return 0.0
-
-
-def _legacy_pillar_score(
-    indicators: list,
-    indicator_scores: dict,
-    pillar: str,
-) -> float:
-    """Simple average of all indicator scores in a pillar (no topic weighting)."""
-    codes = [i["code"] for i in indicators if i.get("pillar") == pillar]
-    if not codes:
-        return 0.0
-    scores = [indicator_scores.get(c, 0.0) for c in codes]
-    return sum(scores) / len(scores) * 100
-
-
 def _benchmark_tier(score: float) -> str:
-    """Map a 0–100 composite score to a benchmark tier label."""
+    """Map a 0–100 composite score to a tier label.
+
+    NOTE: This is a self-referential label (where this report sits on a 0–100
+    scale), NOT a peer benchmark. v1 explicitly excludes peer comparison —
+    see the methodology block at the top of this file.
+    """
     if score >= 85:
         return "Leader"
     if score >= 70:
@@ -648,7 +787,12 @@ def _benchmark_tier(score: float) -> str:
 
 
 def _compute_fra_score(indicator_scores: dict[str, float]) -> float:
-    """FRA-36 compliance: direct disclosure OR both Scope 1 + Scope 2 present."""
+    """FRA-36 compliance: direct disclosure OR both Scope 1 + Scope 2 present.
+
+    Binary-style gate kept from the prior methodology. Inputs are now
+    per-indicator disclosure-quality scores (0–1) instead of legacy proxy
+    scores, but the 0.8 threshold semantics are unchanged.
+    """
     direct = indicator_scores.get(_FRA36_DIRECT, 0.0)
     if direct >= 0.8:
         return direct * 100

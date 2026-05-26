@@ -42,6 +42,15 @@ from app.workers.celery_app import celery_app
 logger = structlog.get_logger(__name__)
 
 
+class NoTextExtractedError(Exception):
+    """Ingestion produced zero text — pipeline cannot proceed.
+
+    Raised after parse for image-only docs (OCR not yet implemented) or
+    any other format that yields an empty body. Caught specially by the
+    Celery wrapper so it does NOT retry — there is no transient cause.
+    """
+
+
 @celery_app.task(
     bind=True,
     name="pipeline.run_extraction",
@@ -88,6 +97,17 @@ def run_extraction_pipeline(
         logger.info("pipeline.complete", task_id=self.request.id, **result)
         return result
 
+    except NoTextExtractedError as exc:
+        # Permanent: zero-text doc will never produce text on retry.
+        # Document.error_message was already written by _run_pipeline_async.
+        logger.warning(
+            "pipeline.no_text",
+            task_id=self.request.id,
+            document_id=document_id,
+            error=str(exc),
+        )
+        raise
+
     except Exception as exc:
         logger.error(
             "pipeline.failed",
@@ -95,7 +115,7 @@ def run_extraction_pipeline(
             error=str(exc),
         )
         # Mark document as failed in DB
-        asyncio.run(_mark_document_failed(document_id))
+        asyncio.run(_mark_document_failed(document_id, str(exc)))
         raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
 
 
@@ -110,7 +130,7 @@ async def _run_pipeline_async(
 
     factory = get_session_factory()
 
-    # ── 1. Fetch document record from DB ──────────────────────────────
+    # ── 1. Fetch document + company from DB ───────────────────────────
     async with factory() as session:
         result = await session.execute(
             select(Document).where(Document.id == document_id)
@@ -121,6 +141,24 @@ async def _run_pipeline_async(
 
         file_path = doc_record.file_path
         source_file = doc_record.filename
+
+        # Look up the company's sector (industry) — scorer needs it for the
+        # sector-specific materiality_weights lookup. Default to "banking"
+        # with a warning if missing, so a misconfigured company row doesn't
+        # take the pipeline down.
+        from app.models.company import Company
+        company_record = (
+            await session.execute(select(Company).where(Company.id == company_id))
+        ).scalar_one_or_none()
+        if company_record is None or not (company_record.industry or "").strip():
+            logger.warning(
+                "pipeline.company_sector_missing",
+                company_id=str(company_id),
+                falling_back_to="banking",
+            )
+            sector = "banking"
+        else:
+            sector = company_record.industry.lower()
 
         # Mark document as processing
         await session.execute(
@@ -141,6 +179,26 @@ async def _run_pipeline_async(
         chars=len(ingested.full_text),
     )
 
+    # ── 2a. Zero-text guard ──────────────────────────────────────────
+    # Image-only docs hit the stubbed OCR path and return 0 pages.
+    # Plain-text / docx / spreadsheets can also be empty. Either way we
+    # cannot chunk → classify → extract on nothing; fail fast with a
+    # message the UI can show, and skip Celery retries.
+    if not ingested.full_text.strip():
+        ext = (doc_record.file_type or "").lower()
+        if ext in ("png", "jpg", "jpeg", "tiff", "tif", "bmp"):
+            msg = (
+                "Could not extract text — image OCR is not yet implemented. "
+                "Please upload a PDF, DOCX, XLSX, CSV, or TXT file instead."
+            )
+        else:
+            msg = (
+                f"Could not extract any text from {source_file!r}. "
+                "The file may be empty, password-protected, or corrupted."
+            )
+        await _mark_document_failed_async(document_id, msg)
+        raise NoTextExtractedError(msg)
+
     _update_state(task, "CHUNKING", "Splitting into chunks...")
 
     # ── 3. Chunking — split into retrieval-ready chunks ───────────────
@@ -158,8 +216,19 @@ async def _run_pipeline_async(
         relevant=len(relevant_chunks),
     )
 
-    # Use relevant chunks' text as the document for extraction.
-    # Fall back to full text if classification filters out too much.
+    _update_state(task, "EMBEDDING", "Embedding chunks into ChromaDB...")
+
+    # ── 4b. Embed relevant chunks → ChromaDB (per-indicator retrieval) ──
+    from app.core.nlp.embedder import embed_and_store
+    chunks_to_embed = relevant_chunks if len(relevant_chunks) >= 3 else chunks
+    embed_and_store(
+        chunks_to_embed,
+        company_id=str(company_id),
+        report_id=str(report_id),
+    )
+    logger.info("pipeline.embedded", chunks=len(chunks_to_embed))
+
+    # Build full-doc fallback text (used if ChromaDB is unreachable)
     if len(relevant_chunks) >= 3:
         extraction_text = "\n\n".join(c.text for c in relevant_chunks)
     else:
@@ -172,22 +241,25 @@ async def _run_pipeline_async(
 
     _update_state(task, "EXTRACTING", "Extracting ESG metrics via LLM...")
 
-    # ── 5. Extraction — LLM calls per GRI indicator ───────────────────
+    # ── 5. Extraction — per-indicator retrieval + LLM calls ───────────
+    # ChromaDB chunks store ingested.source_file (UUID-named disk file,
+    # e.g. "aa11bb…pdf"), while source_file is the user-facing filename
+    # ("report.pdf"). We pass the disk name for ChromaDB filtering.
     metrics = await extract_metrics(
-        document_text=extraction_text,
         company_id=company_id,
         report_id=report_id,
-        source_file=source_file,
+        source_file=ingested.source_file,   # disk filename for ChromaDB where-filter
         indicator_codes=indicator_codes,
         document_id=document_id,
-        n_chunks_processed=len(relevant_chunks) if len(relevant_chunks) >= 3 else len(chunks),
+        n_chunks_processed=len(chunks_to_embed),
+        document_text=extraction_text,  # fallback if ChromaDB is down
     )
     logger.info("pipeline.extracted", metrics=len(metrics))
 
     _update_state(task, "SCORING", "Computing ESG scores...")
 
-    # ── 6. Scoring — GRI + FRA + SASB ────────────────────────────────
-    scoring_result = score_report(metrics, indicator_codes=indicator_codes)
+    # ── 6. Scoring — sector-aware disclosure quality (v1 methodology) ─
+    scoring_result = score_report(metrics, sector=sector, indicator_codes=indicator_codes)
 
     _update_state(task, "PERSISTING", "Saving results to database...")
 
@@ -217,7 +289,9 @@ async def _run_pipeline_async(
             )
             session.add(metric_row)
 
-        # Update report with scores
+        # Update report with scores. All 7 fields come from the same
+        # ScoringResult so the dashboard (which reads these) shows the
+        # same numbers as the PDF (which renders from the same scorer).
         await session.execute(
             update(Report)
             .where(Report.id == report_id)
@@ -226,6 +300,9 @@ async def _run_pipeline_async(
                 gri_score=scoring_result.gri_score,
                 fra_score=scoring_result.fra_score,
                 sasb_score=scoring_result.sasb_score,
+                environmental_score=scoring_result.environmental_score,
+                social_score=scoring_result.social_score,
+                governance_score=scoring_result.governance_score,
                 status=ReportStatus.in_review,
             )
         )
@@ -345,14 +422,27 @@ async def _generate_report_async(task, report_id: uuid.UUID) -> dict[str, Any]:
 
     _update_state(task, "BUILDING", "Building report sections...")
 
+    # sector for scorer's materiality_weights lookup — fall back to banking
+    # if the company row has no industry set, so an unconfigured company
+    # doesn't crash report generation.
+    if not (company_row.industry or "").strip():
+        logger.warning(
+            "report.generate.company_sector_missing",
+            company_id=str(company_row.id),
+            falling_back_to="banking",
+        )
+        sector = "banking"
+    else:
+        sector = company_row.industry.lower()
+
     company_profile = CompanyProfile(
         name=company_row.name,
-        sector=(company_row.industry or "default").lower(),
+        sector=sector,
         reporting_period=str(report_row.reporting_year),
         headquarters=company_row.country or "",
     )
 
-    score = score_report(list(metric_rows))
+    score = score_report(list(metric_rows), sector=sector)
     bundle = build_report_sections(metrics=list(metric_rows), score=score, company=company_profile)
 
     _update_state(task, "NARRATING", "Generating narratives...")
@@ -365,11 +455,25 @@ async def _generate_report_async(task, report_id: uuid.UUID) -> dict[str, Any]:
     output_path = out_dir / f"{safe_company}_ESG_report.pdf"
     final_path = render_pdf(bundle, output_path)
 
+    # Re-persist all 7 score fields from the live ScoringResult. Metrics
+    # may have been approved/rejected between pipeline-time and now, so
+    # this snapshot is the one the PDF was rendered from — the dashboard
+    # must read these same values.
     async with factory() as session:
         await session.execute(
             update(Report)
             .where(Report.id == report_id)
-            .values(pdf_path=str(final_path), status=ReportStatus.published)
+            .values(
+                pdf_path=str(final_path),
+                status=ReportStatus.published,
+                total_score=score.total_score,
+                gri_score=score.gri_score,
+                fra_score=score.fra_score,
+                sasb_score=score.sasb_score,
+                environmental_score=score.environmental_score,
+                social_score=score.social_score,
+                governance_score=score.governance_score,
+            )
         )
         await session.commit()
 
@@ -395,16 +499,29 @@ async def _mark_report_failed(report_id: str) -> None:
         logger.error("report.mark_failed_error", error=str(exc))
 
 
-async def _mark_document_failed(document_id: str) -> None:
-    """Mark a document as failed after pipeline error."""
+async def _mark_document_failed_async(
+    document_id: uuid.UUID | str,
+    error_message: str | None = None,
+) -> None:
+    """Inside-the-event-loop version. Use this from _run_pipeline_async."""
     try:
         factory = get_session_factory()
         async with factory() as session:
+            doc_uuid = document_id if isinstance(document_id, uuid.UUID) else uuid.UUID(document_id)
+            values: dict[str, Any] = {"status": DocumentStatus.failed}
+            if error_message is not None:
+                values["error_message"] = error_message
             await session.execute(
-                update(Document)
-                .where(Document.id == uuid.UUID(document_id))
-                .values(status=DocumentStatus.failed)
+                update(Document).where(Document.id == doc_uuid).values(**values)
             )
             await session.commit()
     except Exception as exc:
         logger.error("pipeline.mark_failed_error", error=str(exc))
+
+
+async def _mark_document_failed(
+    document_id: str,
+    error_message: str | None = None,
+) -> None:
+    """Sync-wrapper-callable: mark document failed (optionally with message)."""
+    await _mark_document_failed_async(document_id, error_message)

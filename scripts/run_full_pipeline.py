@@ -81,7 +81,7 @@ async def run(pdf_path: Path, out_dir: Path, company_name: str) -> Path:
         print(f"        {m.gri_code:>10}  status={m.status.value:<10}  conf={m.confidence:.2f}")
 
     print("[M4] Scoring against GRI / FRA / SASB ...")
-    score = score_report(metrics)
+    score = score_report(metrics, sector="banking")
     print(
         f"     -> total={score.total_score}  GRI={score.gri_score}  "
         f"FRA={score.fra_score}  SASB={score.sasb_score}  tier={score.benchmark_tier}"

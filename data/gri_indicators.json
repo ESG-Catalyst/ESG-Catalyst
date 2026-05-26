@@ -29,13 +29,33 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": null,
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["legal_name", "headquarters_location", "countries_of_operation", "ownership_structure"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "legal_name",
+        "headquarters_location",
+        "countries_of_operation",
+        "ownership_structure"
+      ],
       "expected_unit": null,
       "expected_breakdown": [],
       "extraction_prompt": "Extract the following organizational details from the document:\n1. Legal name of the organization\n2. Location of headquarters (city and country)\n3. Countries where the organization operates\n4. Nature of ownership and legal form (e.g., public joint-stock company, subsidiary)\n\nReturn the extracted information as a 2-4 sentence summary in the evidence field.\nFor Arabic documents, translate the extracted values to English.",
       "validation_rules": {
-        "required_fields": ["legal_name"],
+        "required_fields": [
+          "legal_name"
+        ],
         "min_fields": 2
       }
     },
@@ -51,15 +71,42 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": null,
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["board_size", "independent_members", "executive_members", "committees"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "board_size",
+        "independent_members",
+        "executive_members",
+        "committees"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["independent_members", "executive_members", "committees"],
+      "expected_breakdown": [
+        "independent_members",
+        "executive_members",
+        "committees"
+      ],
       "extraction_prompt": "Extract governance structure details from the document:\n1. Total number of board members\n2. Number of independent/non-executive board members\n3. Number of executive board members\n4. List of board committees (e.g., audit, risk, remuneration, nomination)\n5. Whether the chair is also the CEO (yes/no)\n\nReturn the total board size as `value`. Put the sub-counts in the `breakdown` field, e.g., {\"independent\": N, \"executive\": N, \"committees\": [\"audit\", \"risk\", ...]}.\nFor Arabic text, translate committee names to English.",
       "validation_rules": {
-        "required_fields": ["board_size"],
+        "required_fields": [
+          "board_size"
+        ],
         "min_fields": 2,
-        "board_size_range": [3, 30]
+        "board_size_range": [
+          3,
+          30
+        ]
       }
     },
     {
@@ -74,15 +121,47 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.18.2",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["economic_value_generated", "operating_costs", "employee_wages", "payments_to_capital_providers", "payments_to_government", "community_investments", "economic_value_retained"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "economic_value_generated",
+        "operating_costs",
+        "employee_wages",
+        "payments_to_capital_providers",
+        "payments_to_government",
+        "community_investments",
+        "economic_value_retained"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["operating_costs", "employee_wages_benefits", "payments_to_providers_of_capital", "payments_to_government_by_country", "community_investments"],
+      "expected_breakdown": [
+        "operating_costs",
+        "employee_wages_benefits",
+        "payments_to_providers_of_capital",
+        "payments_to_government_by_country",
+        "community_investments"
+      ],
       "extraction_prompt": "Extract economic value generated and distributed from the financial statements (GRI 201-1, banking sector ref XX.18.2):\n1. Direct economic value generated (revenues + financial investment income + sales of assets)\n2. Economic value distributed, broken down into: operating costs, employee wages and benefits, payments to providers of capital (interest + dividends), payments to government (taxes by country if available), community investments\n3. Economic value retained (generated minus distributed)\n4. Currency used (e.g., EGP, USD)\n5. Reporting period\n\nReturn the TOTAL economic value generated as `value`, the currency as `currency`, and the distribution breakdown in `breakdown`.\nFor Arabic documents: convert Arabic-Indic digits and translate currency names.",
       "validation_rules": {
-        "required_fields": ["economic_value_generated"],
+        "required_fields": [
+          "economic_value_generated"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e15]
+        "value_range": [
+          0,
+          1000000000000000.0
+        ]
       }
     },
     {
@@ -97,15 +176,47 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.19.4",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["confirmed_incidents", "incidents_dismissed_employees", "incidents_terminated_contracts", "legal_cases", "financial_crime_suspicious", "financial_crime_investigated", "financial_crime_confirmed"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "confirmed_incidents",
+        "incidents_dismissed_employees",
+        "incidents_terminated_contracts",
+        "legal_cases",
+        "financial_crime_suspicious",
+        "financial_crime_investigated",
+        "financial_crime_confirmed"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["suspicious", "investigated", "confirmed", "dismissed_employees", "terminated_contracts"],
-      "extraction_prompt": "Extract anti-corruption and financial-crime incident data (GRI 205-3 + banking sector ref XX.19.4):\n1. Total number of confirmed incidents of corruption during the reporting period\n2. Number of incidents in which employees were dismissed or disciplined for corruption\n3. Number of incidents in which contracts with business partners were terminated or not renewed due to corruption violations\n4. Public legal cases regarding corruption brought against the organization or its employees, and the outcomes\n5. Banking-sector additional disclosures: number and nature of financial-crime incidents — broken down into suspicious incidents identified, investigated, and confirmed\n\nReturn TOTAL confirmed corruption incidents as `value`. Put the financial-crime breakdown (suspicious / investigated / confirmed) and the action breakdown (dismissals / contract terminations) in `breakdown`.\nReturn zero explicitly if the company reports zero incidents — that is a valid data point, not missing data.",
+      "expected_breakdown": [
+        "suspicious",
+        "investigated",
+        "confirmed",
+        "dismissed_employees",
+        "terminated_contracts"
+      ],
+      "extraction_prompt": "Extract anti-corruption and financial-crime incident data (GRI 205-3 + banking sector ref XX.19.4):\n1. Total number of confirmed incidents of corruption during the reporting period\n2. Number of incidents in which employees were dismissed or disciplined for corruption\n3. Number of incidents in which contracts with business partners were terminated or not renewed due to corruption violations\n4. Public legal cases regarding corruption brought against the organization or its employees, and the outcomes\n5. Banking-sector additional disclosures: number and nature of financial-crime incidents â€” broken down into suspicious incidents identified, investigated, and confirmed\n\nReturn TOTAL confirmed corruption incidents as `value`. Put the financial-crime breakdown (suspicious / investigated / confirmed) and the action breakdown (dismissals / contract terminations) in `breakdown`.\nReturn zero explicitly if the company reports zero incidents â€” that is a valid data point, not missing data.",
       "validation_rules": {
-        "required_fields": ["confirmed_incidents"],
+        "required_fields": [
+          "confirmed_incidents"
+        ],
         "min_fields": 1,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
@@ -120,13 +231,42 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.21.5",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["countries_covered", "revenue_by_country", "profit_by_country", "tax_paid_by_country", "tax_accrued_by_country", "employees_by_country"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "countries_covered",
+        "revenue_by_country",
+        "profit_by_country",
+        "tax_paid_by_country",
+        "tax_accrued_by_country",
+        "employees_by_country"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["revenue_by_country", "profit_before_tax_by_country", "corporate_income_tax_paid_by_country", "corporate_income_tax_accrued_by_country", "tangible_assets_by_country", "number_of_employees_by_country"],
+      "expected_breakdown": [
+        "revenue_by_country",
+        "profit_before_tax_by_country",
+        "corporate_income_tax_paid_by_country",
+        "corporate_income_tax_accrued_by_country",
+        "tangible_assets_by_country",
+        "number_of_employees_by_country"
+      ],
       "extraction_prompt": "Extract country-by-country tax reporting (GRI 207-4, banking sector ref XX.21.5). For each tax jurisdiction in which the organization is a resident, report:\n1. Names of the resident entities\n2. Revenues from third-party sales\n3. Revenues from intra-group transactions with other tax jurisdictions\n4. Profit/loss before tax\n5. Tangible assets other than cash and cash equivalents\n6. Corporate income tax paid on a cash basis\n7. Corporate income tax accrued on profit/loss\n8. Number of employees\n\nReturn the TOTAL corporate income tax paid (all jurisdictions combined) as `value`, currency as `currency`. Put the per-country breakdown in `breakdown` keyed by country code/name.\nIf only a subset of jurisdictions is disclosed, set status to `ambiguous` and note which jurisdictions are missing.",
       "validation_rules": {
-        "required_fields": ["tax_paid_by_country"],
+        "required_fields": [
+          "tax_paid_by_country"
+        ],
         "min_fields": 1
       }
     },
@@ -142,15 +282,45 @@
       "fra_code": "FRA-36-ENERGY",
       "sasb_code": null,
       "sector_standard_ref": null,
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["total_energy", "electricity", "natural_gas", "diesel", "renewable_energy"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "total_energy",
+        "electricity",
+        "natural_gas",
+        "diesel",
+        "renewable_energy"
+      ],
       "expected_unit": "GJ",
-      "expected_breakdown": ["electricity_kwh", "natural_gas_m3", "diesel_liters", "renewable_kwh", "heating_cooling_gj"],
-      "extraction_prompt": "Extract energy consumption data from the document (GRI 302-1):\n1. Total energy consumption within the organization (in GJ or MWh or kWh)\n2. Electricity consumption (purchased, in kWh or MWh)\n3. Natural gas consumption (in m³ or GJ)\n4. Diesel/fuel oil consumption (in liters or GJ)\n5. Renewable energy consumption if any (in kWh or GJ)\n6. Reporting year/period for these figures\n\nReturn TOTAL energy consumption normalized to GJ as `value`. Put the per-source breakdown (preserving original units) in `breakdown`.\nConversion factors: 1 MWh = 3.6 GJ, 1 kWh = 0.0036 GJ, 1 liter diesel = 0.0384 GJ, 1 m³ natural gas = 0.0387 GJ.\nFor Arabic documents: numbers may use Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩). Convert to Western digits.",
+      "expected_breakdown": [
+        "electricity_kwh",
+        "natural_gas_m3",
+        "diesel_liters",
+        "renewable_kwh",
+        "heating_cooling_gj"
+      ],
+      "extraction_prompt": "Extract energy consumption data from the document (GRI 302-1):\n1. Total energy consumption within the organization (in GJ or MWh or kWh)\n2. Electricity consumption (purchased, in kWh or MWh)\n3. Natural gas consumption (in mÂ³ or GJ)\n4. Diesel/fuel oil consumption (in liters or GJ)\n5. Renewable energy consumption if any (in kWh or GJ)\n6. Reporting year/period for these figures\n\nReturn TOTAL energy consumption normalized to GJ as `value`. Put the per-source breakdown (preserving original units) in `breakdown`.\nConversion factors: 1 MWh = 3.6 GJ, 1 kWh = 0.0036 GJ, 1 liter diesel = 0.0384 GJ, 1 mÂ³ natural gas = 0.0387 GJ.\nFor Arabic documents: numbers may use Arabic-Indic digits (Ù Ù¡Ù¢Ù£Ù¤Ù¥Ù¦Ù§Ù¨Ù©). Convert to Western digits.",
       "validation_rules": {
-        "required_fields": ["total_energy"],
+        "required_fields": [
+          "total_energy"
+        ],
         "min_fields": 2,
-        "value_range": [0, 100000000],
+        "value_range": [
+          0,
+          100000000
+        ],
         "unit_must_be": "GJ"
       }
     },
@@ -166,15 +336,45 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": null,
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["energy_intensity", "numerator", "denominator", "denominator_type"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "energy_intensity",
+        "numerator",
+        "denominator",
+        "denominator_type"
+      ],
       "expected_unit": "GJ per unit",
-      "expected_breakdown": ["numerator_value", "numerator_unit", "denominator_value", "denominator_unit", "denominator_type", "scopes_included"],
-      "extraction_prompt": "Extract energy intensity data from the document (GRI 302-3):\n1. Energy intensity ratio (energy per unit of activity/output)\n2. The numerator: total energy consumption value and unit (typically GJ or MWh)\n3. The denominator: the metric used (revenue in EGP, number of employees, floor area in m²)\n4. Whether the ratio includes Scope 1, Scope 2, or both\n\nReturn the RATIO as `value` (e.g., GJ per million EGP). Put numerator, denominator, denominator_type and scopes in `breakdown`.\nIf the ratio is not explicitly stated but the components are, compute it and lower confidence to ≤0.7.",
+      "expected_breakdown": [
+        "numerator_value",
+        "numerator_unit",
+        "denominator_value",
+        "denominator_unit",
+        "denominator_type",
+        "scopes_included"
+      ],
+      "extraction_prompt": "Extract energy intensity data from the document (GRI 302-3):\n1. Energy intensity ratio (energy per unit of activity/output)\n2. The numerator: total energy consumption value and unit (typically GJ or MWh)\n3. The denominator: the metric used (revenue in EGP, number of employees, floor area in mÂ²)\n4. Whether the ratio includes Scope 1, Scope 2, or both\n\nReturn the RATIO as `value` (e.g., GJ per million EGP). Put numerator, denominator, denominator_type and scopes in `breakdown`.\nIf the ratio is not explicitly stated but the components are, compute it and lower confidence to â‰¤0.7.",
       "validation_rules": {
-        "required_fields": ["energy_intensity"],
+        "required_fields": [
+          "energy_intensity"
+        ],
         "min_fields": 2,
-        "value_range": [0, 10000]
+        "value_range": [
+          0,
+          10000
+        ]
       }
     },
     {
@@ -189,15 +389,42 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": null,
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["total_water_consumption", "water_withdrawal", "water_discharge", "water_recycled"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "total_water_consumption",
+        "water_withdrawal",
+        "water_discharge",
+        "water_recycled"
+      ],
       "expected_unit": "m3",
-      "expected_breakdown": ["withdrawal_by_source", "discharge", "recycled_reused"],
-      "extraction_prompt": "Extract water consumption data from the document (GRI 303-5):\n1. Total water consumption (in m³ or liters or gallons)\n2. Total water withdrawal by source if available (surface, ground, third-party)\n3. Total water discharge if available\n4. Water recycled/reused if available\n5. Reporting year/period\n\nReturn TOTAL consumption normalized to m³ as `value`. Put per-source withdrawal, discharge, and recycled volumes in `breakdown`.\nConversion: 1000 liters = 1 m³.\nFor Arabic documents: watch for Arabic-Indic digits and translate unit names.",
+      "expected_breakdown": [
+        "withdrawal_by_source",
+        "discharge",
+        "recycled_reused"
+      ],
+      "extraction_prompt": "Extract water consumption data from the document (GRI 303-5):\n1. Total water consumption (in mÂ³ or liters or gallons)\n2. Total water withdrawal by source if available (surface, ground, third-party)\n3. Total water discharge if available\n4. Water recycled/reused if available\n5. Reporting year/period\n\nReturn TOTAL consumption normalized to mÂ³ as `value`. Put per-source withdrawal, discharge, and recycled volumes in `breakdown`.\nConversion: 1000 liters = 1 mÂ³.\nFor Arabic documents: watch for Arabic-Indic digits and translate unit names.",
       "validation_rules": {
-        "required_fields": ["total_water_consumption"],
+        "required_fields": [
+          "total_water_consumption"
+        ],
         "min_fields": 1,
-        "value_range": [0, 50000000],
+        "value_range": [
+          0,
+          50000000
+        ],
         "unit_must_be": "m3"
       }
     },
@@ -213,15 +440,52 @@
       "fra_code": "FRA-36-SCOPE1",
       "sasb_code": null,
       "sector_standard_ref": "XX.1.5",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["scope1_total", "co2", "ch4", "n2o", "emission_factors_source", "base_year"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "scope1_total",
+        "co2",
+        "ch4",
+        "n2o",
+        "emission_factors_source",
+        "base_year"
+      ],
       "expected_unit": "tCO2e",
-      "expected_breakdown": ["co2", "ch4", "n2o", "hfcs", "stationary_combustion", "mobile_combustion", "fugitive", "process", "emission_factors_source", "base_year", "methodology"],
+      "expected_breakdown": [
+        "co2",
+        "ch4",
+        "n2o",
+        "hfcs",
+        "stationary_combustion",
+        "mobile_combustion",
+        "fugitive",
+        "process",
+        "emission_factors_source",
+        "base_year",
+        "methodology"
+      ],
       "extraction_prompt": "Extract Scope 1 (direct) GHG emissions data (GRI 305-1 + financial-services sector ref XX.1.5):\n1. Total Scope 1 GHG emissions (in tCO2e or ktCO2e)\n2. Breakdown by gas if available (CO2, CH4, N2O, HFCs)\n3. Breakdown by source: stationary combustion, mobile combustion, fugitive emissions, process emissions\n4. Source of emission factors used (e.g., IPCC, DEFRA, EPA)\n5. Base year and base year emissions if stated\n6. Methodology or standard followed (e.g., GHG Protocol Corporate Standard)\n\nReturn TOTAL Scope 1 normalized to tCO2e as `value`. Put the gas / source breakdown + emission_factors_source + base_year + methodology in `breakdown`.\n1 ktCO2e = 1000 tCO2e.",
       "validation_rules": {
-        "required_fields": ["scope1_total"],
+        "required_fields": [
+          "scope1_total"
+        ],
         "min_fields": 1,
-        "value_range": [0, 10000000],
+        "value_range": [
+          0,
+          10000000
+        ],
         "unit_must_be": "tCO2e"
       }
     },
@@ -237,21 +501,49 @@
       "fra_code": "FRA-36-SCOPE2",
       "sasb_code": null,
       "sector_standard_ref": "XX.1.6",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["scope2_location", "scope2_market", "grid_factor"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "scope2_location",
+        "scope2_market",
+        "grid_factor"
+      ],
       "expected_unit": "tCO2e",
-      "expected_breakdown": ["scope2_location_based", "scope2_market_based", "grid_emission_factor", "grid_factor_source", "electricity_kwh_used"],
+      "expected_breakdown": [
+        "scope2_location_based",
+        "scope2_market_based",
+        "grid_emission_factor",
+        "grid_factor_source",
+        "electricity_kwh_used"
+      ],
       "extraction_prompt": "Extract Scope 2 (energy-indirect) GHG emissions (GRI 305-2 + financial-services sector ref XX.1.6):\n1. Location-based Scope 2 emissions (in tCO2e)\n2. Market-based Scope 2 emissions if available (in tCO2e)\n3. Grid emission factor used (kgCO2/kWh or tCO2/MWh)\n4. Source of the grid emission factor (e.g., national grid authority, IEA)\n5. Electricity consumption used for calculation\n\nReturn location-based Scope 2 (preferred) normalized to tCO2e as `value`. Put market-based, grid factor, factor source, and underlying electricity consumption in `breakdown`.\nFor Egyptian banks: grid factor is approximately 0.489 kgCO2/kWh (verify against document).",
       "validation_rules": {
-        "required_fields": ["scope2_location"],
+        "required_fields": [
+          "scope2_location"
+        ],
         "min_fields": 1,
-        "value_range": [0, 10000000],
+        "value_range": [
+          0,
+          10000000
+        ],
         "unit_must_be": "tCO2e"
       }
     },
     {
       "code": "GRI 305-3",
-      "name": "Other indirect (Scope 3) GHG emissions — including financed emissions",
+      "name": "Other indirect (Scope 3) GHG emissions â€” including financed emissions",
       "framework": "GRI",
       "metric_type": "quantitative",
       "category": "environmental",
@@ -261,15 +553,45 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.1.7",
-      "applicable_sectors": ["banking", "insurance", "investment_banking", "asset_management"],
-      "expected_fields": ["scope3_total", "category_15_financed_emissions", "category_15_facilitated_emissions", "scope3_methodology"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5
+      },
+      "expected_fields": [
+        "scope3_total",
+        "category_15_financed_emissions",
+        "category_15_facilitated_emissions",
+        "scope3_methodology"
+      ],
       "expected_unit": "tCO2e",
-      "expected_breakdown": ["category_1_purchased_goods", "category_6_business_travel", "category_7_employee_commuting", "category_15_financed_emissions", "category_15_facilitated_emissions", "financed_emissions_by_asset_class", "financed_emissions_by_sector", "portfolio_value_covered", "portfolio_value_total", "methodology"],
-      "extraction_prompt": "Extract Scope 3 (other indirect) GHG emissions data (GRI 305-3, banking/insurance sector ref XX.1.7). For financial-services entities, Scope 3 category 15 (Investments / financed emissions) is the dominant source:\n1. Total Scope 3 emissions in tCO2e\n2. Breakdown by GHG Protocol Scope 3 category (1–15), especially category 15 (investments / financed emissions)\n3. For category 15: break down financed emissions by asset class (corporate loans, project finance, mortgages, listed equity, etc.) and by sector (oil/gas/coal, real estate, agriculture, etc.)\n4. Whether facilitated emissions (capital-markets transactions) are reported separately\n5. The monetary value of lending and investment portfolios covered by the financed-emissions calculation, both absolute and as % of total portfolio\n6. Methodology (e.g., PCAF — Partnership for Carbon Accounting Financials)\n7. Any limitations or data gaps noted\n\nReturn TOTAL Scope 3 normalized to tCO2e as `value`. Put category-by-category and asset-class / sector breakdowns in `breakdown`, including `portfolio_value_covered`, `portfolio_value_total`, and `methodology`.\nIf only category 15 (financed emissions) is reported and not other Scope 3 categories, set `value` to the cat-15 total and note that in `note`.",
+      "expected_breakdown": [
+        "category_1_purchased_goods",
+        "category_6_business_travel",
+        "category_7_employee_commuting",
+        "category_15_financed_emissions",
+        "category_15_facilitated_emissions",
+        "financed_emissions_by_asset_class",
+        "financed_emissions_by_sector",
+        "portfolio_value_covered",
+        "portfolio_value_total",
+        "methodology"
+      ],
+      "extraction_prompt": "Extract Scope 3 (other indirect) GHG emissions data (GRI 305-3, banking/insurance sector ref XX.1.7). For financial-services entities, Scope 3 category 15 (Investments / financed emissions) is the dominant source:\n1. Total Scope 3 emissions in tCO2e\n2. Breakdown by GHG Protocol Scope 3 category (1â€“15), especially category 15 (investments / financed emissions)\n3. For category 15: break down financed emissions by asset class (corporate loans, project finance, mortgages, listed equity, etc.) and by sector (oil/gas/coal, real estate, agriculture, etc.)\n4. Whether facilitated emissions (capital-markets transactions) are reported separately\n5. The monetary value of lending and investment portfolios covered by the financed-emissions calculation, both absolute and as % of total portfolio\n6. Methodology (e.g., PCAF â€” Partnership for Carbon Accounting Financials)\n7. Any limitations or data gaps noted\n\nReturn TOTAL Scope 3 normalized to tCO2e as `value`. Put category-by-category and asset-class / sector breakdowns in `breakdown`, including `portfolio_value_covered`, `portfolio_value_total`, and `methodology`.\nIf only category 15 (financed emissions) is reported and not other Scope 3 categories, set `value` to the cat-15 total and note that in `note`.",
       "validation_rules": {
-        "required_fields": ["scope3_total"],
+        "required_fields": [
+          "scope3_total"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e10],
+        "value_range": [
+          0,
+          10000000000.0
+        ],
         "unit_must_be": "tCO2e"
       }
     },
@@ -285,15 +607,45 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.1.8",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["ghg_intensity", "numerator", "denominator", "denominator_type", "scopes_included"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "ghg_intensity",
+        "numerator",
+        "denominator",
+        "denominator_type",
+        "scopes_included"
+      ],
       "expected_unit": "tCO2e per unit",
-      "expected_breakdown": ["numerator_value", "numerator_scopes", "denominator_value", "denominator_unit", "denominator_type"],
-      "extraction_prompt": "Extract GHG emissions intensity (GRI 305-4 + financial-services sector ref XX.1.8):\n1. GHG emissions intensity ratio\n2. Numerator: total GHG emissions value and which scopes are included (Scope 1, Scope 2, Scope 3 cat-15, or combined)\n3. Denominator: the activity metric used (revenue in EGP million, number of employees, total assets, USD million invested for financed emissions)\n4. Whether intensity is for Scope 1, Scope 2, Scope 1+2 combined, or includes Scope 3 cat-15\n\nReturn the RATIO as `value`. Put numerator, denominator, denominator type and scopes_included in `breakdown`.\nFor financed-emissions intensity (tCO2e per USD million invested) — this is a key portfolio decarbonization KPI.",
+      "expected_breakdown": [
+        "numerator_value",
+        "numerator_scopes",
+        "denominator_value",
+        "denominator_unit",
+        "denominator_type"
+      ],
+      "extraction_prompt": "Extract GHG emissions intensity (GRI 305-4 + financial-services sector ref XX.1.8):\n1. GHG emissions intensity ratio\n2. Numerator: total GHG emissions value and which scopes are included (Scope 1, Scope 2, Scope 3 cat-15, or combined)\n3. Denominator: the activity metric used (revenue in EGP million, number of employees, total assets, USD million invested for financed emissions)\n4. Whether intensity is for Scope 1, Scope 2, Scope 1+2 combined, or includes Scope 3 cat-15\n\nReturn the RATIO as `value`. Put numerator, denominator, denominator type and scopes_included in `breakdown`.\nFor financed-emissions intensity (tCO2e per USD million invested) â€” this is a key portfolio decarbonization KPI.",
       "validation_rules": {
-        "required_fields": ["ghg_intensity"],
+        "required_fields": [
+          "ghg_intensity"
+        ],
         "min_fields": 2,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
@@ -308,15 +660,49 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.15.8",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["total_new_hires", "new_hires_by_gender", "new_hires_by_age", "turnover_total", "turnover_rate", "turnover_by_gender"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "total_new_hires",
+        "new_hires_by_gender",
+        "new_hires_by_age",
+        "turnover_total",
+        "turnover_rate",
+        "turnover_by_gender"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["new_hires_by_gender", "new_hires_by_age_group", "new_hires_by_region", "turnover_count", "turnover_rate_pct", "turnover_by_gender", "turnover_by_age_group", "total_headcount_eop"],
+      "expected_breakdown": [
+        "new_hires_by_gender",
+        "new_hires_by_age_group",
+        "new_hires_by_region",
+        "turnover_count",
+        "turnover_rate_pct",
+        "turnover_by_gender",
+        "turnover_by_age_group",
+        "total_headcount_eop"
+      ],
       "extraction_prompt": "Extract employee hiring and turnover data (GRI 401-1, GRI EMPL 7, banking sector ref XX.15.8):\n1. Total number of new employee hires during the reporting period\n2. New hires broken down by gender (male/female) if available\n3. New hires broken down by age group (<30, 30-50, >50) if available\n4. Total number of employees who left (turnover count)\n5. Employee turnover rate (percentage)\n6. Turnover broken down by gender and age group if available\n7. Total number of employees at end of period\n\nReturn total new hires as `value`. Put gender, age, region breakdowns + turnover count, rate, gender/age splits, total headcount in `breakdown`.\nReturn absolute numbers AND percentages where both are available.",
       "validation_rules": {
-        "required_fields": ["total_new_hires"],
+        "required_fields": [
+          "total_new_hires"
+        ],
         "min_fields": 2,
-        "value_range": [0, 500000]
+        "value_range": [
+          0,
+          500000
+        ]
       }
     },
     {
@@ -331,16 +717,52 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.14.10",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["fatalities", "high_consequence_injuries", "recordable_injuries", "hours_worked", "injury_rate"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "fatalities",
+        "high_consequence_injuries",
+        "recordable_injuries",
+        "hours_worked",
+        "injury_rate"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["fatalities", "high_consequence_injuries", "recordable_injuries", "rate_basis_hours", "hours_worked", "injury_rate", "coverage_employees_or_contractors", "injury_types"],
-      "extraction_prompt": "Extract work-related injury data (GRI 403-9, banking sector ref XX.14.10):\n1. Number of fatalities as a result of work-related injury\n2. Number of high-consequence work-related injuries (excluding fatalities)\n3. Number of recordable work-related injuries\n4. Total hours worked by all employees\n5. Rate of recordable work-related injuries (per 200,000 or 1,000,000 hours worked)\n6. Types of work-related injuries if listed\n7. Whether the data covers employees only or also contractors\n\nReturn TOTAL recordable injuries as `value`. Put fatalities, high-consequence count, hours worked, rate basis, rate, coverage scope and injury types in `breakdown`.\nReturn zero EXPLICITLY if the company reports zero incidents — do not mark as missing.",
+      "expected_breakdown": [
+        "fatalities",
+        "high_consequence_injuries",
+        "recordable_injuries",
+        "rate_basis_hours",
+        "hours_worked",
+        "injury_rate",
+        "coverage_employees_or_contractors",
+        "injury_types"
+      ],
+      "extraction_prompt": "Extract work-related injury data (GRI 403-9, banking sector ref XX.14.10):\n1. Number of fatalities as a result of work-related injury\n2. Number of high-consequence work-related injuries (excluding fatalities)\n3. Number of recordable work-related injuries\n4. Total hours worked by all employees\n5. Rate of recordable work-related injuries (per 200,000 or 1,000,000 hours worked)\n6. Types of work-related injuries if listed\n7. Whether the data covers employees only or also contractors\n\nReturn TOTAL recordable injuries as `value`. Put fatalities, high-consequence count, hours worked, rate basis, rate, coverage scope and injury types in `breakdown`.\nReturn zero EXPLICITLY if the company reports zero incidents â€” do not mark as missing.",
       "validation_rules": {
-        "required_fields": ["recordable_injuries"],
+        "required_fields": [
+          "recordable_injuries"
+        ],
         "min_fields": 1,
-        "fatalities_range": [0, 1000],
-        "injury_rate_range": [0, 100]
+        "fatalities_range": [
+          0,
+          1000
+        ],
+        "injury_rate_range": [
+          0,
+          100
+        ]
       }
     },
     {
@@ -355,15 +777,52 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.10.2",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["board_gender_male", "board_gender_female", "board_age_under30", "board_age_30to50", "board_age_over50", "employee_gender_split"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "board_gender_male",
+        "board_gender_female",
+        "board_age_under30",
+        "board_age_30to50",
+        "board_age_over50",
+        "employee_gender_split"
+      ],
       "expected_unit": "percent",
-      "expected_breakdown": ["board_male_n", "board_male_pct", "board_female_n", "board_female_pct", "board_age_under30", "board_age_30to50", "board_age_over50", "employees_male_total", "employees_female_total", "management_female_pct"],
+      "expected_breakdown": [
+        "board_male_n",
+        "board_male_pct",
+        "board_female_n",
+        "board_female_pct",
+        "board_age_under30",
+        "board_age_30to50",
+        "board_age_over50",
+        "employees_male_total",
+        "employees_female_total",
+        "management_female_pct"
+      ],
       "extraction_prompt": "Extract diversity data for governance bodies and employees (GRI 405-1, financial-services sector ref XX.10.2):\n1. Board composition by gender: number AND percentage of male members, number AND percentage of female members\n2. Board composition by age group: under 30, 30-50, over 50\n3. Employee diversity by gender: total male employees, total female employees (numbers and percentages)\n4. Employee diversity by age group if available\n5. Diversity in management/senior positions by gender if available\n\nReturn % FEMALE BOARD MEMBERS as `value` (a key materiality indicator for diversity progress). Put all numeric breakdowns in `breakdown`.\nReturn both absolute numbers and percentages where available.",
       "validation_rules": {
-        "required_fields": ["board_gender_male", "board_gender_female"],
+        "required_fields": [
+          "board_gender_male",
+          "board_gender_female"
+        ],
         "min_fields": 2,
-        "percentage_range": [0, 100]
+        "percentage_range": [
+          0,
+          100
+        ]
       }
     },
     {
@@ -378,15 +837,46 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.10.3",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["total_incidents", "incidents_workers", "incidents_customers", "incidents_other_stakeholders", "status_of_incidents"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "total_incidents",
+        "incidents_workers",
+        "incidents_customers",
+        "incidents_other_stakeholders",
+        "status_of_incidents"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["incidents_workers", "incidents_customers", "incidents_other_stakeholders", "incidents_reviewed", "remediation_plans_implemented", "no_longer_subject_to_action"],
-      "extraction_prompt": "Extract discrimination incident data (GRI 406-1, banking sector ref XX.10.3 — banking sector requires breakdown):\n1. Total number of incidents of discrimination during the reporting period\n2. Breakdown by who was discriminated against: workers, customers, other stakeholders\n3. Status of incidents: reviewed by organization, remediation plans implemented, results reviewed, no longer subject to action\n\nReturn TOTAL incidents as `value`. Put worker/customer/other-stakeholder breakdown + status counts in `breakdown`.\nReturn zero EXPLICITLY if the company reports zero — do not mark missing.",
+      "expected_breakdown": [
+        "incidents_workers",
+        "incidents_customers",
+        "incidents_other_stakeholders",
+        "incidents_reviewed",
+        "remediation_plans_implemented",
+        "no_longer_subject_to_action"
+      ],
+      "extraction_prompt": "Extract discrimination incident data (GRI 406-1, banking sector ref XX.10.3 â€” banking sector requires breakdown):\n1. Total number of incidents of discrimination during the reporting period\n2. Breakdown by who was discriminated against: workers, customers, other stakeholders\n3. Status of incidents: reviewed by organization, remediation plans implemented, results reviewed, no longer subject to action\n\nReturn TOTAL incidents as `value`. Put worker/customer/other-stakeholder breakdown + status counts in `breakdown`.\nReturn zero EXPLICITLY if the company reports zero â€” do not mark missing.",
       "validation_rules": {
-        "required_fields": ["total_incidents"],
+        "required_fields": [
+          "total_incidents"
+        ],
         "min_fields": 1,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
@@ -401,15 +891,43 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.22.2",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["total_contributions_value", "in_kind_contributions", "contributions_by_country", "contributions_by_recipient"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.0,
+        "insurance": 1.0,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "total_contributions_value",
+        "in_kind_contributions",
+        "contributions_by_country",
+        "contributions_by_recipient"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["by_country", "by_recipient_type", "in_kind", "monetary"],
-      "extraction_prompt": "Extract political contributions (GRI 415-1, banking sector ref XX.22.2):\n1. Total monetary value of financial and in-kind political contributions made directly or indirectly\n2. Breakdown by country and recipient/beneficiary\n3. How the monetary value of in-kind contributions was estimated, if applicable\n4. Resources allocated to public policy engagement (broader than direct contributions) — banking sector ref XX.22.3\n\nReturn total monetary value as `value`, currency as `currency`. Put country, recipient and in-kind/monetary split in `breakdown`.\nIf the organization explicitly states it makes no political contributions, return value=0 with status=extracted.",
+      "expected_breakdown": [
+        "by_country",
+        "by_recipient_type",
+        "in_kind",
+        "monetary"
+      ],
+      "extraction_prompt": "Extract political contributions (GRI 415-1, banking sector ref XX.22.2):\n1. Total monetary value of financial and in-kind political contributions made directly or indirectly\n2. Breakdown by country and recipient/beneficiary\n3. How the monetary value of in-kind contributions was estimated, if applicable\n4. Resources allocated to public policy engagement (broader than direct contributions) â€” banking sector ref XX.22.3\n\nReturn total monetary value as `value`, currency as `currency`. Put country, recipient and in-kind/monetary split in `breakdown`.\nIf the organization explicitly states it makes no political contributions, return value=0 with status=extracted.",
       "validation_rules": {
-        "required_fields": ["total_contributions_value"],
+        "required_fields": [
+          "total_contributions_value"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e12]
+        "value_range": [
+          0,
+          1000000000000.0
+        ]
       }
     },
     {
@@ -424,20 +942,52 @@
       "fra_code": null,
       "sasb_code": "FN-CB-230a.1",
       "sector_standard_ref": "XX.6.2",
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["complaints_from_outside", "complaints_from_regulators", "total_leaks_thefts_losses", "complaints_resolved", "customers_affected", "pct_retail_customers_affected"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5,
+        "consumer_finance": 1.0,
+        "mortgage_finance": 1.0
+      },
+      "expected_fields": [
+        "complaints_from_outside",
+        "complaints_from_regulators",
+        "total_leaks_thefts_losses",
+        "complaints_resolved",
+        "customers_affected",
+        "pct_retail_customers_affected"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["complaints_from_outside_parties", "complaints_from_regulators", "leaks_thefts_losses", "complaints_resolved", "customers_affected_total", "pct_retail_affected"],
-      "extraction_prompt": "Extract customer privacy complaint data (GRI 418-1, banking + insurance sector ref XX.6.2 — sector adds customer-impact reporting):\n1. Total number of substantiated complaints received concerning breaches of customer privacy\n2. Complaints received from outside parties (customers, third parties)\n3. Complaints received from regulatory bodies\n4. Total number of identified leaks, thefts, or losses of customer data\n5. Number of complaints addressed/resolved during the reporting period\n6. (Banking/insurance sector) Total number of CUSTOMERS AFFECTED by identified leaks, thefts, or losses of customer data, and the percentage that are retail customers\n\nReturn TOTAL substantiated complaints as `value`. Put outside-party / regulator / leaks-thefts-losses / resolved / customers_affected / pct_retail_affected in `breakdown`.\nReturn zero EXPLICITLY if the company reports zero.\nFor Egyptian banks: also look for CBE (Central Bank of Egypt) complaint references.",
+      "expected_breakdown": [
+        "complaints_from_outside_parties",
+        "complaints_from_regulators",
+        "leaks_thefts_losses",
+        "complaints_resolved",
+        "customers_affected_total",
+        "pct_retail_affected"
+      ],
+      "extraction_prompt": "Extract customer privacy complaint data (GRI 418-1, banking + insurance sector ref XX.6.2 â€” sector adds customer-impact reporting):\n1. Total number of substantiated complaints received concerning breaches of customer privacy\n2. Complaints received from outside parties (customers, third parties)\n3. Complaints received from regulatory bodies\n4. Total number of identified leaks, thefts, or losses of customer data\n5. Number of complaints addressed/resolved during the reporting period\n6. (Banking/insurance sector) Total number of CUSTOMERS AFFECTED by identified leaks, thefts, or losses of customer data, and the percentage that are retail customers\n\nReturn TOTAL substantiated complaints as `value`. Put outside-party / regulator / leaks-thefts-losses / resolved / customers_affected / pct_retail_affected in `breakdown`.\nReturn zero EXPLICITLY if the company reports zero.\nFor Egyptian banks: also look for CBE (Central Bank of Egypt) complaint references.",
       "validation_rules": {
-        "required_fields": ["complaints_from_outside"],
+        "required_fields": [
+          "complaints_from_outside"
+        ],
         "min_fields": 1,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
       "code": "FRA-36",
-      "name": "Total GHG emissions (Scope 1 + Scope 2) — Egypt FRA disclosure",
+      "name": "Total GHG emissions (Scope 1 + Scope 2) â€” Egypt FRA disclosure",
       "framework": "FRA",
       "metric_type": "quantitative",
       "category": "environmental",
@@ -447,15 +997,43 @@
       "fra_code": "FRA-36",
       "sasb_code": null,
       "sector_standard_ref": null,
-      "applicable_sectors": ["banking", "insurance", "consumer_finance", "mortgage_finance", "investment_banking", "asset_management"],
-      "expected_fields": ["scope1", "scope2", "total_scope1_scope2"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 2.0,
+        "insurance": 2.0,
+        "consumer_finance": 2.0,
+        "mortgage_finance": 2.0
+      },
+      "expected_fields": [
+        "scope1",
+        "scope2",
+        "total_scope1_scope2"
+      ],
       "expected_unit": "tCO2e",
-      "expected_breakdown": ["scope1", "scope2_location_based", "scope2_market_based", "scope2_basis", "reporting_year"],
+      "expected_breakdown": [
+        "scope1",
+        "scope2_location_based",
+        "scope2_market_based",
+        "scope2_basis",
+        "reporting_year"
+      ],
       "extraction_prompt": "Extract total GHG emissions (Scope 1 + Scope 2 combined) per FRA-36 (Financial Regulatory Authority of Egypt):\n1. Scope 1 (direct) emissions in tCO2e\n2. Scope 2 (indirect, energy) emissions in tCO2e\n3. Total combined Scope 1 + Scope 2 emissions in tCO2e\n4. Whether Scope 2 is location-based or market-based\n5. Reporting year\n\nReturn the COMBINED Scope 1 + Scope 2 total normalized to tCO2e as `value`. Put scope1, scope2_location_based, scope2_market_based, scope2_basis and reporting_year in `breakdown`.\nIf only the combined total is stated, extract that. If only individual scopes are stated, sum them.\n1 ktCO2e = 1000 tCO2e.",
       "validation_rules": {
-        "required_fields": ["total_scope1_scope2"],
+        "required_fields": [
+          "total_scope1_scope2"
+        ],
         "min_fields": 1,
-        "value_range": [0, 20000000],
+        "value_range": [
+          0,
+          20000000
+        ],
         "unit_must_be": "tCO2e"
       }
     },
@@ -471,13 +1049,37 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.0.1",
-      "applicable_sectors": ["banking", "consumer_finance", "mortgage_finance", "investment_banking"],
-      "expected_fields": ["total_lending_value", "by_customer_type", "by_sector", "by_geography", "by_income_country_group"],
+      "applicable_sectors": [
+        "banking",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "consumer_finance": 1.5,
+        "mortgage_finance": 1.5
+      },
+      "expected_fields": [
+        "total_lending_value",
+        "by_customer_type",
+        "by_sector",
+        "by_geography",
+        "by_income_country_group"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["by_customer_type", "by_sector", "by_geography", "by_income_country_group", "classification_system_used"],
-      "extraction_prompt": "Extract banking lending portfolio scale (GRI banking sector ref XX.0.1):\n1. Total monetary value of the organization's lending portfolio at the end of the reporting period\n2. Percentage breakdown by customer types (e.g., retail, corporate, SME, sovereign) and how they are defined\n3. Percentage breakdown by sectors (including public sector) and the classification system used (e.g., NACE, ISIC)\n4. Percentage breakdown by geographic locations\n5. Percentage breakdown by low-, middle-, and high-income countries and the definition used (e.g., World Bank classification)\n\nReturn TOTAL lending value as `value`, currency as `currency`. Put the four percentage breakdowns and the classification system used in `breakdown`.\nPreserve raw values — banks often disclose figures in millions or billions of EGP/USD.",
+      "expected_breakdown": [
+        "by_customer_type",
+        "by_sector",
+        "by_geography",
+        "by_income_country_group",
+        "classification_system_used"
+      ],
+      "extraction_prompt": "Extract banking lending portfolio scale (GRI banking sector ref XX.0.1):\n1. Total monetary value of the organization's lending portfolio at the end of the reporting period\n2. Percentage breakdown by customer types (e.g., retail, corporate, SME, sovereign) and how they are defined\n3. Percentage breakdown by sectors (including public sector) and the classification system used (e.g., NACE, ISIC)\n4. Percentage breakdown by geographic locations\n5. Percentage breakdown by low-, middle-, and high-income countries and the definition used (e.g., World Bank classification)\n\nReturn TOTAL lending value as `value`, currency as `currency`. Put the four percentage breakdowns and the classification system used in `breakdown`.\nPreserve raw values â€” banks often disclose figures in millions or billions of EGP/USD.",
       "validation_rules": {
-        "required_fields": ["total_lending_value"],
+        "required_fields": [
+          "total_lending_value"
+        ],
         "min_fields": 1
       }
     },
@@ -493,13 +1095,38 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.0.2",
-      "applicable_sectors": ["banking", "insurance", "investment_banking", "asset_management"],
-      "expected_fields": ["total_aum", "by_asset_class", "by_sector", "by_geography", "by_income_country_group", "investment_threshold"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "insurance": 1.5
+      },
+      "expected_fields": [
+        "total_aum",
+        "by_asset_class",
+        "by_sector",
+        "by_geography",
+        "by_income_country_group",
+        "investment_threshold"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["by_asset_class", "by_sector", "by_geography", "by_income_country_group", "investment_threshold", "classification_system_used"],
+      "expected_breakdown": [
+        "by_asset_class",
+        "by_sector",
+        "by_geography",
+        "by_income_country_group",
+        "investment_threshold",
+        "classification_system_used"
+      ],
       "extraction_prompt": "Extract assets under management (GRI sector ref XX.0.2 for banking & insurance):\n1. Total monetary value of assets under management at the end of the reporting period\n2. Percentage breakdown by asset classes (equity, fixed income, real estate, alternatives, cash, etc.)\n3. Percentage breakdown by sectors (including public sector) and the classification system used\n4. Percentage breakdown by geographic locations\n5. Percentage breakdown by low-, middle-, and high-income countries\n6. The investment threshold the organization has determined in reporting these breakdowns\n\nReturn TOTAL AUM as `value`, currency as `currency`. Put breakdowns and the investment_threshold in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["total_aum"],
+        "required_fields": [
+          "total_aum"
+        ],
         "min_fields": 1
       }
     },
@@ -515,13 +1142,34 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.1.10",
-      "applicable_sectors": ["banking", "insurance", "investment_banking", "asset_management"],
-      "expected_fields": ["fossil_fuel_exposure_value", "fossil_fuel_exposure_pct", "new_expansion_projects_value", "ghg_intensive_other_sectors_value"],
+      "applicable_sectors": [
+        "banking",
+        "insurance",
+        "investment_banking",
+        "asset_management"
+      ],
+      "materiality_weights": {
+        "banking": 2.0,
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "fossil_fuel_exposure_value",
+        "fossil_fuel_exposure_pct",
+        "new_expansion_projects_value",
+        "ghg_intensive_other_sectors_value"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["oil_gas_coal_total", "oil_gas_coal_by_subsector", "new_and_expansion_projects_by_geography", "other_ghg_intensive_by_sector"],
-      "extraction_prompt": "Extract lending/investment exposure to fossil-fuel and GHG-intensive sectors (GRI banking sector ref XX.1.10):\n1. Monetary value AND percentage of lending and investment portfolios allocated to customers/investees active in oil, gas, and coal — broken down by subsector\n2. Monetary value AND percentage allocated to products and services for NEW AND EXPANSION projects in oil, gas, coal during the reporting period — broken down by geographic location\n3. Monetary value AND percentage allocated to customers/investees active in OTHER GHG-emissions-intensive sectors (agriculture, aluminum, cement, real estate, iron & steel, power generation, transport) — broken down by sector\n\nReturn TOTAL fossil-fuel + new-expansion + other-GHG-intensive exposure as `value`, currency as `currency`. Put each subdivision in `breakdown`.",
+      "expected_breakdown": [
+        "oil_gas_coal_total",
+        "oil_gas_coal_by_subsector",
+        "new_and_expansion_projects_by_geography",
+        "other_ghg_intensive_by_sector"
+      ],
+      "extraction_prompt": "Extract lending/investment exposure to fossil-fuel and GHG-intensive sectors (GRI banking sector ref XX.1.10):\n1. Monetary value AND percentage of lending and investment portfolios allocated to customers/investees active in oil, gas, and coal â€” broken down by subsector\n2. Monetary value AND percentage allocated to products and services for NEW AND EXPANSION projects in oil, gas, coal during the reporting period â€” broken down by geographic location\n3. Monetary value AND percentage allocated to customers/investees active in OTHER GHG-emissions-intensive sectors (agriculture, aluminum, cement, real estate, iron & steel, power generation, transport) â€” broken down by sector\n\nReturn TOTAL fossil-fuel + new-expansion + other-GHG-intensive exposure as `value`, currency as `currency`. Put each subdivision in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["fossil_fuel_exposure_value"],
+        "required_fields": [
+          "fossil_fuel_exposure_value"
+        ],
         "min_fields": 1
       }
     },
@@ -537,15 +1185,38 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.5.5",
-      "applicable_sectors": ["banking", "consumer_finance"],
-      "expected_fields": ["pct_msme_with_loan", "pct_msme_with_deposit", "msme_definition"],
+      "applicable_sectors": [
+        "banking",
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "consumer_finance": 1.5
+      },
+      "expected_fields": [
+        "pct_msme_with_loan",
+        "pct_msme_with_deposit",
+        "msme_definition"
+      ],
       "expected_unit": "percent",
-      "expected_breakdown": ["pct_msme_with_loan", "pct_msme_with_deposit", "msme_definition", "total_msme_customers", "msme_loan_book_value", "msme_loan_book_currency"],
-      "extraction_prompt": "Extract MSME (micro, small, and medium-sized enterprise) financial inclusion data (GRI banking sector ref XX.5.5):\n1. Percentage of MSMEs that have an outstanding loan or credit with the organization\n2. Percentage of MSMEs that have a deposit account with the organization\n3. The organization's definition of MSMEs used (often by headcount, turnover, or asset thresholds — e.g., the Egyptian FRA's MSME thresholds)\n4. Total number of MSME customers if disclosed\n5. Total MSME loan book value and currency if disclosed\n\nReturn % MSMEs with a loan as `value`. Put deposit %, definition, customer count and loan book in `breakdown`.",
+      "expected_breakdown": [
+        "pct_msme_with_loan",
+        "pct_msme_with_deposit",
+        "msme_definition",
+        "total_msme_customers",
+        "msme_loan_book_value",
+        "msme_loan_book_currency"
+      ],
+      "extraction_prompt": "Extract MSME (micro, small, and medium-sized enterprise) financial inclusion data (GRI banking sector ref XX.5.5):\n1. Percentage of MSMEs that have an outstanding loan or credit with the organization\n2. Percentage of MSMEs that have a deposit account with the organization\n3. The organization's definition of MSMEs used (often by headcount, turnover, or asset thresholds â€” e.g., the Egyptian FRA's MSME thresholds)\n4. Total number of MSME customers if disclosed\n5. Total MSME loan book value and currency if disclosed\n\nReturn % MSMEs with a loan as `value`. Put deposit %, definition, customer count and loan book in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["pct_msme_with_loan"],
+        "required_fields": [
+          "pct_msme_with_loan"
+        ],
         "min_fields": 1,
-        "percentage_range": [0, 100]
+        "percentage_range": [
+          0,
+          100
+        ]
       }
     },
     {
@@ -560,15 +1231,39 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.5.8",
-      "applicable_sectors": ["banking", "consumer_finance"],
-      "expected_fields": ["access_points_disadvantaged_areas", "total_access_points", "pct_change_over_period", "by_geography", "by_type"],
+      "applicable_sectors": [
+        "banking",
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "consumer_finance": 1.5
+      },
+      "expected_fields": [
+        "access_points_disadvantaged_areas",
+        "total_access_points",
+        "pct_change_over_period",
+        "by_geography",
+        "by_type"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["by_geography", "by_type_branch_atm_agent", "total_access_points", "pct_change_period", "comparison_total"],
+      "expected_breakdown": [
+        "by_geography",
+        "by_type_branch_atm_agent",
+        "total_access_points",
+        "pct_change_period",
+        "comparison_total"
+      ],
       "extraction_prompt": "Extract banking access points in low-populated or economically disadvantaged areas (GRI banking sector ref XX.5.8):\n1. Number of the organization's banking access points in low-populated or economically disadvantaged areas, by geographic location and by type (branch, ATM, agent, mobile)\n2. How this number compares to the total number of banking access points in those geographies\n3. Percentage increase or decrease in number of access points between beginning and end of reporting period\n\nReturn TOTAL access points in disadvantaged areas as `value`. Put geography, type, comparison, and period change in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["access_points_disadvantaged_areas"],
+        "required_fields": [
+          "access_points_disadvantaged_areas"
+        ],
         "min_fields": 1,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
@@ -583,13 +1278,34 @@
       "fra_code": null,
       "sasb_code": null,
       "sector_standard_ref": "XX.19.5",
-      "applicable_sectors": ["banking", "consumer_finance", "mortgage_finance", "investment_banking"],
-      "expected_fields": ["customer_funds_lost", "currency", "by_crime_type", "remediated_amount"],
+      "applicable_sectors": [
+        "banking",
+        "consumer_finance",
+        "mortgage_finance",
+        "investment_banking"
+      ],
+      "materiality_weights": {
+        "banking": 1.5,
+        "consumer_finance": 1.5,
+        "mortgage_finance": 1.5
+      },
+      "expected_fields": [
+        "customer_funds_lost",
+        "currency",
+        "by_crime_type",
+        "remediated_amount"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["by_crime_type", "remediated_amount", "incidents_count"],
+      "expected_breakdown": [
+        "by_crime_type",
+        "remediated_amount",
+        "incidents_count"
+      ],
       "extraction_prompt": "Extract customer funds lost to financial crime (GRI banking sector ref XX.19.5):\n1. Total monetary value of customer funds lost to financial crime during the reporting period\n2. Breakdown by crime type if available (fraud, phishing, card scams, identity theft, money laundering exposure)\n3. Amount remediated/reimbursed if disclosed\n4. Number of incidents if disclosed\n\nReturn total losses as `value`, currency as `currency`. Put crime-type breakdown, remediation and incident count in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["customer_funds_lost"],
+        "required_fields": [
+          "customer_funds_lost"
+        ],
         "min_fields": 1
       }
     },
@@ -605,20 +1321,38 @@
       "fra_code": null,
       "sasb_code": "FN-CF-220a.1",
       "sector_standard_ref": "FN-CF-220a.1",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["account_holders_secondary_use", "opt_in_policy_described", "regulatory_environment"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "account_holders_secondary_use",
+        "opt_in_policy_described",
+        "regulatory_environment"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["account_holders_secondary_use", "transferred_to_third_parties", "unverifiable_accounts"],
-      "extraction_prompt": "Extract account holders whose information is used for secondary purposes (SASB FN-CF-220a.1):\n1. Total number of unique account holders whose information is used for secondary purposes — defined as the entity intentionally using data outside the primary purpose for which it was collected (e.g., targeted ads, transfer/sale/sharing with third parties)\n2. Number of account holders whose information was transferred to third parties for secondary purposes\n3. Whether the entity has an opt-in (explicit affirmative consent) policy\n4. Brief description of the regulatory environment for account-holder privacy\n\nReturn TOTAL account holders whose info is used for secondary purposes as `value`. Put third-party transfer count, opt-in policy, and regulatory environment in `breakdown`/`note`.",
+      "expected_breakdown": [
+        "account_holders_secondary_use",
+        "transferred_to_third_parties",
+        "unverifiable_accounts"
+      ],
+      "extraction_prompt": "Extract account holders whose information is used for secondary purposes (SASB FN-CF-220a.1):\n1. Total number of unique account holders whose information is used for secondary purposes â€” defined as the entity intentionally using data outside the primary purpose for which it was collected (e.g., targeted ads, transfer/sale/sharing with third parties)\n2. Number of account holders whose information was transferred to third parties for secondary purposes\n3. Whether the entity has an opt-in (explicit affirmative consent) policy\n4. Brief description of the regulatory environment for account-holder privacy\n\nReturn TOTAL account holders whose info is used for secondary purposes as `value`. Put third-party transfer count, opt-in policy, and regulatory environment in `breakdown`/`note`.",
       "validation_rules": {
-        "required_fields": ["account_holders_secondary_use"],
+        "required_fields": [
+          "account_holders_secondary_use"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e10]
+        "value_range": [
+          0,
+          10000000000.0
+        ]
       }
     },
     {
       "code": "SASB-FN-CF-220a.2",
-      "name": "Monetary losses from legal proceedings — customer privacy",
+      "name": "Monetary losses from legal proceedings â€” customer privacy",
       "framework": "SASB-FN-CF",
       "metric_type": "monetary",
       "category": "social",
@@ -628,15 +1362,35 @@
       "fra_code": null,
       "sasb_code": "FN-CF-220a.2",
       "sector_standard_ref": "FN-CF-220a.2",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["monetary_losses_privacy", "nature_of_losses", "corrective_actions"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "monetary_losses_privacy",
+        "nature_of_losses",
+        "corrective_actions"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["civil_judgements_or_settlements", "regulatory_penalties", "criminal_actions", "nature_description", "corrective_actions"],
+      "expected_breakdown": [
+        "civil_judgements_or_settlements",
+        "regulatory_penalties",
+        "criminal_actions",
+        "nature_description",
+        "corrective_actions"
+      ],
       "extraction_prompt": "Extract monetary losses from legal proceedings associated with customer privacy (SASB FN-CF-220a.2):\n1. Total amount of monetary losses during the reporting period from legal proceedings associated with customer privacy\n2. Scope: civil judgements/settlements, regulatory proceedings (penalties, disgorgement, restitution), criminal actions\n3. Scope excludes the entity's own legal/defence fees\n4. Brief description of nature, context and corrective actions taken\n\nReturn total monetary losses as `value`, currency as `currency`. Put civil/regulatory/criminal breakdown, nature description and corrective actions in `breakdown`/`note`.",
       "validation_rules": {
-        "required_fields": ["monetary_losses_privacy"],
+        "required_fields": [
+          "monetary_losses_privacy"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e12]
+        "value_range": [
+          0,
+          1000000000000.0
+        ]
       }
     },
     {
@@ -651,15 +1405,35 @@
       "fra_code": null,
       "sasb_code": "FN-CF-230a.1",
       "sector_standard_ref": "FN-CF-230a.1",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["data_breaches_total", "pct_personal_data_breaches", "account_holders_affected", "corrective_actions"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "data_breaches_total",
+        "pct_personal_data_breaches",
+        "account_holders_affected",
+        "corrective_actions"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["data_breaches_total", "pct_personal_data_breaches", "account_holders_affected", "corrective_actions"],
+      "expected_breakdown": [
+        "data_breaches_total",
+        "pct_personal_data_breaches",
+        "account_holders_affected",
+        "corrective_actions"
+      ],
       "extraction_prompt": "Extract data breach data (SASB FN-CF-230a.1):\n1. Number of data breaches during the reporting period\n2. Percentage that are personal data breaches (involving personally identifiable information)\n3. Number of account holders affected\n4. Description of corrective actions implemented in response\n\nReturn total data breaches as `value`. Put pct_personal, account_holders_affected and corrective_actions in `breakdown`/`note`.\nReturn zero EXPLICITLY if the entity reports zero breaches.",
       "validation_rules": {
-        "required_fields": ["data_breaches_total"],
+        "required_fields": [
+          "data_breaches_total"
+        ],
         "min_fields": 1,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
@@ -674,15 +1448,32 @@
       "fra_code": null,
       "sasb_code": "FN-CF-230a.2",
       "sector_standard_ref": "FN-CF-230a.2",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["card_not_present_fraud", "card_present_and_other_fraud", "total_card_fraud_losses"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "card_not_present_fraud",
+        "card_present_and_other_fraud",
+        "total_card_fraud_losses"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["card_not_present_fraud", "card_present_and_other_fraud"],
+      "expected_breakdown": [
+        "card_not_present_fraud",
+        "card_present_and_other_fraud"
+      ],
       "extraction_prompt": "Extract card-related fraud losses (SASB FN-CF-230a.2):\n1. Card-related fraud losses from (1) card-not-present fraud and (2) card-present and other fraud\n\nReturn TOTAL card fraud losses as `value`, currency as `currency`. Put the two-way split in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["total_card_fraud_losses"],
+        "required_fields": [
+          "total_card_fraud_losses"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e12]
+        "value_range": [
+          0,
+          1000000000000.0
+        ]
       }
     },
     {
@@ -697,15 +1488,33 @@
       "fra_code": null,
       "sasb_code": "FN-CF-270a.1",
       "sector_standard_ref": "FN-CF-270a.1",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["pct_variable_tied_to_sales", "covered_employee_definition", "sale_target_process"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "pct_variable_tied_to_sales",
+        "covered_employee_definition",
+        "sale_target_process"
+      ],
       "expected_unit": "percent",
-      "expected_breakdown": ["covered_employee_definition", "sale_target_setting_process", "benefits_or_penalties"],
-      "extraction_prompt": "Extract variable remuneration tied to product sales (SASB FN-CF-270a.1):\n1. Percentage of total remuneration for covered employees that is variable and linked to the amount of products and services sold\n2. Definition of 'covered employees'\n3. Process for setting sale targets and benefits/penalties associated with meeting/missing them\n\nReturn the percentage as `value` (0–100). Put covered-employee definition, sale-target process and benefit/penalty structure in `breakdown`/`note`.",
+      "expected_breakdown": [
+        "covered_employee_definition",
+        "sale_target_setting_process",
+        "benefits_or_penalties"
+      ],
+      "extraction_prompt": "Extract variable remuneration tied to product sales (SASB FN-CF-270a.1):\n1. Percentage of total remuneration for covered employees that is variable and linked to the amount of products and services sold\n2. Definition of 'covered employees'\n3. Process for setting sale targets and benefits/penalties associated with meeting/missing them\n\nReturn the percentage as `value` (0â€“100). Put covered-employee definition, sale-target process and benefit/penalty structure in `breakdown`/`note`.",
       "validation_rules": {
-        "required_fields": ["pct_variable_tied_to_sales"],
+        "required_fields": [
+          "pct_variable_tied_to_sales"
+        ],
         "min_fields": 1,
-        "percentage_range": [0, 100]
+        "percentage_range": [
+          0,
+          100
+        ]
       }
     },
     {
@@ -720,15 +1529,31 @@
       "fra_code": null,
       "sasb_code": "FN-CF-270a.4",
       "sector_standard_ref": "FN-CF-270a.4",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["complaints_filed", "pct_with_relief"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "complaints_filed",
+        "pct_with_relief"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["complaints_filed", "pct_with_monetary_or_non_monetary_relief"],
+      "expected_breakdown": [
+        "complaints_filed",
+        "pct_with_monetary_or_non_monetary_relief"
+      ],
       "extraction_prompt": "Extract customer complaints (SASB FN-CF-270a.4):\n1. Number of customer complaints filed\n2. Percentage of complaints that resulted in monetary or non-monetary relief to the customer\n\nReturn total complaints filed as `value`. Put pct_with_relief in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["complaints_filed"],
+        "required_fields": [
+          "complaints_filed"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e7]
+        "value_range": [
+          0,
+          10000000.0
+        ]
       }
     },
     {
@@ -743,20 +1568,36 @@
       "fra_code": null,
       "sasb_code": "FN-CF-000.A",
       "sector_standard_ref": "FN-CF-000.A",
-      "applicable_sectors": ["consumer_finance"],
-      "expected_fields": ["unique_credit_card_consumers", "unique_prepaid_consumers"],
+      "applicable_sectors": [
+        "consumer_finance"
+      ],
+      "materiality_weights": {
+        "consumer_finance": 2.0
+      },
+      "expected_fields": [
+        "unique_credit_card_consumers",
+        "unique_prepaid_consumers"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["unique_credit_card_consumers", "unique_prepaid_debit_consumers"],
+      "expected_breakdown": [
+        "unique_credit_card_consumers",
+        "unique_prepaid_debit_consumers"
+      ],
       "extraction_prompt": "Extract activity-scale metric: number of unique consumers with an active (1) credit card account and (2) pre-paid debit card account (SASB FN-CF-000.A):\nFor joint accounts, include the number of customers whose personal information the entity collects.\n\nReturn TOTAL unique consumers (credit + prepaid) as `value`. Put the two-way split in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["unique_credit_card_consumers"],
+        "required_fields": [
+          "unique_credit_card_consumers"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e10]
+        "value_range": [
+          0,
+          10000000000.0
+        ]
       }
     },
     {
       "code": "SASB-FN-MF-270a.1",
-      "name": "Residential mortgages — types breakdown",
+      "name": "Residential mortgages â€” types breakdown",
       "framework": "SASB-FN-MF",
       "metric_type": "quantitative",
       "category": "economic",
@@ -766,15 +1607,40 @@
       "fra_code": null,
       "sasb_code": "FN-MF-270a.1",
       "sector_standard_ref": "FN-MF-270a.1",
-      "applicable_sectors": ["mortgage_finance"],
-      "expected_fields": ["number_combined_fixed_variable", "value_combined_fixed_variable", "number_prepayment_penalty", "value_prepayment_penalty", "number_total", "value_total"],
+      "applicable_sectors": [
+        "mortgage_finance"
+      ],
+      "materiality_weights": {
+        "mortgage_finance": 2.0
+      },
+      "expected_fields": [
+        "number_combined_fixed_variable",
+        "value_combined_fixed_variable",
+        "number_prepayment_penalty",
+        "value_prepayment_penalty",
+        "number_total",
+        "value_total"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["combined_fixed_variable_count", "combined_fixed_variable_value", "prepayment_penalty_count", "prepayment_penalty_value", "total_count", "total_value", "currency"],
-      "extraction_prompt": "Extract residential mortgage portfolio composition (SASB FN-MF-270a.1):\n1. Number AND value of (a) combined fixed- and variable-rate mortgages — including interest-only and negative amortisation mortgages with rate resets <5 years\n2. Number AND value of mortgages with prepayment penalties\n3. Total number AND total value of single-family residential mortgages (first lien + junior lien, including home equity lines of credit)\n\nReturn TOTAL number of residential mortgages as `value`. Put all six count/value pairs and currency in `breakdown`.",
+      "expected_breakdown": [
+        "combined_fixed_variable_count",
+        "combined_fixed_variable_value",
+        "prepayment_penalty_count",
+        "prepayment_penalty_value",
+        "total_count",
+        "total_value",
+        "currency"
+      ],
+      "extraction_prompt": "Extract residential mortgage portfolio composition (SASB FN-MF-270a.1):\n1. Number AND value of (a) combined fixed- and variable-rate mortgages â€” including interest-only and negative amortisation mortgages with rate resets <5 years\n2. Number AND value of mortgages with prepayment penalties\n3. Total number AND total value of single-family residential mortgages (first lien + junior lien, including home equity lines of credit)\n\nReturn TOTAL number of residential mortgages as `value`. Put all six count/value pairs and currency in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["number_total"],
+        "required_fields": [
+          "number_total"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e10]
+        "value_range": [
+          0,
+          10000000000.0
+        ]
       }
     },
     {
@@ -789,20 +1655,45 @@
       "fra_code": null,
       "sasb_code": "FN-MF-270a.2",
       "sector_standard_ref": "FN-MF-270a.2",
-      "applicable_sectors": ["mortgage_finance"],
-      "expected_fields": ["modifications_count", "modifications_value", "foreclosures_count", "foreclosures_value", "short_sales_count", "short_sales_value"],
+      "applicable_sectors": [
+        "mortgage_finance"
+      ],
+      "materiality_weights": {
+        "mortgage_finance": 2.0
+      },
+      "expected_fields": [
+        "modifications_count",
+        "modifications_value",
+        "foreclosures_count",
+        "foreclosures_value",
+        "short_sales_count",
+        "short_sales_value"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["modifications_count", "modifications_value", "foreclosures_count", "foreclosures_value", "short_sales_or_deed_in_lieu_count", "short_sales_or_deed_in_lieu_value", "currency"],
-      "extraction_prompt": "Extract mortgage modifications, foreclosures, and short sales (SASB FN-MF-270a.2):\n1. Number AND value of (a) residential mortgage modifications — changes to principal, payment, term, or rate\n2. Number AND value of (b) foreclosures — instances where the borrower defaulted and the property sale was forced via legal means\n3. Number AND value of (c) short sales or deeds in lieu of foreclosure\n\nReturn TOTAL distressed-mortgage count (modifications + foreclosures + short sales) as `value`. Put each component's count and value plus currency in `breakdown`.",
+      "expected_breakdown": [
+        "modifications_count",
+        "modifications_value",
+        "foreclosures_count",
+        "foreclosures_value",
+        "short_sales_or_deed_in_lieu_count",
+        "short_sales_or_deed_in_lieu_value",
+        "currency"
+      ],
+      "extraction_prompt": "Extract mortgage modifications, foreclosures, and short sales (SASB FN-MF-270a.2):\n1. Number AND value of (a) residential mortgage modifications â€” changes to principal, payment, term, or rate\n2. Number AND value of (b) foreclosures â€” instances where the borrower defaulted and the property sale was forced via legal means\n3. Number AND value of (c) short sales or deeds in lieu of foreclosure\n\nReturn TOTAL distressed-mortgage count (modifications + foreclosures + short sales) as `value`. Put each component's count and value plus currency in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["foreclosures_count"],
+        "required_fields": [
+          "foreclosures_count"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e9]
+        "value_range": [
+          0,
+          1000000000.0
+        ]
       }
     },
     {
       "code": "SASB-FN-MF-270b.1",
-      "name": "Mortgages to minority vs. all other borrowers — number, value, weighted LTV",
+      "name": "Mortgages to minority vs. all other borrowers â€” number, value, weighted LTV",
       "framework": "SASB-FN-MF",
       "metric_type": "quantitative",
       "category": "social",
@@ -812,15 +1703,41 @@
       "fra_code": null,
       "sasb_code": "FN-MF-270b.1",
       "sector_standard_ref": "FN-MF-270b.1",
-      "applicable_sectors": ["mortgage_finance"],
-      "expected_fields": ["minority_borrower_count", "minority_borrower_value", "minority_borrower_weighted_ltv", "other_borrower_count", "other_borrower_value", "other_borrower_weighted_ltv"],
+      "applicable_sectors": [
+        "mortgage_finance"
+      ],
+      "materiality_weights": {
+        "mortgage_finance": 2.0
+      },
+      "expected_fields": [
+        "minority_borrower_count",
+        "minority_borrower_value",
+        "minority_borrower_weighted_ltv",
+        "other_borrower_count",
+        "other_borrower_value",
+        "other_borrower_weighted_ltv"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["minority_count", "minority_value", "minority_weighted_ltv_pct", "other_count", "other_value", "other_weighted_ltv_pct", "minority_definition_jurisdiction", "currency"],
+      "expected_breakdown": [
+        "minority_count",
+        "minority_value",
+        "minority_weighted_ltv_pct",
+        "other_count",
+        "other_value",
+        "other_weighted_ltv_pct",
+        "minority_definition_jurisdiction",
+        "currency"
+      ],
       "extraction_prompt": "Extract mortgages issued to minority vs. all other borrowers (SASB FN-MF-270b.1):\nDefinition (UNOHCHR): minority = any group constituting less than half of the population in a territory whose members share common cultural, religious, or linguistic characteristics. For multi-applicant mortgages where the primary applicant is minority, categorize the mortgage as minority.\n\n1. (1) Number, (2) value, and (3) weighted-average loan-to-value (LTV) of mortgages to (a) minority borrowers\n2. (1) Number, (2) value, and (3) weighted-average LTV of mortgages to (b) all other borrowers\n3. Scope: first lien + junior lien single-family residential, plus home equity lines/loans\n4. Disclose the jurisdictional LTV calculation basis used\n\nReturn TOTAL mortgage count to minority borrowers as `value`. Put both rows of (count, value, weighted_ltv_pct) + jurisdiction definition + currency in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["minority_borrower_count"],
+        "required_fields": [
+          "minority_borrower_count"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e9]
+        "value_range": [
+          0,
+          1000000000.0
+        ]
       }
     },
     {
@@ -835,15 +1752,33 @@
       "fra_code": null,
       "sasb_code": "FN-MF-450a.1",
       "sector_standard_ref": "FN-MF-450a.1",
-      "applicable_sectors": ["mortgage_finance"],
-      "expected_fields": ["mortgages_in_flood_zones_count", "mortgages_in_flood_zones_value"],
+      "applicable_sectors": [
+        "mortgage_finance"
+      ],
+      "materiality_weights": {
+        "mortgage_finance": 2.0
+      },
+      "expected_fields": [
+        "mortgages_in_flood_zones_count",
+        "mortgages_in_flood_zones_value"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["mortgages_in_flood_zones_count", "mortgages_in_flood_zones_value", "currency", "by_geography"],
-      "extraction_prompt": "Extract mortgages in 100-year flood zones (SASB FN-MF-450a.1):\n1. (1) Number and (2) value of mortgage loans in the entity's portfolio underwritten on properties located in 100-year flood zones (areas with ≥1% annual flood probability)\n2. Scope: first mortgages (1-4 family) and junior lien (1-4 family second mortgages or home-equity lines/loans) held as loan assets; excludes mortgages held for sale, MBS, and mortgages only serviced by the entity\n\nReturn count of mortgages in flood zones as `value`. Put count, value, currency and any geography breakdown in `breakdown`.",
+      "expected_breakdown": [
+        "mortgages_in_flood_zones_count",
+        "mortgages_in_flood_zones_value",
+        "currency",
+        "by_geography"
+      ],
+      "extraction_prompt": "Extract mortgages in 100-year flood zones (SASB FN-MF-450a.1):\n1. (1) Number and (2) value of mortgage loans in the entity's portfolio underwritten on properties located in 100-year flood zones (areas with â‰¥1% annual flood probability)\n2. Scope: first mortgages (1-4 family) and junior lien (1-4 family second mortgages or home-equity lines/loans) held as loan assets; excludes mortgages held for sale, MBS, and mortgages only serviced by the entity\n\nReturn count of mortgages in flood zones as `value`. Put count, value, currency and any geography breakdown in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["mortgages_in_flood_zones_count"],
+        "required_fields": [
+          "mortgages_in_flood_zones_count"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e9]
+        "value_range": [
+          0,
+          1000000000.0
+        ]
       }
     },
     {
@@ -858,13 +1793,29 @@
       "fra_code": null,
       "sasb_code": "FN-MF-450a.2",
       "sector_standard_ref": "FN-MF-450a.2",
-      "applicable_sectors": ["mortgage_finance"],
-      "expected_fields": ["expected_loss_value", "loss_given_default_pct", "by_geographical_region"],
+      "applicable_sectors": [
+        "mortgage_finance"
+      ],
+      "materiality_weights": {
+        "mortgage_finance": 2.0
+      },
+      "expected_fields": [
+        "expected_loss_value",
+        "loss_given_default_pct",
+        "by_geographical_region"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["expected_loss_value", "loss_given_default_pct", "by_geographical_region", "weather_event_types"],
-      "extraction_prompt": "Extract climate physical-risk loss estimates (SASB FN-MF-450a.2):\n1. Total expected loss attributable to mortgage loan default and delinquency BECAUSE OF weather-related natural catastrophes\n2. Loss Given Default (LGD) — the share of an asset lost in the situation of default — as a percentage\n3. Both broken down by geographical region\n4. Weather-related events include meteorological (hurricanes/storms), hydrological (floods), climatological (heat waves, droughts, wildfires). EXCLUDES geophysical events (earthquakes, volcanic eruptions).\n\nReturn TOTAL expected loss as `value`, currency as `currency`. Put LGD%, geography breakdown and weather event types in `breakdown`.",
+      "expected_breakdown": [
+        "expected_loss_value",
+        "loss_given_default_pct",
+        "by_geographical_region",
+        "weather_event_types"
+      ],
+      "extraction_prompt": "Extract climate physical-risk loss estimates (SASB FN-MF-450a.2):\n1. Total expected loss attributable to mortgage loan default and delinquency BECAUSE OF weather-related natural catastrophes\n2. Loss Given Default (LGD) â€” the share of an asset lost in the situation of default â€” as a percentage\n3. Both broken down by geographical region\n4. Weather-related events include meteorological (hurricanes/storms), hydrological (floods), climatological (heat waves, droughts, wildfires). EXCLUDES geophysical events (earthquakes, volcanic eruptions).\n\nReturn TOTAL expected loss as `value`, currency as `currency`. Put LGD%, geography breakdown and weather event types in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["expected_loss_value"],
+        "required_fields": [
+          "expected_loss_value"
+        ],
         "min_fields": 1
       }
     },
@@ -880,15 +1831,35 @@
       "fra_code": null,
       "sasb_code": "FN-IN-270a.2",
       "sector_standard_ref": "FN-IN-270a.2",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["complaints_to_claims_ratio", "complaints_total", "claims_total"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "complaints_to_claims_ratio",
+        "complaints_total",
+        "claims_total"
+      ],
       "expected_unit": "ratio",
-      "expected_breakdown": ["complaints_total", "claims_total_per_1000", "by_segment", "by_region", "external_dispute_org"],
-      "extraction_prompt": "Extract the complaints-to-claims ratio (SASB FN-IN-270a.2):\nFormula: number of complaints across all insurance segments and regions during the reporting period, per 1,000 claims filed across all segments and regions during the same period.\nScope: only CONFIRMED consumer complaints — those upheld by an external dispute resolution organization (regulator, ombudsman, or other external scheme).\nOptional further disclosure: ratio by product segment, insurance type, region.\n\nReturn the RATIO as `value` (complaints per 1,000 claims). Put complaints_total, claims_total, segment/region breakdowns and external dispute org name in `breakdown`.",
+      "expected_breakdown": [
+        "complaints_total",
+        "claims_total_per_1000",
+        "by_segment",
+        "by_region",
+        "external_dispute_org"
+      ],
+      "extraction_prompt": "Extract the complaints-to-claims ratio (SASB FN-IN-270a.2):\nFormula: number of complaints across all insurance segments and regions during the reporting period, per 1,000 claims filed across all segments and regions during the same period.\nScope: only CONFIRMED consumer complaints â€” those upheld by an external dispute resolution organization (regulator, ombudsman, or other external scheme).\nOptional further disclosure: ratio by product segment, insurance type, region.\n\nReturn the RATIO as `value` (complaints per 1,000 claims). Put complaints_total, claims_total, segment/region breakdowns and external dispute org name in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["complaints_to_claims_ratio"],
+        "required_fields": [
+          "complaints_to_claims_ratio"
+        ],
         "min_fields": 1,
-        "value_range": [0, 100000]
+        "value_range": [
+          0,
+          100000
+        ]
       }
     },
     {
@@ -903,15 +1874,34 @@
       "fra_code": null,
       "sasb_code": "FN-IN-270a.3",
       "sector_standard_ref": "FN-IN-270a.3",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["customer_retention_rate"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "customer_retention_rate"
+      ],
       "expected_unit": "percent",
-      "expected_breakdown": ["customers_eop", "new_customers_added", "customers_bop", "involuntary_terminations_excluded", "employer_sponsored_attrition_excluded", "by_segment"],
-      "extraction_prompt": "Extract customer retention rate (SASB FN-IN-270a.3):\nFormula: (customers at close of reporting period − new customers added during the period) ÷ (customers at close of previous reporting period − involuntary terminations − attrition of employer-sponsored plans).\nExclude involuntary terminations (non-payment / fraud / misrepresentation) and attrition from employer-sponsored plans (e.g., group life insurance).\nOptional further disclosure: by product segment, insurance type, region.\n\nReturn retention rate as `value` (0–100 percentage). Put customers_eop, new_customers_added, customers_bop and exclusion notes in `breakdown`.",
+      "expected_breakdown": [
+        "customers_eop",
+        "new_customers_added",
+        "customers_bop",
+        "involuntary_terminations_excluded",
+        "employer_sponsored_attrition_excluded",
+        "by_segment"
+      ],
+      "extraction_prompt": "Extract customer retention rate (SASB FN-IN-270a.3):\nFormula: (customers at close of reporting period âˆ’ new customers added during the period) Ã· (customers at close of previous reporting period âˆ’ involuntary terminations âˆ’ attrition of employer-sponsored plans).\nExclude involuntary terminations (non-payment / fraud / misrepresentation) and attrition from employer-sponsored plans (e.g., group life insurance).\nOptional further disclosure: by product segment, insurance type, region.\n\nReturn retention rate as `value` (0â€“100 percentage). Put customers_eop, new_customers_added, customers_bop and exclusion notes in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["customer_retention_rate"],
+        "required_fields": [
+          "customer_retention_rate"
+        ],
         "min_fields": 1,
-        "percentage_range": [0, 100]
+        "percentage_range": [
+          0,
+          100
+        ]
       }
     },
     {
@@ -926,19 +1916,32 @@
       "fra_code": null,
       "sasb_code": "FN-IN-410b.1",
       "sector_standard_ref": "FN-IN-410b.1",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["net_premiums_low_carbon", "currency"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "net_premiums_low_carbon",
+        "currency"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["by_product_line", "by_technology_type"],
+      "expected_breakdown": [
+        "by_product_line",
+        "by_technology_type"
+      ],
       "extraction_prompt": "Extract net premiums written related to energy efficiency and low-carbon technology (SASB FN-IN-410b.1):\nReport the monetary value of net premiums written for insurance products covering energy-efficiency and low-carbon technologies (e.g., renewable energy projects, EVs, green buildings).\n\nReturn the value as `value`, currency as `currency`. Put product-line / technology breakdown in `breakdown` if available.",
       "validation_rules": {
-        "required_fields": ["net_premiums_low_carbon"],
+        "required_fields": [
+          "net_premiums_low_carbon"
+        ],
         "min_fields": 1
       }
     },
     {
       "code": "SASB-FN-IN-410c.1",
-      "name": "Insurance — absolute gross financed emissions by scope",
+      "name": "Insurance â€” absolute gross financed emissions by scope",
       "framework": "SASB-FN-IN",
       "metric_type": "quantitative",
       "category": "environmental",
@@ -948,21 +1951,43 @@
       "fra_code": null,
       "sasb_code": "FN-IN-410c.1",
       "sector_standard_ref": "FN-IN-410c.1",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["financed_emissions_scope1", "financed_emissions_scope2", "financed_emissions_scope3", "methodology"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "financed_emissions_scope1",
+        "financed_emissions_scope2",
+        "financed_emissions_scope3",
+        "methodology"
+      ],
       "expected_unit": "tCO2e",
-      "expected_breakdown": ["scope1_tCO2e", "scope2_tCO2e", "scope3_tCO2e", "by_asset_class", "by_industry", "methodology"],
+      "expected_breakdown": [
+        "scope1_tCO2e",
+        "scope2_tCO2e",
+        "scope3_tCO2e",
+        "by_asset_class",
+        "by_industry",
+        "methodology"
+      ],
       "extraction_prompt": "Extract absolute gross financed emissions (SASB FN-IN-410c.1, aligned with IFRS S2 as amended Dec 2025):\n1. Absolute gross financed emissions disaggregated by (1) Scope 1, (2) Scope 2 and (3) Scope 3 (in tCO2e)\n2. These are emissions from INVESTEES of the insurer's investment portfolio (not the insurer's own operations)\n3. Methodology used (e.g., PCAF)\n\nReturn TOTAL financed emissions (Scope 1 + 2 + 3 combined) normalized to tCO2e as `value`. Put scope1/scope2/scope3 split, asset-class and industry breakdown, and methodology in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["financed_emissions_scope1"],
+        "required_fields": [
+          "financed_emissions_scope1"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e10],
+        "value_range": [
+          0,
+          10000000000.0
+        ],
         "unit_must_be": "tCO2e"
       }
     },
     {
       "code": "SASB-FN-IN-410c.2",
-      "name": "Insurance — gross exposure for each industry by asset class",
+      "name": "Insurance â€” gross exposure for each industry by asset class",
       "framework": "SASB-FN-IN",
       "metric_type": "monetary",
       "category": "environmental",
@@ -972,13 +1997,26 @@
       "fra_code": null,
       "sasb_code": "FN-IN-410c.2",
       "sector_standard_ref": "FN-IN-410c.2",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["gross_exposure_total", "by_industry_by_asset_class"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "gross_exposure_total",
+        "by_industry_by_asset_class"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["by_industry_by_asset_class", "asset_classes_covered"],
-      "extraction_prompt": "Extract gross exposure by industry and asset class (SASB FN-IN-410c.2):\nReport the gross monetary exposure of the insurer's investments to each industry, broken down by asset class (e.g., listed equity, corporate bonds, project finance, real estate).\n\nReturn total gross exposure as `value`, currency as `currency`. Put the industry × asset-class matrix in `breakdown`.",
+      "expected_breakdown": [
+        "by_industry_by_asset_class",
+        "asset_classes_covered"
+      ],
+      "extraction_prompt": "Extract gross exposure by industry and asset class (SASB FN-IN-410c.2):\nReport the gross monetary exposure of the insurer's investments to each industry, broken down by asset class (e.g., listed equity, corporate bonds, project finance, real estate).\n\nReturn total gross exposure as `value`, currency as `currency`. Put the industry Ã— asset-class matrix in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["gross_exposure_total"],
+        "required_fields": [
+          "gross_exposure_total"
+        ],
         "min_fields": 1
       }
     },
@@ -994,13 +2032,29 @@
       "fra_code": null,
       "sasb_code": "FN-IN-450a.1",
       "sector_standard_ref": "FN-IN-450a.1",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["pml_value", "climate_scenarios_used", "time_frame"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "pml_value",
+        "climate_scenarios_used",
+        "time_frame"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["climate_scenarios", "input_parameters", "time_frame", "by_peril_type"],
-      "extraction_prompt": "Extract Probable Maximum Loss (PML) of insured products from weather-related natural catastrophes (SASB FN-IN-450a.1):\n1. PML value (currency)\n2. Description of climate-related scenarios used — critical input parameters, assumptions, analytical choices, time frames\n3. Breakdown by peril type if available (hurricanes, floods, droughts, wildfires)\n\nReturn the PML value as `value`, currency as `currency`. Put scenarios, parameters, time frame and peril breakdown in `breakdown`.",
+      "expected_breakdown": [
+        "climate_scenarios",
+        "input_parameters",
+        "time_frame",
+        "by_peril_type"
+      ],
+      "extraction_prompt": "Extract Probable Maximum Loss (PML) of insured products from weather-related natural catastrophes (SASB FN-IN-450a.1):\n1. PML value (currency)\n2. Description of climate-related scenarios used â€” critical input parameters, assumptions, analytical choices, time frames\n3. Breakdown by peril type if available (hurricanes, floods, droughts, wildfires)\n\nReturn the PML value as `value`, currency as `currency`. Put scenarios, parameters, time frame and peril breakdown in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["pml_value"],
+        "required_fields": [
+          "pml_value"
+        ],
         "min_fields": 1
       }
     },
@@ -1016,19 +2070,40 @@
       "fra_code": null,
       "sasb_code": "FN-IN-450a.2",
       "sector_standard_ref": "FN-IN-450a.2",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["losses_modelled_catastrophes", "losses_non_modelled_catastrophes", "by_event_type", "by_geographical_segment", "net_or_gross_of_reinsurance"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "losses_modelled_catastrophes",
+        "losses_non_modelled_catastrophes",
+        "by_event_type",
+        "by_geographical_segment",
+        "net_or_gross_of_reinsurance"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["losses_modelled", "losses_non_modelled", "by_event_type", "by_geographical_segment", "net_of_reinsurance", "gross_of_reinsurance", "reinsurance_approach"],
+      "expected_breakdown": [
+        "losses_modelled",
+        "losses_non_modelled",
+        "by_event_type",
+        "by_geographical_segment",
+        "net_of_reinsurance",
+        "gross_of_reinsurance",
+        "reinsurance_approach"
+      ],
       "extraction_prompt": "Extract monetary losses from insurance pay-outs due to natural catastrophes (SASB FN-IN-450a.2):\n1. Total losses from (1) MODELLED natural catastrophes and (2) NON-MODELLED natural catastrophes\n2. By type of event and geographical segment\n3. Both NET and GROSS of reinsurance\n4. Discussion of how climate-change-related impacts and variability of weather-related losses affect the cost of reinsurance and the entity's approach to transferring risk\n\nReturn TOTAL losses (modelled + non-modelled) as `value`, currency as `currency`. Put modelled vs non-modelled split, event types, geography, net/gross reinsurance values and reinsurance approach in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["losses_modelled_catastrophes"],
+        "required_fields": [
+          "losses_modelled_catastrophes"
+        ],
         "min_fields": 1
       }
     },
     {
       "code": "SASB-FN-IN-550a.1",
-      "name": "Insurance — derivative exposure",
+      "name": "Insurance â€” derivative exposure",
       "framework": "SASB-FN-IN",
       "metric_type": "monetary",
       "category": "governance",
@@ -1038,19 +2113,34 @@
       "fra_code": null,
       "sasb_code": "FN-IN-550a.1",
       "sector_standard_ref": "FN-IN-550a.1",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["non_centrally_cleared_exposure", "collateral_with_clearinghouse", "centrally_cleared_exposure"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "non_centrally_cleared_exposure",
+        "collateral_with_clearinghouse",
+        "centrally_cleared_exposure"
+      ],
       "expected_unit": "currency",
-      "expected_breakdown": ["non_centrally_cleared_derivatives_total_exposure", "collateral_posted_with_central_clearinghouse", "centrally_cleared_derivatives_total_exposure"],
+      "expected_breakdown": [
+        "non_centrally_cleared_derivatives_total_exposure",
+        "collateral_posted_with_central_clearinghouse",
+        "centrally_cleared_derivatives_total_exposure"
+      ],
       "extraction_prompt": "Extract derivative-instrument exposure (SASB FN-IN-550a.1):\n1. Total exposure to non-centrally cleared derivatives\n2. Total fair value of acceptable collateral posted with a central clearinghouse\n3. Total exposure to centrally cleared derivatives\n\nReturn the total exposure (non-centrally + centrally cleared) as `value`, currency as `currency`. Put the three components in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["non_centrally_cleared_exposure"],
+        "required_fields": [
+          "non_centrally_cleared_exposure"
+        ],
         "min_fields": 1
       }
     },
     {
       "code": "SASB-FN-IN-000.A",
-      "name": "Insurance — number of policies in force by segment",
+      "name": "Insurance â€” number of policies in force by segment",
       "framework": "SASB-FN-IN",
       "metric_type": "activity",
       "category": "economic",
@@ -1060,15 +2150,35 @@
       "fra_code": null,
       "sasb_code": "FN-IN-000.A",
       "sector_standard_ref": "FN-IN-000.A",
-      "applicable_sectors": ["insurance"],
-      "expected_fields": ["policies_property_casualty", "policies_life", "policies_assumed_reinsurance", "policies_total"],
+      "applicable_sectors": [
+        "insurance"
+      ],
+      "materiality_weights": {
+        "insurance": 2.0
+      },
+      "expected_fields": [
+        "policies_property_casualty",
+        "policies_life",
+        "policies_assumed_reinsurance",
+        "policies_total"
+      ],
       "expected_unit": "count",
-      "expected_breakdown": ["property_and_casualty", "life", "assumed_reinsurance", "by_product_line"],
+      "expected_breakdown": [
+        "property_and_casualty",
+        "life",
+        "assumed_reinsurance",
+        "by_product_line"
+      ],
       "extraction_prompt": "Extract scale of insurance operations (SASB FN-IN-000.A):\nNumber of policies in force by segment: (1) property and casualty, (2) life, (3) assumed reinsurance. May also be disaggregated by product line.\n\nReturn TOTAL policies in force as `value`. Put segment split and product-line breakdown (if disclosed) in `breakdown`.",
       "validation_rules": {
-        "required_fields": ["policies_total"],
+        "required_fields": [
+          "policies_total"
+        ],
         "min_fields": 1,
-        "value_range": [0, 1.0e10]
+        "value_range": [
+          0,
+          10000000000.0
+        ]
       }
     }
   ]
