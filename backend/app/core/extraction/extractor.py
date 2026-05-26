@@ -1,14 +1,15 @@
-"""ESG metric extraction — LLM calls per GRI indicator via ModelRouter.
+"""ESG metric extraction — per-indicator ChromaDB retrieval + LLM calls.
 
-For each indicator in scope, builds a prompt from ``gri_indicators.json``,
-sends it through ``ModelRouter.get_model("extraction")``, and parses the
-structured JSON response into ``ExtractedMetricCreate`` objects.
+Iteration 2: each indicator retrieves its own top-k relevant chunks from
+ChromaDB (cosine similarity against the indicator's code + name query),
+so the LLM only sees focused context (~1-3 KB) instead of the full 60 KB
+document blob.  Falls back to full-document mode if ChromaDB is unreachable.
 
 Usage:
     from app.core.extraction.extractor import extract_metrics
 
     metrics = await extract_metrics(
-        document_text="...",
+        source_file="report.pdf",
         company_id=company_uuid,
         report_id=report_uuid,
     )
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from uuid import UUID
 
 import structlog
@@ -53,28 +55,152 @@ from app.schemas.metric import ExtractedMetricCreate
 
 logger = structlog.get_logger(__name__)
 
-# Truncation guard — keep document text within LLM context limits (~15k tokens)
+# Truncation guard — full-doc fallback mode (~15k tokens)
 _MAX_DOCUMENT_CHARS = 60_000
+
+# ── ChromaDB retrieval helpers ───────────────────────────────────────────
+_chroma_client = None
+
+
+def _get_chroma_client():
+    """Lazy singleton for the ChromaDB HTTP client."""
+    global _chroma_client
+    if _chroma_client is None:
+        import chromadb
+        _chroma_client = chromadb.HttpClient(
+            host=settings.chroma_host, port=settings.chroma_port,
+        )
+    return _chroma_client
+
+
+def _build_retrieval_query(indicator: dict) -> str:
+    """Build a semantic-search query string from an indicator's metadata.
+
+    Uses the GRI code + name (+ sector ref if present) — these are always
+    English so we hardcode lang="en" at embed time.
+    """
+    parts = [indicator["code"], indicator["name"]]
+    ref = indicator.get("sector_standard_ref")
+    if ref:
+        parts.append(ref)
+    return " ".join(parts)
+
+
+def _retrieve_chunks_for_indicator(
+    indicator: dict,
+    source_file: str,
+    top_k: int,
+) -> list[dict]:
+    """Retrieve the top-k chunks for one indicator from ChromaDB.
+
+    Queries both ``document_chunks_en`` and ``document_chunks_ar`` collections,
+    merges results, deduplicates by text, and sorts by cosine distance (ascending).
+
+    Each collection is queried with a vector from the **matching** embedding
+    model (EN → 768-d e5-base, AR → 1024-d bge-m3) to avoid dimension
+    mismatch errors.
+
+    Returns a list of dicts: ``{"text": str, "language": str, "distance": float, ...}``.
+    Raises on connection error so the caller can fall back to full-doc mode.
+    """
+    from app.core.nlp.embedder import embed_query
+
+    query_text = _build_retrieval_query(indicator)
+
+    client = _get_chroma_client()
+    where_filter = {"source_file": source_file}
+    include = ["documents", "metadatas", "distances"]
+
+    merged: list[dict] = []
+    for coll_name, lang in (("document_chunks_en", "en"), ("document_chunks_ar", "ar")):
+        try:
+            collection = client.get_collection(name=coll_name)
+        except Exception:
+            # Collection doesn't exist yet — skip silently
+            continue
+
+        # Generate query vector with the model that matches this collection's
+        # embedding dimension (EN → 768-d e5-base, AR → 1024-d bge-m3).
+        query_vec = embed_query(query_text, lang=lang).tolist()
+
+        try:
+            results = collection.query(
+                query_embeddings=[query_vec],
+                n_results=top_k,
+                where=where_filter,
+                include=include,
+            )
+        except Exception as exc:
+            logger.warning(
+                "extractor.chromadb_query_failed",
+                collection=coll_name,
+                error=str(exc),
+            )
+            continue
+
+        if results and results.get("ids") and results["ids"][0]:
+            for chunk_id, doc, meta, dist in zip(
+                results["ids"][0],
+                results["documents"][0],
+                results["metadatas"][0] or [],
+                results["distances"][0],
+            ):
+                chunk_lang = (meta or {}).get("language", lang)
+                merged.append({
+                    "chunk_id": chunk_id,
+                    "text": doc or "",
+                    "language": chunk_lang,
+                    "distance": float(dist),
+                    "page_number": (meta or {}).get("page_number"),
+                    "section_header": (meta or {}).get("section_header"),
+                })
+
+    # Deduplicate by text content, keep lowest distance
+    seen_texts: dict[str, dict] = {}
+    for item in merged:
+        txt = item["text"]
+        if txt not in seen_texts or item["distance"] < seen_texts[txt]["distance"]:
+            seen_texts[txt] = item
+    deduped = sorted(seen_texts.values(), key=lambda x: x["distance"])
+
+    return deduped[:top_k]
+
+
+def _format_retrieved_chunks(chunks: list[dict]) -> str:
+    """Format retrieved chunks into the prompt string."""
+    parts: list[str] = []
+    for i, chunk in enumerate(chunks, 1):
+        lang = chunk.get("language", "en").upper()
+        parts.append(f"[Chunk {i} — {lang}]\n{chunk['text']}")
+    return "\n\n".join(parts)
 
 
 # ── Public API ───────────────────────────────────────────────────────────
 async def extract_metrics(
-    document_text: str,
     company_id: UUID,
     report_id: UUID,
     source_file: str | None = None,
     indicator_codes: list[str] | None = None,
     document_id: UUID | None = None,
     n_chunks_processed: int | None = None,
+    document_text: str | None = None,
 ) -> list[ExtractedMetricCreate]:
-    """Extract ESG metrics from document text for specified GRI indicators.
+    """Extract ESG metrics via per-indicator ChromaDB retrieval + LLM calls.
+
+    Each indicator builds a semantic query from its code + name, retrieves
+    the top-k most relevant chunks from ChromaDB, and sends only those
+    focused chunks to the LLM.  If ChromaDB is unreachable, falls back to
+    the full ``document_text`` blob (Iteration 1 behavior).
 
     Args:
-        document_text: Full text content of the document.
         company_id: UUID of the company being evaluated.
         report_id: UUID of the report being generated.
-        source_file: Name of the source document file.
+        source_file: Name of the source document file (used for ChromaDB filtering).
         indicator_codes: Specific codes to extract. ``None`` → all indicators.
+        document_id: UUID of the uploaded document.
+        n_chunks_processed: Total chunks processed (for MLflow logging).
+        document_text: Optional full document text — used as fallback when
+            ChromaDB is unreachable or empty.
 
     Returns:
         List of ``ExtractedMetricCreate`` ready for database persistence.
@@ -85,16 +211,32 @@ async def extract_metrics(
         else [get_indicator(code) for code in indicator_codes]
     )
 
-    doc_text = document_text[:_MAX_DOCUMENT_CHARS]
-    if len(document_text) > _MAX_DOCUMENT_CHARS:
-        logger.warning(
-            "extractor.truncated",
-            original=len(document_text),
-            kept=_MAX_DOCUMENT_CHARS,
-        )
+    # Prepare full-doc fallback text (truncated)
+    fallback_text: str | None = None
+    if document_text:
+        fallback_text = document_text[:_MAX_DOCUMENT_CHARS]
+        if len(document_text) > _MAX_DOCUMENT_CHARS:
+            logger.warning(
+                "extractor.truncated",
+                original=len(document_text),
+                kept=_MAX_DOCUMENT_CHARS,
+            )
+
+    # Test ChromaDB reachability once up front
+    chromadb_available = False
+    if source_file:
+        try:
+            _get_chroma_client().heartbeat()
+            chromadb_available = True
+        except Exception as exc:
+            logger.warning(
+                "extractor.chromadb_unreachable_falling_back_to_full_doc",
+                error=str(exc),
+            )
 
     metrics: list[ExtractedMetricCreate] = []
     raw_responses: dict[str, str] = {}
+    chunks_retrieved_counts: list[int] = []
 
     model_name = settings.models.get("extraction", "unknown")
 
@@ -109,21 +251,72 @@ async def extract_metrics(
             "model_name": model_name,
             "n_chunks_processed": n_chunks_processed if n_chunks_processed is not None else "",
             "n_indicators_attempted": len(indicators),
-            "document_chars": len(document_text),
-            "document_chars_kept": len(doc_text),
+            "extraction_mode": "retrieval" if chromadb_available else "full_doc_fallback",
+            "extraction_top_k": settings.extraction_top_k,
         })
+
+        # ── Per-indicator extraction — sequential ────────────────────────────
+        # Sequential dispatch keeps per-indicator timing in the logs accurate
+        # and avoids hammering the remote LLM provider; bumping concurrency is
+        # a future change (extraction_concurrency is reserved for it).
+        logger.info(
+            "extractor.batch_start",
+            n_indicators=len(indicators),
+        )
 
         for indicator in indicators:
             try:
+                indicator_text: str | None = None
+                n_retrieved = 0
+
+                if chromadb_available and source_file:
+                    try:
+                        retrieved = _retrieve_chunks_for_indicator(
+                            indicator=indicator,
+                            source_file=source_file,
+                            top_k=settings.extraction_top_k,
+                        )
+                        n_retrieved = len(retrieved)
+                        if n_retrieved >= settings.extraction_min_chunks:
+                            indicator_text = _format_retrieved_chunks(retrieved)
+                        else:
+                            logger.warning(
+                                "extractor.no_chunks_retrieved",
+                                gri_code=indicator["code"],
+                                retrieved=n_retrieved,
+                                min_required=settings.extraction_min_chunks,
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            "extractor.retrieval_failed_for_indicator",
+                            gri_code=indicator["code"],
+                            error=str(exc),
+                        )
+
+                # Fall back to full-doc if no retrieved text
+                if indicator_text is None:
+                    if fallback_text:
+                        indicator_text = fallback_text
+                    else:
+                        metrics.append(_missing_metric(
+                            indicator, company_id, report_id, source_file,
+                            Exception("No chunks retrieved and no fallback text"),
+                        ))
+                        raw_responses[indicator["code"]] = "<no_chunks>"
+                        continue
+
                 metric, raw = await _extract_single(
                     indicator=indicator,
-                    document_text=doc_text,
+                    document_text=indicator_text,
                     company_id=company_id,
                     report_id=report_id,
                     source_file=source_file,
+                    n_chunks=n_retrieved,
                 )
                 metrics.append(metric)
                 raw_responses[indicator["code"]] = raw
+                if n_retrieved > 0:
+                    chunks_retrieved_counts.append(n_retrieved)
                 logger.info(
                     "extractor.indicator_ok",
                     code=indicator["code"],
@@ -139,6 +332,7 @@ async def extract_metrics(
                 metrics.append(_missing_metric(indicator, company_id, report_id, source_file, exc))
                 raw_responses[indicator["code"]] = f"<error: {exc}>"
 
+
         extracted = sum(1 for m in metrics if m.status == MetricStatus.extracted)
         ambiguous = sum(1 for m in metrics if m.status == MetricStatus.ambiguous)
         missing = sum(1 for m in metrics if m.status == MetricStatus.missing)
@@ -147,6 +341,10 @@ async def extract_metrics(
         avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
         n_high = sum(1 for c in confidences if c > 0.80)
         n_low = len(confidences) - n_high
+        avg_chunks = (
+            sum(chunks_retrieved_counts) / len(chunks_retrieved_counts)
+            if chunks_retrieved_counts else 0.0
+        )
 
         log_metrics({
             "n_metrics_extracted": float(extracted),
@@ -156,6 +354,7 @@ async def extract_metrics(
             "avg_confidence": float(avg_conf),
             "n_high_confidence": float(n_high),
             "n_low_confidence": float(n_low),
+            "avg_chunks_retrieved_per_indicator": float(avg_chunks),
         })
 
         for m in metrics:
@@ -167,6 +366,7 @@ async def extract_metrics(
                 "model_name": model_name,
                 "document_id": str(document_id) if document_id else None,
                 "report_id": str(report_id),
+                "extraction_mode": "retrieval" if chromadb_available else "full_doc_fallback",
                 "responses": raw_responses,
             },
         )
@@ -177,6 +377,8 @@ async def extract_metrics(
             extracted=extracted,
             ambiguous=ambiguous,
             missing=missing,
+            avg_chunks_per_indicator=round(avg_chunks, 1),
+            mode="retrieval" if chromadb_available else "full_doc_fallback",
         )
     return metrics
 
@@ -188,6 +390,7 @@ async def _extract_single(
     company_id: UUID,
     report_id: UUID,
     source_file: str | None,
+    n_chunks: int = 0,
 ) -> tuple[ExtractedMetricCreate, str]:
     """Send one indicator prompt to the LLM and parse the response.
 
@@ -205,7 +408,17 @@ async def _extract_single(
         HumanMessage(content=user_prompt),
     ]
 
+    t0 = time.perf_counter()
     response = await model_router.ainvoke_with_fallback("extraction", messages)
+    elapsed = time.perf_counter() - t0
+
+    logger.info(
+        "indicator_extracted",
+        gri_code=indicator["code"],
+        n_chunks_retrieved=n_chunks,
+        elapsed_sec=round(elapsed, 1),
+    )
+
     raw_content = response.content if isinstance(response.content, str) else str(response.content)
     parsed = _parse_llm_json(raw_content)
 

@@ -6,6 +6,11 @@ All LLM prompts for metric extraction live here. ``extractor.py`` calls
 ``metric_type`` (quantitative / monetary / rate / qualitative / activity)
 in ``data/gri_indicators.json``; this module emits a slightly different
 JSON schema and field-level guidance for each combination.
+
+Note (Iteration 2): ``document_text`` is now the focused, per-indicator
+retrieved chunks from ChromaDB (typically 3-5 chunks, ~1-3 KB), not the
+full 60 KB document blob.  The prompt structure is unchanged — the LLM
+just receives less noise and more signal.
 """
 
 from __future__ import annotations

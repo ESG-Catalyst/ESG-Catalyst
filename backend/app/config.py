@@ -79,5 +79,23 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 50
     confidence_threshold: float = 0.80
 
+    # M5 PDF backend selector.
+    #   "auto"       — try WeasyPrint first, fall back to PyMuPDF Story
+    #                  (the historical default; safe when GTK3 may be missing).
+    #   "weasyprint" — WeasyPrint only; raise if unavailable. Use once GTK3
+    #                  is baked into the worker image and you want to know
+    #                  fast if the install regresses.
+    #   "pymupdf"    — Skip WeasyPrint entirely. One-line revert path if a
+    #                  WeasyPrint bug surfaces in production. Set
+    #                  PDF_BACKEND=pymupdf in .env and restart worker.
+    pdf_backend: str = "auto"
+
+    # M3 per-indicator retrieval from ChromaDB
+    extraction_top_k: int = 3          # chunks retrieved per indicator (3 = faster, 5 = more context)
+    extraction_min_chunks: int = 1     # minimum chunks to proceed — if fewer, skip LLM call
+    # How many indicator LLM calls run concurrently.
+    # Local Ollama queues internally so 4-6 is safe; remote APIs may need 2-3.
+    extraction_concurrency: int = 4
+
 
 settings = Settings()
