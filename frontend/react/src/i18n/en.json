@@ -32,11 +32,11 @@
   },
   "upload": {
     "title": "Upload Documents",
-    "subtitle": "Supported: PDF, Arabic and English. Max 50 MB per file.",
+    "subtitle": "Supported: PDF, DOCX, XLSX, XLS, CSV, TXT, images. Arabic and English. Max 50 MB per file.",
     "drop_hint": "Drag your ESG documents here",
     "browse": "or click to browse",
     "button": "Start Analysis",
-    "max_size": "PDF only · Max 50 MB"
+    "max_size": "PDF, DOCX, XLSX, XLS, CSV, TXT, images · Max 50 MB"
   },
   "pipeline": {
     "queued": "Queued",

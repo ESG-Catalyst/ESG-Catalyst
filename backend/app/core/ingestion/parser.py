@@ -5,7 +5,8 @@ Supported formats:
     - DOCX (via python-docx — paragraphs + tables)
     - XLSX / XLS (via openpyxl + pandas)
     - CSV
-    - Images: PNG, JPG, TIFF (via Tesseract OCR)
+    - TXT (UTF-8 with replacement; single-page)
+    - Images: PNG, JPG, TIFF, BMP (OCR currently STUBBED — yields 0 pages)
 
 Usage:
     from app.core.ingestion.parser import ingest_document
@@ -30,9 +31,27 @@ _PDF_EXTS = {".pdf"}
 _DOCX_EXTS = {".docx"}
 _SPREADSHEET_EXTS = {".xlsx", ".xls"}
 _CSV_EXTS = {".csv"}
+_TXT_EXTS = {".txt"}
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp"}
 
-_ALL_SUPPORTED = _PDF_EXTS | _DOCX_EXTS | _SPREADSHEET_EXTS | _CSV_EXTS | _IMAGE_EXTS
+_ALL_SUPPORTED = (
+    _PDF_EXTS | _DOCX_EXTS | _SPREADSHEET_EXTS | _CSV_EXTS | _TXT_EXTS | _IMAGE_EXTS
+)
+
+# Public, stable view of the supported extension set so api/documents.py
+# (and any future ingest entry point) cannot disagree with the dispatcher
+# below. Sorted for deterministic display in error messages.
+SUPPORTED_EXTENSIONS: tuple[str, ...] = tuple(sorted(_ALL_SUPPORTED))
+
+
+def is_supported_extension(ext: str) -> bool:
+    """True if *ext* (with leading dot, case-insensitive) is dispatchable.
+
+    Includes image extensions even though image OCR is currently stubbed
+    out — the upload layer accepts them so the UI is honest about supported
+    formats; the pipeline surfaces a "no text extracted" error downstream.
+    """
+    return ext.lower() in _ALL_SUPPORTED
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -105,6 +124,8 @@ def ingest_document(file_path: str | Path) -> IngestedDocument:
         result = _parse_spreadsheet(path)
     elif ext in _CSV_EXTS:
         result = _parse_csv(path)
+    elif ext in _TXT_EXTS:
+        result = _parse_txt(path)
     elif ext in _IMAGE_EXTS:
         result = _parse_image(path)
     else:
@@ -199,6 +220,24 @@ def _parse_csv(path: Path) -> IngestedDocument:
         page_count=1,
         language=None,
         pages=[PageContent(page_number=1, text=text, method="table", language=_detect_language(text))],
+    )
+
+
+def _parse_txt(path: Path) -> IngestedDocument:
+    """Read a plain-text file as a single page.
+
+    UTF-8 with errors='replace' so we never reject on bad bytes; a TXT
+    that's actually binary garbage will still produce one PageContent
+    full of replacement chars, which the zero-text check downstream
+    will treat as empty if it ends up trimmed.
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return IngestedDocument(
+        source_file=path.name,
+        file_type="txt",
+        page_count=1,
+        language=None,
+        pages=[PageContent(page_number=1, text=text, method="text", language=_detect_language(text))],
     )
 
 

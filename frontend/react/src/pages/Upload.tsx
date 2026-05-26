@@ -8,6 +8,25 @@ import { cn } from '@/lib/utils'
 import { usePipelineStore } from '@/store/pipeline'
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024
+// Silent cap — user is not told. Extra files in a pick/drop are dropped.
+const MAX_FILES = 5
+
+// Must stay in sync with backend SUPPORTED_EXTENSIONS in
+// backend/app/core/ingestion/parser.py — the backend validates against
+// its own set; we re-validate client-side for instant UX.
+const SUPPORTED_EXTENSIONS = [
+  '.pdf', '.docx', '.xlsx', '.xls', '.csv', '.txt',
+  '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp',
+] as const
+const ACCEPT_ATTR = SUPPORTED_EXTENSIONS.join(',')
+// Image OCR is currently stubbed in parser._parse_image; uploads succeed
+// but the pipeline will surface an OCR-not-implemented error.
+const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp'])
+
+function getExt(name: string): string {
+  const i = name.lastIndexOf('.')
+  return i >= 0 ? name.slice(i).toLowerCase() : ''
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -15,46 +34,76 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+interface SelectedFile {
+  file: File
+  error?: string
+  warning?: string
+}
+
+function validateFile(f: File): { error?: string; warning?: string } {
+  const ext = getExt(f.name)
+  if (!SUPPORTED_EXTENSIONS.includes(ext as typeof SUPPORTED_EXTENSIONS[number])) {
+    return { error: `Unsupported file format. Accepted: ${SUPPORTED_EXTENSIONS.join(', ')}` }
+  }
+  if (f.size > MAX_SIZE_BYTES) return { error: `File exceeds 50 MB limit (${formatBytes(f.size)}).` }
+  if (IMAGE_EXTS.has(ext)) {
+    return {
+      warning:
+        'Image OCR is not yet implemented. The upload will succeed but the pipeline will not extract metrics from this file.',
+    }
+  }
+  return {}
+}
+
 export default function Upload() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const setJob = usePipelineStore((s) => s.setJob)
 
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<SelectedFile[]>([])
   const [dragOver, setDragOver] = useState(false)
-  const [fileError, setFileError] = useState<string | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // null = no upload running; otherwise "X of N"
+  const [uploadedCount, setUploadedCount] = useState<number | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function validateFile(f: File): string | null {
-    if (!f.name.toLowerCase().endsWith('.pdf')) return 'Only PDF files are accepted.'
-    if (f.size > MAX_SIZE_BYTES) return `File exceeds 50 MB limit (${formatBytes(f.size)}).`
-    return null
-  }
-
-  function acceptFile(f: File) {
-    const err = validateFile(f)
-    if (err) { setFileError(err); return }
-    setFileError(null)
-    setFile(f)
+  // Merge newly-picked files into the existing selection, deduping by
+  // (name, size) and silently capping the total at MAX_FILES. Existing
+  // entries are kept so the user can add files in two clicks if they want.
+  const addFiles = useCallback((picked: File[]) => {
+    if (picked.length === 0) return
     setServerError(null)
-    setUploadProgress(null)
-  }
+    setUploadedCount(null)
+    setFiles((prev) => {
+      const key = (f: File) => `${f.name}|${f.size}`
+      const seen = new Set(prev.map((s) => key(s.file)))
+      const merged: SelectedFile[] = [...prev]
+      for (const f of picked) {
+        if (merged.length >= MAX_FILES) break
+        if (seen.has(key(f))) continue
+        seen.add(key(f))
+        const { error, warning } = validateFile(f)
+        merged.push({ file: f, error, warning })
+      }
+      return merged
+    })
+  }, [])
 
   const onInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (f) acceptFile(f)
-  }, [])
+    const picked = Array.from(e.target.files ?? [])
+    addFiles(picked)
+    // Reset the input so the same file can be re-picked after a remove.
+    if (inputRef.current) inputRef.current.value = ''
+  }, [addFiles])
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    const f = e.dataTransfer.files?.[0]
-    if (f) acceptFile(f)
-  }, [])
+    const picked = Array.from(e.dataTransfer.files ?? [])
+    addFiles(picked)
+  }, [addFiles])
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -63,44 +112,66 @@ export default function Upload() {
 
   const onDragLeave = useCallback(() => setDragOver(false), [])
 
-  function removeFile() {
-    setFile(null)
-    setFileError(null)
-    setUploadProgress(null)
+  function removeAt(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
     setServerError(null)
+    setUploadedCount(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
+  const validFiles = files.filter((s) => !s.error)
+  const hasAnyError = files.some((s) => s.error)
+  const canSubmit = validFiles.length > 0 && !hasAnyError && !submitting
+  // Pad to keep the drop-zone full-size while the user adds; once any file
+  // is selected we keep showing the zone so they can add up to MAX_FILES.
+  const zoneClickable = files.length < MAX_FILES
+
   async function handleSubmit() {
-    if (!file || submitting) return
+    if (!canSubmit) return
     setSubmitting(true)
     setServerError(null)
-    setUploadProgress(0)
+    setUploadedCount(0)
 
     try {
-      // Simulate upload progress while the real XHR is in flight
-      const progressInterval = setInterval(() => {
-        setUploadProgress((p) => (p !== null && p < 85 ? p + 12 : p))
-      }, 200)
+      // Upload all valid files in parallel. Each call returns
+      // { document_id, filename, status }.
+      const docs = await Promise.all(
+        validFiles.map(async (s) => {
+          const doc = await uploadDocument(s.file)
+          setUploadedCount((n) => (n ?? 0) + 1)
+          return { doc, original: s.file }
+        }),
+      )
 
-      const doc = await uploadDocument(file)
-      clearInterval(progressInterval)
-      setUploadProgress(100)
+      // Trigger the pipeline for every uploaded doc in parallel; Celery
+      // queues whatever the worker can't run immediately.
+      const jobs = await Promise.all(
+        docs.map(async ({ doc, original }) => {
+          const job = await runPipeline({ document_id: doc.document_id })
+          return { job_id: job.job_id, document_id: doc.document_id, filename: original.name }
+        }),
+      )
 
-      await new Promise((r) => setTimeout(r, 300))
-
-      const job = await runPipeline({ document_id: doc.document_id })
-      setJob(job.job_id, doc.document_id, file.name)
-      navigate(`/pipeline/${job.job_id}?doc=${doc.document_id}`)
+      // Navigate to the first job's progress page. The pipeline store
+      // currently tracks a single active job, so others run in the
+      // background and surface on the dashboard / documents list.
+      const first = jobs[0]
+      setJob(first.job_id, first.document_id, first.filename)
+      navigate(`/pipeline/${first.job_id}?doc=${first.document_id}`)
     } catch (err: unknown) {
-      setUploadProgress(null)
+      setUploadedCount(null)
       setServerError(extractErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const active = dragOver || false
+  const active = dragOver
+
+  // Aggregate inline notices below the zone — show one collective image
+  // warning when any of the selected files is an image. Per-file errors
+  // are rendered inline on each row.
+  const imageCount = files.filter((s) => !s.error && IMAGE_EXTS.has(getExt(s.file.name))).length
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -118,97 +189,134 @@ export default function Upload() {
         </div>
       )}
 
-      {/* Drop zone */}
+      {/* Drop zone — stays as the dropzone always (no longer collapses
+          into a single-file card). The selected file list renders below. */}
       <div
-        onClick={() => !file && inputRef.current?.click()}
+        onClick={() => zoneClickable && inputRef.current?.click()}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         className={cn(
           'relative flex flex-col items-center justify-center gap-4 rounded-xl transition-all',
-          'px-8 py-14 cursor-pointer select-none',
-          file ? 'cursor-default' : 'cursor-pointer',
+          'px-8 py-14 select-none',
+          zoneClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-70',
         )}
         style={{
           border: active
             ? '2px solid var(--color-primary)'
-            : file
-              ? '2px dashed var(--color-border-subtle)'
-              : '2px dashed var(--color-primary)',
+            : '2px dashed var(--color-primary)',
           background: active
             ? 'rgba(13,148,136,0.07)'
             : 'var(--color-surface)',
         }}
-        role={file ? undefined : 'button'}
-        tabIndex={file ? -1 : 0}
-        onKeyDown={(e) => { if (!file && (e.key === 'Enter' || e.key === ' ')) inputRef.current?.click() }}
-        aria-label="Upload PDF file"
+        role={zoneClickable ? 'button' : undefined}
+        tabIndex={zoneClickable ? 0 : -1}
+        onKeyDown={(e) => { if (zoneClickable && (e.key === 'Enter' || e.key === ' ')) inputRef.current?.click() }}
+        aria-label="Upload documents"
       >
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf"
+          accept={ACCEPT_ATTR}
+          multiple
           className="hidden"
           onChange={onInputChange}
         />
 
-        {!file && (
-          <>
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(13,148,136,0.12)' }}
-            >
-              <UploadCloud size={26} style={{ color: 'var(--color-primary)' }} />
-            </div>
-            <div className="text-center">
-              <p className="text-base font-semibold text-text">Drag your ESG documents here</p>
-              <p className="text-sm text-text-muted mt-1">or click to browse</p>
-            </div>
-            <p className="text-xs text-text-subtle">PDF only · Max 50 MB</p>
-          </>
-        )}
-
-        {file && (
-          <div className="w-full flex items-center gap-4">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: 'rgba(13,148,136,0.12)' }}
-            >
-              <FileText size={20} style={{ color: 'var(--color-primary)' }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text truncate">{file.name}</p>
-              <p className="text-xs text-text-muted mt-0.5">{formatBytes(file.size)}</p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); removeFile() }}
-              className="w-7 h-7 flex items-center justify-center rounded transition-colors text-text-muted hover:text-danger hover:bg-surface-raised"
-              aria-label="Remove file"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        )}
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ background: 'rgba(13,148,136,0.12)' }}
+        >
+          <UploadCloud size={26} style={{ color: 'var(--color-primary)' }} />
+        </div>
+        <div className="text-center">
+          <p className="text-base font-semibold text-text">
+            {files.length === 0 ? 'Drag your ESG documents here' : 'Add more documents'}
+          </p>
+          <p className="text-sm text-text-muted mt-1">or click to browse</p>
+        </div>
+        <p className="text-xs text-text-subtle">
+          PDF, DOCX, XLSX, XLS, CSV, TXT, images · Max 50 MB
+        </p>
       </div>
 
-      {fileError && (
-        <p className="mt-2 text-xs text-danger flex items-center gap-1.5">
-          <AlertCircle size={13} /> {fileError}
+      {/* Selected-file rows */}
+      {files.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {files.map((s, i) => (
+            <li
+              key={`${s.file.name}-${s.file.size}-${i}`}
+              className="rounded-lg px-4 py-3"
+              style={{
+                background: 'var(--color-surface)',
+                border: s.error
+                  ? '1px solid rgba(239,68,68,0.35)'
+                  : '1px solid var(--color-border-subtle)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(13,148,136,0.12)' }}
+                >
+                  <FileText size={18} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text truncate">{s.file.name}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{formatBytes(s.file.size)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeAt(i)}
+                  disabled={submitting}
+                  className="w-7 h-7 flex items-center justify-center rounded transition-colors text-text-muted hover:text-danger hover:bg-surface-raised disabled:opacity-40"
+                  aria-label={`Remove ${s.file.name}`}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              {s.error && (
+                <p className="mt-1.5 text-xs text-danger flex items-start gap-1.5">
+                  <AlertCircle size={12} className="shrink-0 mt-0.5" /> {s.error}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {imageCount > 0 && (
+        <p
+          className="mt-3 text-xs flex items-start gap-1.5"
+          style={{ color: '#F59E0B' }}
+        >
+          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+          {imageCount === 1
+            ? 'Image OCR is not yet implemented. That file will upload but the pipeline will not extract metrics from it.'
+            : `Image OCR is not yet implemented. ${imageCount} of your files will upload but the pipeline will not extract metrics from them.`}
         </p>
       )}
 
-      {/* Upload progress bar */}
-      {uploadProgress !== null && (
+      {/* Upload progress */}
+      {uploadedCount !== null && validFiles.length > 0 && (
         <div className="mt-4">
           <div className="flex items-center justify-between text-xs text-text-muted mb-1.5">
-            <span>{uploadProgress < 100 ? 'Uploading…' : 'Upload complete'}</span>
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{uploadProgress}%</span>
+            <span>
+              {uploadedCount < validFiles.length
+                ? `Uploading… ${uploadedCount} of ${validFiles.length}`
+                : 'Upload complete'}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>
+              {Math.round((uploadedCount / Math.max(validFiles.length, 1)) * 100)}%
+            </span>
           </div>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
             <div
               className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${uploadProgress}%`, background: 'var(--color-primary)' }}
+              style={{
+                width: `${(uploadedCount / Math.max(validFiles.length, 1)) * 100}%`,
+                background: 'var(--color-primary)',
+              }}
             />
           </div>
         </div>
@@ -218,7 +326,7 @@ export default function Upload() {
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={!file || submitting || !!fileError}
+        disabled={!canSubmit}
         className="mt-6 w-full py-2.5 text-sm font-semibold rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ background: 'var(--color-primary)', color: '#fff' }}
         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
@@ -229,12 +337,16 @@ export default function Upload() {
             <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
           </svg>
         )}
-        {submitting ? 'Starting analysis…' : 'Start Analysis'}
+        {submitting
+          ? 'Starting analysis…'
+          : validFiles.length <= 1
+            ? 'Start Analysis'
+            : `Start Analysis (${validFiles.length} files)`}
       </button>
 
       <p className="mt-3 text-xs text-center text-text-subtle">
         The pipeline will extract ESG metrics and score against GRI, FRA, and SASB frameworks.
-        This typically takes 2–5 minutes.
+        This typically takes 2–5 minutes per file.
       </p>
     </div>
   )

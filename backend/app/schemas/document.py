@@ -22,6 +22,7 @@ class DocumentUploadResponse(BaseModel):
     page_count: int | None
     language: str | None
     uploaded_by: UUID | None
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -40,5 +41,6 @@ class DocumentSchema(BaseModel):
     page_count: int | None
     language: str | None
     uploaded_by: UUID | None
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
