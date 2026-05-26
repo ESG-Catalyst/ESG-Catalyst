@@ -39,3 +39,10 @@ chromadb>=0.5.0
 
 # ── MLflow experiment tracking (M3) ──────────────────────
 mlflow>=2.13.0
+
+# ── PDF rendering (M5) ───────────────────────────────────
+# WeasyPrint is the primary PDF backend; needs the GTK3 native
+# libs (libpango, libcairo) installed in Dockerfile.worker.
+# PyMuPDF (already pinned above as pymupdf) stays as the
+# pure-Python fallback. Toggle via settings.pdf_backend in .env.
+weasyprint>=62.0

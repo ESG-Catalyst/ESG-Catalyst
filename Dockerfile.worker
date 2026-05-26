@@ -28,12 +28,31 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # tesseract-ocr + ara/eng language packs are wired in for the
 # Iteration 2 OCR work — installed now so the worker image is
 # ready when that lands; safe to remove if you want a leaner image.
+#
+# WeasyPrint runtime — libpango + libcairo + libgdk-pixbuf are the
+# minimum to render HTML→PDF; libffi + shared-mime-info are linked
+# transitively. Fonts: dejavu covers Latin; noto-core + noto-cjk
+# round out CJK; noto-color-emoji handles emoji. For Arabic ESG
+# disclosures (right-to-left), noto-core already includes Noto Sans
+# Arabic. Adds ~200 MB to the image — see settings.pdf_backend if
+# you ever need to disable WeasyPrint at runtime without rebuilding.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         libgomp1 \
         tesseract-ocr \
         tesseract-ocr-ara \
         tesseract-ocr-eng \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libharfbuzz0b \
+        libcairo2 \
+        libgdk-pixbuf-2.0-0 \
+        libffi-dev \
+        shared-mime-info \
+        fonts-dejavu \
+        fonts-noto-core \
+        fonts-noto-cjk \
+        fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

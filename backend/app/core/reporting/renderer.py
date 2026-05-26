@@ -48,10 +48,13 @@ _REPORT_TEMPLATE = """\
   .score-card { flex: 1; padding: 1em; background: #f4f7f7; border-left: 4px solid #0D7A7A; }
   .score-card .label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: .04em; }
   .score-card .value { font-size: 24pt; color: #0D7A7A; font-weight: 700; }
-  table { width: 100%; border-collapse: collapse; margin: .5em 0 1em 0; font-size: 9.5pt; }
-  th { background: #0B2B3B; color: white; text-align: left; padding: 6px 8px; }
-  td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
-  tr:nth-child(even) td { background: #fafafa; }
+  table { width: 100%; border-collapse: collapse; margin: .5em 0 1em 0; font-size: 9.5pt; table-layout: fixed; }
+  th { background-color: #0B2B3B; color: #ffffff; text-align: left; padding: 6px 8px; font-weight: 600; border: 1px solid #0B2B3B; vertical-align: middle; }
+  td { padding: 5px 8px; border: 1px solid #d8dde2; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; }
+  tr.row-even td { background-color: #f4f7f7; }
+  tr.row-odd td { background-color: #ffffff; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td.center, th.center { text-align: center; }
   .gap-high { color: #b00; font-weight: 600; }
   .gap-medium { color: #c80; }
   .gap-low { color: #555; }
@@ -96,11 +99,18 @@ _REPORT_TEMPLATE = """\
 
 <h2>Company Profile</h2>
 <table>
-  <tr><th style="width:30%">Field</th><th>Value</th></tr>
-  <tr><td>Legal name</td><td>{{ company.name }}</td></tr>
-  <tr><td>Sector</td><td>{{ company.sector }}</td></tr>
-  <tr><td>Headquarters</td><td>{{ company.headquarters or "—" }}</td></tr>
-  <tr><td>Reporting period</td><td>{{ company.reporting_period or "—" }}</td></tr>
+  <thead>
+    <tr>
+      <th style="width:30%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Field</th>
+      <th style="background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="row-odd"><td style="background-color:#ffffff;">Legal name</td><td style="background-color:#ffffff;">{{ company.name }}</td></tr>
+    <tr class="row-even"><td style="background-color:#f4f7f7;">Sector</td><td style="background-color:#f4f7f7;">{{ company.sector }}</td></tr>
+    <tr class="row-odd"><td style="background-color:#ffffff;">Headquarters</td><td style="background-color:#ffffff;">{{ company.headquarters or "—" }}</td></tr>
+    <tr class="row-even"><td style="background-color:#f4f7f7;">Reporting period</td><td style="background-color:#f4f7f7;">{{ company.reporting_period or "—" }}</td></tr>
+  </tbody>
 </table>
 
 {% for section in sections %}
@@ -113,18 +123,29 @@ _REPORT_TEMPLATE = """\
   {% endif %}
 
   <table>
-    <tr><th>Indicator</th><th>Value</th><th>Confidence</th><th>Status</th><th>Page</th></tr>
+    <thead>
+      <tr>
+        <th style="width:36%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Indicator</th>
+        <th style="width:22%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:right; border:1px solid #0B2B3B;">Value</th>
+        <th style="width:12%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:right; border:1px solid #0B2B3B;">Confidence</th>
+        <th style="width:18%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:center; border:1px solid #0B2B3B;">Status</th>
+        <th style="width:8%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:center; border:1px solid #0B2B3B;">Page</th>
+      </tr>
+    </thead>
+    <tbody>
     {% for m in section.metrics %}
     {% set status = status_label(m.status) %}
-    <tr>
-      <td>
+    {% set rowbg = "#f4f7f7" if loop.index is even else "#ffffff" %}
+    {% set rowcls = "row-even" if loop.index is even else "row-odd" %}
+    <tr class="{{ rowcls }}">
+      <td style="background-color:{{ rowbg }};">
         <strong>{{ m.gri_code }}</strong><br>
         <span class="meta-line">{{ m.label }}</span>
         {%- if m.evidence_chunk %}
         <div class="evidence">"{{ m.evidence_chunk[:220] }}{{ "…" if m.evidence_chunk|length > 220 else "" }}"</div>
         {%- endif %}
       </td>
-      <td>
+      <td class="num" style="background-color:{{ rowbg }}; text-align:right; white-space:nowrap;">
         {%- if m.value is not none and m.unit -%}
           {{ m.value }} {{ m.unit }}
         {%- elif m.value is not none -%}
@@ -135,42 +156,65 @@ _REPORT_TEMPLATE = """\
           —
         {%- endif -%}
       </td>
-      <td>{{ "%.0f"|format(m.confidence * 100) }}%</td>
-      <td><span class="status-pill status-{{ status }}">{{ status }}</span></td>
-      <td>{{ m.source_page or "—" }}</td>
+      <td class="num" style="background-color:{{ rowbg }}; text-align:right;">{{ "%.0f"|format(m.confidence * 100) }}%</td>
+      <td class="center" style="background-color:{{ rowbg }}; text-align:center;"><span class="status-pill status-{{ status }}">{{ status }}</span></td>
+      <td class="center" style="background-color:{{ rowbg }}; text-align:center;">{{ m.source_page or "—" }}</td>
     </tr>
     {% endfor %}
+    </tbody>
   </table>
 </section>
 {% endfor %}
 
 <h2>GRI Content Index</h2>
 <table>
-  <tr><th>Code</th><th>Disclosure</th><th>Page</th><th>Status</th></tr>
+  <thead>
+    <tr>
+      <th style="width:18%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Code</th>
+      <th style="width:54%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Disclosure</th>
+      <th style="width:10%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:center; border:1px solid #0B2B3B;">Page</th>
+      <th style="width:18%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:center; border:1px solid #0B2B3B;">Status</th>
+    </tr>
+  </thead>
+  <tbody>
   {% for row in content_index %}
   {% set status_class = "missing" if row.status == "not reported" else row.status %}
-  <tr>
-    <td><strong>{{ row.code }}</strong></td>
-    <td>{{ row.name }}</td>
-    <td>{{ row.page or "—" }}</td>
-    <td><span class="status-pill status-{{ status_class }}">{{ row.status }}</span></td>
+  {% set rowbg = "#f4f7f7" if loop.index is even else "#ffffff" %}
+  {% set rowcls = "row-even" if loop.index is even else "row-odd" %}
+  <tr class="{{ rowcls }}">
+    <td style="background-color:{{ rowbg }};"><strong>{{ row.code }}</strong></td>
+    <td style="background-color:{{ rowbg }};">{{ row.name }}</td>
+    <td class="center" style="background-color:{{ rowbg }}; text-align:center;">{{ row.page or "—" }}</td>
+    <td class="center" style="background-color:{{ rowbg }}; text-align:center;"><span class="status-pill status-{{ status_class }}">{{ row.status }}</span></td>
   </tr>
   {% endfor %}
+  </tbody>
 </table>
 
 <h2>Gap Analysis</h2>
 {% if score.gaps %}
 <p>{{ score.gaps | length }} gap(s) identified across the disclosure set.</p>
 <table>
-  <tr><th>Priority</th><th>Indicator</th><th>Status</th><th>Recommendation</th></tr>
+  <thead>
+    <tr>
+      <th style="width:12%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:center; border:1px solid #0B2B3B;">Priority</th>
+      <th style="width:28%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Indicator</th>
+      <th style="width:14%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:center; border:1px solid #0B2B3B;">Status</th>
+      <th style="width:46%; background-color:#0B2B3B; color:#ffffff; padding:6px 8px; text-align:left; border:1px solid #0B2B3B;">Recommendation</th>
+    </tr>
+  </thead>
+  <tbody>
   {% for gap in score.gaps %}
-  <tr>
-    <td class="gap-{{ gap.priority }}">{{ gap.priority | upper }}</td>
-    <td><strong>{{ gap.code }}</strong><br><span class="meta-line">{{ gap.name }}</span></td>
-    <td>{{ gap.status }}</td>
-    <td>{{ gap.recommendation }}</td>
+  {% set rowbg = "#f4f7f7" if loop.index is even else "#ffffff" %}
+  {% set rowcls = "row-even" if loop.index is even else "row-odd" %}
+  <tr class="{{ rowcls }}">
+    <td class="center gap-{{ gap.priority }}" style="background-color:{{ rowbg }}; text-align:center; font-weight:600;">{{ gap.priority | upper }}</td>
+    <td style="background-color:{{ rowbg }};"><strong>{{ gap.code }}</strong><br><span class="meta-line">{{ gap.name }}</span></td>
+    <td class="center" style="background-color:{{ rowbg }}; text-align:center;">{{ gap.status }}</td>
+    <td style="background-color:{{ rowbg }};">{{ gap.recommendation }}</td>
   </tr>
   {% endfor %}
+  </tbody>
 </table>
 {% else %}
 <p>No gaps identified. All target indicators are covered with adequate confidence.</p>
@@ -200,10 +244,13 @@ def render_report_html(bundle: ReportBundle) -> str:
 def render_pdf(bundle: ReportBundle, output_path: Path | str) -> Path:
     """Render a ``ReportBundle`` to a PDF file.
 
-    Backend chain (first that works wins):
-        1. WeasyPrint  — best CSS fidelity (needs GTK3 on Windows)
-        2. PyMuPDF Story — pure-Python fallback (limited CSS)
-        3. Plain HTML — last resort, written next to the requested path
+    Backend selection is driven by ``settings.pdf_backend``:
+        "auto"       — WeasyPrint first, PyMuPDF Story fallback (default)
+        "weasyprint" — WeasyPrint only
+        "pymupdf"    — PyMuPDF Story only (one-line revert path)
+
+    All three modes share the same plain-HTML last-resort fallback so
+    ``report.generate`` never leaves the user with nothing on disk.
 
     Args:
         bundle: Output of ``build_report_sections()`` with narratives populated.
@@ -212,22 +259,45 @@ def render_pdf(bundle: ReportBundle, output_path: Path | str) -> Path:
     Returns:
         Path to the generated file (PDF on success, HTML on final fallback).
     """
+    from app.config import settings
+
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     html_string = render_report_html(bundle)
+    backend = (settings.pdf_backend or "auto").lower()
 
-    if _try_weasyprint(html_string, output_path):
-        return output_path
+    if backend not in ("auto", "weasyprint", "pymupdf"):
+        logger.warning(
+            "renderer.pdf_backend_unknown",
+            backend=backend,
+            message="Unknown PDF_BACKEND value; falling back to auto",
+        )
+        backend = "auto"
 
-    if _try_pymupdf(html_string, output_path):
-        return output_path
+    if backend in ("auto", "weasyprint"):
+        if _try_weasyprint(html_string, output_path):
+            return output_path
+        if backend == "weasyprint":
+            # Forced WeasyPrint — surface the failure instead of silently
+            # falling back. Catches "GTK3 was supposed to be in the image
+            # but is now missing" regressions on next deploy.
+            raise RuntimeError(
+                "PDF_BACKEND=weasyprint but WeasyPrint is unavailable. "
+                "Check GTK3 / libpango install in the worker image, or set "
+                "PDF_BACKEND=auto to allow PyMuPDF fallback."
+            )
+
+    if backend in ("auto", "pymupdf"):
+        if _try_pymupdf(html_string, output_path):
+            return output_path
 
     fallback = output_path.with_suffix(".html")
     fallback.write_text(html_string, encoding="utf-8")
     logger.warning(
         "renderer.pdf_backends_unavailable",
         fallback=str(fallback),
+        backend=backend,
         message="No PDF backend available — wrote HTML instead",
     )
     return fallback
