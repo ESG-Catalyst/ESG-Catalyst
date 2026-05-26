@@ -10,6 +10,8 @@ import {
   ChevronRight,
   LogOut,
   Globe,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useUIStore } from '@/store/ui'
 import { useAuthStore, emailInitials, emailHandle } from '@/store/auth'
@@ -32,7 +34,7 @@ const TOOLS_NAV = [
 export default function Sidebar() {
   const { i18n, t } = useTranslation()
   const navigate = useNavigate()
-  const { sidebarCollapsed, toggleSidebar, language, setLanguage } = useUIStore()
+  const { sidebarCollapsed, toggleSidebar, language, setLanguage, theme, toggleTheme } = useUIStore()
   const { email, role, clearAuth } = useAuthStore()
   const isRTL = language === 'ar'
 
@@ -159,6 +161,21 @@ export default function Sidebar() {
 
       {/* Bottom area */}
       <div style={{ borderTop: '1px solid var(--color-border)' }}>
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-3 px-4 py-2.5 w-full text-sm text-text-muted hover:text-text hover:bg-surface-raised transition-colors"
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark'
+            ? <Sun size={18} className="shrink-0" />
+            : <Moon size={18} className="shrink-0" />}
+          {!sidebarCollapsed && (
+            <span className="whitespace-nowrap">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          )}
+        </button>
+
         {/* Language toggle */}
         <button
           onClick={toggleLang}

@@ -1,4 +1,6 @@
-:root {
+/* Dark (default) palette */
+:root,
+:root[data-theme="dark"] {
   /* Backgrounds */
   --color-bg: #0B1220;
   --color-surface: #111827;
@@ -42,6 +44,33 @@
   --transition-slow: 300ms ease;
 }
 
+/* Light palette — overrides */
+:root[data-theme="light"] {
+  /* Backgrounds */
+  --color-bg: #FAFAFA;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F4F4F5;
+
+  /* Borders — soft slate */
+  --color-border: #E5E7EB;
+  --color-border-subtle: #D1D5DB;
+
+  /* Brand — unchanged: teal reads on both */
+  --color-primary: #0D9488;
+  --color-primary-hover: #0F766E;
+
+  /* Text — slate ramp */
+  --color-text: #0F172A;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94A3B8;
+
+  /* Semantic — same accents; readable on white */
+  --color-success: #059669;
+  --color-warning: #B45309;
+  --color-danger: #DC2626;
+  --color-info: #0284C7;
+}
+
 /* Arabic RTL overrides */
 [dir="rtl"] {
   font-family: var(--font-arabic);
@@ -67,6 +96,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 code,
