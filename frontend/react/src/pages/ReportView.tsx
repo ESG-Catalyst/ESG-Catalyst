@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -38,13 +38,9 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-function pillarScore(metrics: MetricDTO[], pillar: string): number {
-  const relevant = metrics.filter(
-    (m) => m.pillar === pillar && (m.status === 'approved' || m.status === 'extracted'),
-  )
-  if (!relevant.length) return 0
-  return Math.round((relevant.reduce((s, m) => s + m.confidence, 0) / relevant.length) * 100)
-}
+// Pillar scores come from the backend ScoringResult (persisted on the
+// Report row by the worker). The PDF reads the same numbers — we must
+// not recompute here or the dashboard will disagree with the PDF.
 
 // ─── Generating state ─────────────────────────────────────────────────────────
 
@@ -676,6 +672,138 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'gaps', label: 'Gap Analysis', icon: AlertTriangle },
 ]
 
+// ─── Resizable split pane hooks ───────────────────────────────────────────────
+
+/** Outer horizontal split — measures against full window width. */
+function useResizable(initialPct: number, minPct = 25, maxPct = 75) {
+  const [leftPct, setLeftPct] = useState(initialPct)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      setIsDragging(true)
+      const startX = e.clientX
+      const startPct = leftPct
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const dx = ev.clientX - startX
+        const containerWidth = document.body.clientWidth
+        const delta = (dx / containerWidth) * 100
+        setLeftPct(Math.min(maxPct, Math.max(minPct, startPct + delta)))
+      }
+
+      const onMouseUp = () => {
+        setIsDragging(false)
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
+
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+    },
+    [leftPct, minPct, maxPct],
+  )
+
+  return { leftPct, onMouseDown, isDragging }
+}
+
+/** Inner horizontal split — measures against a specific container element. */
+function useResizableInner(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  initialPct: number,
+  minPct = 18,
+  maxPct = 55,
+) {
+  const [leftPct, setLeftPct] = useState(initialPct)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      setIsDragging(true)
+      const startX = e.clientX
+      const startPct = leftPct
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const containerWidth = containerRef.current?.clientWidth ?? document.body.clientWidth
+        const dx = ev.clientX - startX
+        const delta = (dx / containerWidth) * 100
+        setLeftPct(Math.min(maxPct, Math.max(minPct, startPct + delta)))
+      }
+
+      const onMouseUp = () => {
+        setIsDragging(false)
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
+
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+    },
+    [leftPct, minPct, maxPct, containerRef],
+  )
+
+  return { leftPct, onMouseDown, isDragging }
+}
+
+// ─── PDF Preview panel ────────────────────────────────────────────────────────
+
+function PdfPreview({ reportId }: { reportId: string }) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let url: string | null = null
+    getReportPdf(reportId)
+      .then((blob) => {
+        url = URL.createObjectURL(blob)
+        setPdfUrl(url)
+      })
+      .catch((err) => {
+        setError(err?.message || 'Failed to load PDF')
+      })
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [reportId])
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
+        <AlertTriangle size={28} style={{ color: '#EF4444' }} />
+        <p className="text-sm text-text-muted">Could not load PDF preview</p>
+        <p className="text-xs text-text-subtle">{error}</p>
+      </div>
+    )
+  }
+
+  if (!pdfUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3">
+        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
+        <p className="text-xs text-text-muted">Loading PDF…</p>
+      </div>
+    )
+  }
+
+  return (
+    <iframe
+      // #toolbar=0 hides Chrome's built-in PDF toolbar; view=FitH fits width
+      src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+      title="PDF Preview"
+      style={{
+        width: '100%',
+        height: '100%',
+        border: 'none',
+        display: 'block',
+        // Dark neutral matches standard PDF viewer background
+        background: '#525659',
+      }}
+    />
+  )
+}
+
 export default function ReportView() {
   const { reportId } = useParams<{ reportId: string }>()
   const [searchParams] = useSearchParams()
@@ -683,6 +811,17 @@ export default function ReportView() {
   const [activeTab, setActiveTab] = useState<Tab>('preview')
   const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // Outer split: left panel (sidebar+tabs) vs right panel (PDF preview)
+  const { leftPct, onMouseDown, isDragging } = useResizable(58)
+
+  // Inner split: sidebar (ESG Score/Actions) vs tab content area
+  const leftPanelRef = useRef<HTMLDivElement>(null)
+  const {
+    leftPct: innerLeftPct,
+    onMouseDown: onInnerMouseDown,
+    isDragging: isInnerDragging,
+  } = useResizableInner(leftPanelRef, 32)
 
   const { data: report } = useQuery({
     queryKey: ['report', reportId],
@@ -706,16 +845,15 @@ export default function ReportView() {
     enabled: !!docId && !isGenerating,
   })
 
-  // Score derivation
-  const scores = useMemo(() => {
-    const E = pillarScore(metrics, 'E')
-    const S = pillarScore(metrics, 'S')
-    const G = pillarScore(metrics, 'G')
-    const overall = metrics.length
-      ? Math.round((metrics.reduce((s, m) => s + m.confidence, 0) / metrics.length) * 100)
-      : 0
-    return { E, S, G, overall }
-  }, [metrics])
+  // Scores come straight from the persisted Report row — same fields the
+  // PDF renders from (see backend/app/workers/tasks.py::_generate_report_async).
+  // Backend stores 0–100 floats; coerce nulls to 0 and round for the gauge.
+  const scores = useMemo(() => ({
+    E: Math.round(report?.environmental_score ?? 0),
+    S: Math.round(report?.social_score ?? 0),
+    G: Math.round(report?.governance_score ?? 0),
+    overall: Math.round(report?.total_score ?? 0),
+  }), [report])
 
   const reportDate = report?.created_at ? new Date(report.created_at).toISOString().slice(0, 10) : 'report'
   const pdfFilename = `esg-report-${reportDate}.pdf`
@@ -749,165 +887,242 @@ export default function ReportView() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left sidebar */}
-      <aside
-        className="shrink-0 w-72 p-5 flex flex-col gap-5 sticky top-0 self-start h-screen overflow-y-auto"
-        style={{ borderRight: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ cursor: isDragging || isInnerDragging ? 'col-resize' : undefined }}
+    >
+      {/* ─── Left panel: sidebar (ESG Score) + inner divider + tabs ─── */}
+      <div
+        ref={leftPanelRef}
+        className="flex h-full overflow-hidden shrink-0"
+        style={{ width: `${leftPct}%` }}
       >
-        {/* Metadata */}
-        <div
-          className="rounded-xl p-4 space-y-3"
-          style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+        {/* ── Sidebar (ESG Score, Actions, Workflow) ── */}
+        <aside
+          className="shrink-0 flex flex-col gap-4 overflow-y-auto p-4"
+          style={{
+            width: `${innerLeftPct}%`,
+            minWidth: 180,
+            borderRight: '1px solid var(--color-border)',
+            background: 'var(--color-surface)',
+          }}
         >
-          <div>
-            <p className="text-xs text-text-muted mb-0.5">Institution</p>
-            <p className="text-sm font-semibold text-text">ESG Company</p>
+          {/* Metadata */}
+          <div
+            className="rounded-xl p-3 space-y-2"
+            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+          >
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Institution</p>
+              <p className="text-sm font-semibold text-text">ESG Company</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Report Date</p>
+              <p className="text-xs text-text">{report ? formatDate(report.created_at) : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">Report ID</p>
+              <p
+                className="text-xs text-text-subtle break-all"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              >
+                {reportId}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              <FwChip label="GRI" />
+              <FwChip label="FRA" />
+              <FwChip label="SASB" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-text-muted mb-0.5">Report Date</p>
-            <p className="text-sm text-text">{report ? formatDate(report.created_at) : '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-text-muted mb-0.5">Report ID</p>
-            <p
-              className="text-xs text-text-subtle break-all"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              {reportId}
+
+          {/* Score summary */}
+          <div
+            className="rounded-xl p-3"
+            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">
+              ESG Score
             </p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <FwChip label="GRI" />
-            <FwChip label="FRA" />
-            <FwChip label="SASB" />
-          </div>
-        </div>
-
-        {/* Score summary */}
-        <div
-          className="rounded-xl p-4"
-          style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
-        >
-          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-4">
-            ESG Score
-          </p>
-          <ScoreGauge scores={scores} overall={scores.overall} size="sm" />
-          <div className="mt-4 text-center">
-            <span
-              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
-              style={{
-                background: `${TIER_COLOR(scores.overall)}18`,
-                color: TIER_COLOR(scores.overall),
-                border: `1px solid ${TIER_COLOR(scores.overall)}44`,
-              }}
-            >
-              {TIER_LABEL(scores.overall)}
-            </span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-2">
-          <button
-            onClick={handleDownload}
-            disabled={downloading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-60"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
-            onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
-          >
-            {downloading ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Download size={15} />
-            )}
-            Download PDF
-          </button>
-
-          <button
-            onClick={handleShare}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-colors"
-            style={{
-              background: 'transparent',
-              color: copied ? '#10B981' : 'var(--color-text-muted)',
-              border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : 'var(--color-border)'}`,
-            }}
-          >
-            {copied ? <Check size={15} /> : <Share2 size={15} />}
-            {copied ? 'Link copied!' : 'Share with Reviewer'}
-          </button>
-          {copied && (
-            <p className="text-xs text-center text-text-subtle">Coming soon — reviewer portal not yet live.</p>
-          )}
-        </div>
-
-        {/* Status workflow */}
-        <div
-          className="rounded-xl p-4"
-          style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
-        >
-          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">
-            Workflow
-          </p>
-          <StatusWorkflow status={report?.status ?? 'complete'} />
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 p-6 min-w-0">
-        {/* Page header */}
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
-            Report
-          </p>
-          <h1 className="text-2xl font-semibold text-text">ESG Disclosure Report</h1>
-          <p className="text-sm text-text-muted mt-1">
-            {report ? formatDate(report.created_at) : ''}
-            {metrics.length > 0 && ` · ${metrics.filter((m) => m.status === 'approved').length} approved metrics`}
-          </p>
-        </div>
-
-        {/* Tab bar */}
-        <div
-          className="flex items-center gap-1 rounded-xl p-1 mb-6 w-fit"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-        >
-          {TABS.map((tab) => {
-            const Icon = tab.icon
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-colors"
+            <ScoreGauge scores={scores} overall={scores.overall} size="sm" />
+            <div className="mt-3 text-center">
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
                 style={{
-                  background: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',
-                  color: activeTab === tab.id ? '#fff' : 'var(--color-text-muted)',
+                  background: `${TIER_COLOR(scores.overall)}18`,
+                  color: TIER_COLOR(scores.overall),
+                  border: `1px solid ${TIER_COLOR(scores.overall)}44`,
                 }}
               >
-                <Icon size={13} />
-                {tab.label}
-              </button>
-            )
-          })}
+                {TIER_LABEL(scores.overall)}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-2">
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-60"
+              style={{ background: 'var(--color-primary)', color: '#fff' }}
+              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
+            >
+              {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              Download PDF
+            </button>
+
+            <button
+              onClick={handleShare}
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-colors"
+              style={{
+                background: 'transparent',
+                color: copied ? '#10B981' : 'var(--color-text-muted)',
+                border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : 'var(--color-border)'}`,
+              }}
+            >
+              {copied ? <Check size={13} /> : <Share2 size={13} />}
+              {copied ? 'Link copied!' : 'Share with Reviewer'}
+            </button>
+            {copied && (
+              <p className="text-xs text-center text-text-subtle">Coming soon — reviewer portal not yet live.</p>
+            )}
+          </div>
+
+          {/* Status workflow */}
+          <div
+            className="rounded-xl p-3"
+            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-2">
+              Workflow
+            </p>
+            <StatusWorkflow status={report?.status ?? 'complete'} />
+          </div>
+        </aside>
+
+        {/* ── Inner drag handle: sidebar ↔ disclosure tabs ── */}
+        <div
+          onMouseDown={onInnerMouseDown}
+          className="shrink-0 flex items-center justify-center"
+          style={{
+            width: 8,
+            cursor: 'col-resize',
+            background: isInnerDragging ? 'rgba(13,148,136,0.15)' : 'var(--color-border)',
+            transition: isInnerDragging ? 'none' : 'background 0.15s',
+            zIndex: 10,
+          }}
+          title="Drag to resize"
+        >
+          <div
+            className="w-1 h-10 rounded-full transition-colors"
+            style={{
+              background: isInnerDragging ? 'var(--color-primary)' : 'var(--color-text-subtle)',
+              opacity: isInnerDragging ? 1 : 0.4,
+            }}
+          />
         </div>
 
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
+        {/* ── Disclosure Report tabs ── */}
+        <main className="flex-1 p-5 min-w-0 overflow-y-auto">
+          {/* Page header */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
+              Report
+            </p>
+            <h1 className="text-xl font-semibold text-text">ESG Disclosure Report</h1>
+            <p className="text-sm text-text-muted mt-1">
+              {report ? formatDate(report.created_at) : ''}
+              {metrics.length > 0 && ` · ${metrics.filter((m) => m.status === 'approved').length} approved metrics`}
+            </p>
+          </div>
+
+          {/* Tab bar */}
+          <div
+            className="flex items-center gap-1 rounded-xl p-1 mb-5 flex-wrap"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
-            {activeTab === 'preview' && <PreviewTab metrics={metrics} />}
-            {activeTab === 'metrics' && <MetricsTableTab metrics={metrics} reportDate={reportDate} />}
-            {activeTab === 'gri' && <GRIIndexTab metrics={metrics} />}
-            {activeTab === 'gaps' && <GapAnalysisTab metrics={metrics} />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+            {TABS.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  style={{
+                    background: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',
+                    color: activeTab === tab.id ? '#fff' : 'var(--color-text-muted)',
+                  }}
+                >
+                  <Icon size={12} />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Tab content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              {activeTab === 'preview' && <PreviewTab metrics={metrics} />}
+              {activeTab === 'metrics' && <MetricsTableTab metrics={metrics} reportDate={reportDate} />}
+              {activeTab === 'gri' && <GRIIndexTab metrics={metrics} />}
+              {activeTab === 'gaps' && <GapAnalysisTab metrics={metrics} />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+
+      {/* ─── Drag handle ─── */}
+      <div
+        onMouseDown={onMouseDown}
+        className="shrink-0 flex items-center justify-center group"
+        style={{
+          width: 8,
+          cursor: 'col-resize',
+          background: isDragging ? 'rgba(13,148,136,0.15)' : 'var(--color-border)',
+          transition: isDragging ? 'none' : 'background 0.15s',
+        }}
+        title="Drag to resize"
+      >
+        <div
+          className="w-1 h-10 rounded-full transition-colors"
+          style={{
+            background: isDragging ? 'var(--color-primary)' : 'var(--color-text-subtle)',
+            opacity: isDragging ? 1 : 0.4,
+          }}
+        />
+      </div>
+
+      {/* ─── Right panel: PDF preview ─── */}
+      <div
+        className="flex-1 min-w-0 h-full flex flex-col"
+        style={{ background: '#525659' }}
+      >
+        <div
+          className="px-4 py-2.5 flex items-center gap-2 shrink-0"
+          style={{
+            background: 'var(--color-surface)',
+            borderBottom: '1px solid var(--color-border)',
+          }}
+        >
+          <FileText size={13} style={{ color: 'var(--color-text-muted)' }} />
+          <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">
+            PDF Preview
+          </span>
+        </div>
+        {/* flex-1 min-h-0 is critical — without min-h-0 the iframe never gets a bounded height */}
+        <div className="flex-1 min-h-0" style={{ overflow: 'hidden' }}>
+          <PdfPreview reportId={reportId} />
+        </div>
+      </div>
     </div>
   )
 }

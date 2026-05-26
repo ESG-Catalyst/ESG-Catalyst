@@ -19,6 +19,12 @@ venv
 env
 ENV
 
+# ── Node (container runs its own npm install) ─────────────────────
+node_modules
+frontend/react/node_modules
+frontend/react/dist
+frontend/react/.vite
+
 # ── Secrets (passed in at runtime via env_file, never baked) ──────
 .env
 .env.local

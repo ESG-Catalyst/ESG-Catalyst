@@ -4,7 +4,9 @@ import { cn } from '@/lib/utils'
 export type PipelineStage =
   | 'queued'
   | 'ingesting'
+  | 'chunking'
   | 'classifying'
+  | 'embedding'
   | 'extracting'
   | 'scoring'
   | 'complete'
@@ -12,7 +14,9 @@ export type PipelineStage =
 
 const STAGES: { key: PipelineStage; label: string }[] = [
   { key: 'ingesting', label: 'Ingesting' },
+  { key: 'chunking', label: 'Chunking' },
   { key: 'classifying', label: 'Classifying' },
+  { key: 'embedding', label: 'Embedding' },
   { key: 'extracting', label: 'Extracting' },
   { key: 'scoring', label: 'Scoring' },
   { key: 'complete', label: 'Complete' },

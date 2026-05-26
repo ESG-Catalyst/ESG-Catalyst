@@ -24,8 +24,8 @@ import { usePipelineStore } from '@/store/pipeline'
 const STEPS = [
   { id: 'ingestion',   label: 'Document Ingestion',  icon: FileInput,    hint: 'Parsing PDF structure and extracting text…',         estimateSec: 30  },
   { id: 'chunking',    label: 'Text Chunking',        icon: Scissors,     hint: 'Splitting document into semantic segments…',          estimateSec: 15  },
-  { id: 'embedding',   label: 'Embedding',            icon: Layers,       hint: 'Encoding chunks into vector representations…',       estimateSec: 60  },
   { id: 'classifying', label: 'ESG Classification',   icon: BrainCircuit, hint: 'Running 3-model ensemble across all chunks…',        estimateSec: 900 },
+  { id: 'embedding',   label: 'Embedding',            icon: Layers,       hint: 'Encoding chunks into vector representations…',       estimateSec: 60  },
   { id: 'extracting',  label: 'Metric Extraction',    icon: Cpu,          hint: 'Extracting structured metrics via LLM (46 indicators)…', estimateSec: 900 },
   { id: 'scoring',     label: 'Scoring',              icon: BarChart2,    hint: 'Scoring against GRI / FRA / SASB frameworks…',       estimateSec: 30  },
   { id: 'complete',    label: 'Complete',             icon: Flag,         hint: 'Pipeline finished.',                                 estimateSec: 0   },
