@@ -29,6 +29,12 @@ class Report(Base):
     gri_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     fra_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     sasb_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # E/S/G pillar scores (0–100). Same numbers the PDF prints; written by
+    # the pipeline task and re-written at report-generation time so the
+    # dashboard and the PDF always read the same snapshot.
+    environmental_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    social_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    governance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     pdf_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=True

@@ -21,6 +21,10 @@ export interface ReportDTO {
   gri_score: number | null
   fra_score: number | null
   sasb_score: number | null
+  // E/S/G pillar scores (0–100). Identical to the numbers the PDF prints.
+  environmental_score: number | null
+  social_score: number | null
+  governance_score: number | null
   pdf_path: string | null
   created_by: string | null
   created_at: string

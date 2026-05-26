@@ -24,6 +24,9 @@ class ReportUpdate(BaseModel):
     gri_score: float | None = None
     fra_score: float | None = None
     sasb_score: float | None = None
+    environmental_score: float | None = None
+    social_score: float | None = None
+    governance_score: float | None = None
     pdf_path: str | None = None
 
 
@@ -40,6 +43,9 @@ class ReportResponse(BaseModel):
     gri_score: float | None
     fra_score: float | None
     sasb_score: float | None
+    environmental_score: float | None
+    social_score: float | None
+    governance_score: float | None
     pdf_path: str | None
     created_by: UUID | None
     created_at: datetime
