@@ -12,10 +12,12 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import get_current_user
 from app.database import get_db
 from app.models.document import Document
 from app.models.enums import DocumentStatus, ReportStatus
 from app.models.report import Report
+from app.models.user import User
 from app.workers.celery_app import celery_app
 
 router = APIRouter(prefix="/api/v1/pipeline", tags=["pipeline"])
@@ -68,12 +70,20 @@ _STATE_MAP: dict[str, tuple[str, int]] = {
 async def run_pipeline(
     body: PipelineRunRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> PipelineRunResponse:
     """Queue the full M1→M4 extraction pipeline for a previously uploaded document."""
     try:
+        if current_user.company_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no associated company",
+            )
         result = await db.execute(select(Document).where(Document.id == body.document_id))
         doc = result.scalar_one_or_none()
-        if doc is None:
+        # 404 (not 403) on cross-company so a probe can't distinguish
+        # "doesn't exist" from "belongs to someone else".
+        if doc is None or doc.company_id != current_user.company_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
@@ -130,8 +140,17 @@ async def run_pipeline(
 
 # ── GET /pipeline/status/{job_id} ──────────────────────────────────────────
 @router.get("/status/{job_id}", response_model=PipelineStatusResponse)
-async def get_pipeline_status(job_id: str) -> PipelineStatusResponse:
-    """Return the current Celery task state mapped to public pipeline stages."""
+async def get_pipeline_status(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+) -> PipelineStatusResponse:
+    """Return the current Celery task state mapped to public pipeline stages.
+
+    Requires authentication. Celery task state isn't tagged with company_id
+    so we can't filter further here; the job_id itself is only ever returned
+    by /pipeline/run which IS company-scoped, so an attacker would have to
+    guess a UUID4 to leak progress info.
+    """
     try:
         async_result = AsyncResult(job_id, app=celery_app)
         state = async_result.state or "PENDING"

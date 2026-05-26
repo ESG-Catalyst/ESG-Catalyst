@@ -195,19 +195,40 @@ def _decode_token(token: str) -> dict:
 _bearer = HTTPBearer(auto_error=False)
 
 
-async def _admin_user(
+async def get_current_user(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    """Resolve the Bearer JWT to the authenticated User row.
+
+    Raises 401 if the header is missing, the token is malformed/expired, the
+    subject is not a valid UUID, or the user no longer exists / is deactivated.
+    Used by every per-user endpoint to scope queries to the caller's data.
+    """
     if not creds:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     payload = _decode_token(creds.credentials)
     user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+
+    result = await db.execute(select(User).where(User.id == user_uuid))
     user = result.scalar_one_or_none()
-    if user is None or user.role != UserRole.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     return user
+
+
+async def _admin_user(
+    current: User = Depends(get_current_user),
+) -> User:
+    if current.role != UserRole.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current
 
 
 # ── Admin schemas ──────────────────────────────────────────────────────────────

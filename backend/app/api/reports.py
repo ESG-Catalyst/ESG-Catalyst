@@ -13,11 +13,13 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import get_current_user
 from app.database import get_db
 from app.models.document import Document
 from app.models.enums import MetricStatus, ReportStatus
 from app.models.metric import ExtractedMetric
 from app.models.report import Report
+from app.models.user import User
 from app.schemas.report import ReportResponse
 from app.workers.celery_app import celery_app
 
@@ -62,13 +64,23 @@ _REPORT_STATE_MAP: dict[str, str] = {
 @router.get("/", response_model=list[ReportResponse])
 async def list_reports(
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[Report]:
-    """Return all reports ordered by creation time descending."""
+    """Return the caller's company's reports, newest first."""
     try:
+        if current_user.company_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no associated company",
+            )
         result = await db.execute(
-            select(Report).order_by(Report.created_at.desc())
+            select(Report)
+            .where(Report.company_id == current_user.company_id)
+            .order_by(Report.created_at.desc())
         )
         return list(result.scalars().all())
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -82,6 +94,7 @@ async def list_reports(
 async def generate_report(
     body: ReportGenerateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReportGenerateResponse:
     """Queue M5 report generation for the document's report.
 
@@ -89,9 +102,15 @@ async def generate_report(
     at least one extracted metric has been approved by a reviewer.
     """
     try:
+        if current_user.company_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no associated company",
+            )
         doc_result = await db.execute(select(Document).where(Document.id == body.document_id))
         doc = doc_result.scalar_one_or_none()
-        if doc is None:
+        # 404 (not 403) on cross-company.
+        if doc is None or doc.company_id != current_user.company_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
@@ -141,12 +160,19 @@ async def get_report(
     report_id: UUID,
     job_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReportStatusResponse:
     """Return the Report row + (optionally) the latest job state."""
     try:
+        if current_user.company_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no associated company",
+            )
         result = await db.execute(select(Report).where(Report.id == report_id))
         report = result.scalar_one_or_none()
-        if report is None:
+        # 404 (not 403) on cross-company.
+        if report is None or report.company_id != current_user.company_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Report not found",
@@ -180,12 +206,19 @@ async def get_report(
 async def download_report_pdf(
     report_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Stream the rendered PDF (404 if generation has not produced a file yet)."""
     try:
+        if current_user.company_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no associated company",
+            )
         result = await db.execute(select(Report).where(Report.id == report_id))
         report = result.scalar_one_or_none()
-        if report is None:
+        # 404 (not 403) on cross-company.
+        if report is None or report.company_id != current_user.company_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Report not found",

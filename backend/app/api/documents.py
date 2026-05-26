@@ -1,32 +1,33 @@
 """Documents API — upload PDFs and read document metadata.
 
-Iteration 1: no auth. A default company is created on first use so the
-upload endpoint can save files under ``data/uploads/{company_id}/``.
+All endpoints are scoped to the authenticated user's company. Cross-company
+lookups return 404 (not 403) so a caller cannot probe for the existence of
+documents that belong to another tenant.
 """
 
 from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import get_current_user
 from app.config import settings
+from app.core.ingestion.parser import SUPPORTED_EXTENSIONS, is_supported_extension
 from app.database import get_db
-from app.models.company import Company
 from app.models.document import Document
 from app.models.enums import DocumentStatus
+from app.models.user import User
 from app.schemas.document import DocumentSchema
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
 UPLOAD_ROOT = Path("data/uploads")
-DEFAULT_COMPANY_NAME = "Default Company"
 
 
 class DocumentUploadResponse(BaseModel):
@@ -37,20 +38,18 @@ class DocumentUploadResponse(BaseModel):
     status: DocumentStatus
 
 
-async def _get_or_create_default_company(db: AsyncSession) -> Company:
-    result = await db.execute(select(Company).where(Company.name == DEFAULT_COMPANY_NAME))
-    company = result.scalar_one_or_none()
-    if company is not None:
-        return company
-    company = Company(
-        name=DEFAULT_COMPANY_NAME,
-        industry="banking",
-        country="Egypt",
-    )
-    db.add(company)
-    await db.flush()
-    await db.refresh(company)
-    return company
+def _require_company(user: User) -> UUID:
+    """Return the caller's company_id or raise 403 if they have none.
+
+    Consultants without an assigned company can't own per-company documents,
+    so they get a 403 with a clear message instead of a silent empty list.
+    """
+    if user.company_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no associated company",
+        )
+    return user.company_id
 
 
 @router.post(
@@ -60,27 +59,24 @@ async def _get_or_create_default_company(db: AsyncSession) -> Company:
 )
 async def upload_document(
     file: UploadFile = File(...),
-    company_id: Optional[UUID] = Form(default=None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentUploadResponse:
-    """Accept a multipart PDF and persist it to disk + DB."""
+    """Accept a multipart PDF and persist it under the caller's company."""
     try:
-        if file.filename is None or not file.filename.lower().endswith(".pdf"):
+        company_id = _require_company(current_user)
+
+        # Validate against the same set parser.py dispatches on — single
+        # source of truth.
+        ext = Path(file.filename or "").suffix.lower()
+        if not file.filename or not is_supported_extension(ext):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Only .pdf uploads are accepted in Iteration 1",
+                detail=(
+                    "Unsupported file format. Accepted: "
+                    + ", ".join(SUPPORTED_EXTENSIONS)
+                ),
             )
-
-        if company_id is None:
-            company = await _get_or_create_default_company(db)
-            company_id = company.id
-        else:
-            result = await db.execute(select(Company).where(Company.id == company_id))
-            if result.scalar_one_or_none() is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Company {company_id} not found",
-                )
 
         content = await file.read()
         max_bytes = settings.max_upload_size_mb * 1024 * 1024
@@ -97,15 +93,18 @@ async def upload_document(
 
         company_dir = UPLOAD_ROOT / str(company_id)
         company_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = f"{uuid.uuid4().hex}.pdf"
+        # Preserve the real extension on disk so parser.py dispatches
+        # correctly (the dispatcher reads path.suffix).
+        safe_name = f"{uuid.uuid4().hex}{ext}"
         dest_path = company_dir / safe_name
         dest_path.write_bytes(content)
 
         doc = Document(
             company_id=company_id,
+            uploaded_by=current_user.id,
             filename=file.filename,
             file_path=str(dest_path),
-            file_type="pdf",
+            file_type=ext.lstrip("."),
             status=DocumentStatus.uploaded,
         )
         db.add(doc)
@@ -129,13 +128,19 @@ async def upload_document(
 @router.get("/", response_model=list[DocumentSchema])
 async def list_documents(
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[Document]:
-    """Return all documents ordered by creation time descending."""
+    """Return the caller's company's documents, newest first."""
     try:
+        company_id = _require_company(current_user)
         result = await db.execute(
-            select(Document).order_by(Document.created_at.desc())
+            select(Document)
+            .where(Document.company_id == company_id)
+            .order_by(Document.created_at.desc())
         )
         return list(result.scalars().all())
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -147,12 +152,16 @@ async def list_documents(
 async def get_document(
     document_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Document:
-    """Return current metadata + status for a document."""
+    """Return current metadata + status for a document the caller owns."""
     try:
+        company_id = _require_company(current_user)
         result = await db.execute(select(Document).where(Document.id == document_id))
         doc = result.scalar_one_or_none()
-        if doc is None:
+        # 404 (not 403) on cross-company so a probe can't distinguish
+        # "doesn't exist" from "belongs to someone else".
+        if doc is None or doc.company_id != company_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found",
