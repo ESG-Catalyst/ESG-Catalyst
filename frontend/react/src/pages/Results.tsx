@@ -554,16 +554,25 @@ export default function Results() {
 
   const PILLARS = ['E', 'S', 'G'] as const
 
+  // A bulk approve/reject is only meaningful for rows the LLM actually
+  // surfaced for review. 'missing' rows have no value to approve — letting
+  // them flip to 'approved' makes the scorer treat absent data as a full
+  // disclosure (see scorer._legacy_score_indicator). 'approved' / 'rejected'
+  // are already terminal for bulk purposes.
+  const bulkActionable = filtered.filter(
+    (m) => m.status === 'extracted' || m.status === 'ambiguous',
+  )
+
   function handleApproveAll() {
-    filtered
-      .filter((m) => m.status !== 'approved')
-      .forEach((m) => mutation.mutate({ id: m.id, data: { status: 'approved' } }))
+    bulkActionable.forEach((m) =>
+      mutation.mutate({ id: m.id, data: { status: 'approved' } }),
+    )
   }
 
   function handleRejectAll() {
-    filtered
-      .filter((m) => m.status !== 'rejected')
-      .forEach((m) => mutation.mutate({ id: m.id, data: { status: 'rejected' } }))
+    bulkActionable.forEach((m) =>
+      mutation.mutate({ id: m.id, data: { status: 'rejected' } }),
+    )
   }
 
   if (!documentId) {
@@ -681,8 +690,10 @@ export default function Results() {
           }}
         />
 
-        {/* Bulk actions */}
-        {filtered.length > 0 && (
+        {/* Bulk actions — only operate on pending-review rows
+            (extracted / ambiguous). 'missing' rows have no value so
+            sweeping them to approved would inflate the score. */}
+        {bulkActionable.length > 0 && (
           <div className="flex items-center gap-1.5 ml-auto">
             <button
               onClick={handleApproveAll}
@@ -693,10 +704,10 @@ export default function Results() {
                 color: '#10B981',
                 background: 'rgba(16,185,129,0.08)',
               }}
-              title={`Approve all ${filtered.length} visible metrics`}
+              title={`Approve the ${bulkActionable.length} pending-review metric(s) (extracted / ambiguous). Missing rows are skipped.`}
             >
               <Check size={12} />
-              Approve all ({filtered.length})
+              Approve all ({bulkActionable.length})
             </button>
             <button
               onClick={handleRejectAll}
@@ -707,10 +718,10 @@ export default function Results() {
                 color: '#EF4444',
                 background: 'rgba(239,68,68,0.08)',
               }}
-              title={`Reject all ${filtered.length} visible metrics`}
+              title={`Reject the ${bulkActionable.length} pending-review metric(s) (extracted / ambiguous). Missing rows are skipped.`}
             >
               <X size={12} />
-              Reject all ({filtered.length})
+              Reject all ({bulkActionable.length})
             </button>
           </div>
         )}
