@@ -34,7 +34,7 @@ def _load_indicators() -> dict[str, Any]:
         json.JSONDecodeError: If the file is malformed.
     """
     logger.info("gri.indicators.loading", path=str(_DATA_FILE))
-    with open(_DATA_FILE) as f:
+    with open(_DATA_FILE, encoding="utf-8") as f:
         data = json.load(f)
     logger.info("gri.indicators.loaded", count=len(data["indicators"]))
     return data

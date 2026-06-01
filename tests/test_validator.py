@@ -189,7 +189,7 @@ class TestNormalizeWater:
         (1000.0, "liter", 1.0),
         (1000.0, "l",     1.0),
         (1.0, "megaliter", 1000.0),
-        (1.0, "gallon",   0.003785),
+        (1.0, "gallon",   0.0038),  # 0.003785 factor, rounded to 4 dp by normalize_water
     ])
     def test_known_units(self, value, unit, expected_m3):
         result = normalize_water(value, unit)

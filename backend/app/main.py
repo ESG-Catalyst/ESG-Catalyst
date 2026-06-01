@@ -5,10 +5,19 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.api import auth, documents, metrics, pipeline, reports, scoring
 from app.config import settings
+from app.core.exceptions import (
+    ESGCatalystError,
+    ExtractionError,
+    IngestionError,
+    LLMUnavailableError,
+    ReportError,
+    ScoringError,
+)
 from app.database import Base, get_engine
 
 log: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -35,19 +44,51 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# RECONCILE: register core.exceptions handlers here
-#
-# Agent C (core/exceptions.py) will provide a shared exception hierarchy and
-# a wire-up snippet for global FastAPI exception handlers.  Once that module
-# exists, import it and call:
-#
-#     from app.core.exceptions import register_exception_handlers
-#     register_exception_handlers(app)
-#
-# This should replace any bare ``except Exception`` → 500 paths that remain
-# in this file and, optionally, supplement the per-router handlers added in
-# this refactor pass.
+# Global exception handlers — map the shared core.exceptions hierarchy onto
+# HTTP responses. These fire only if a request path raises one directly; the
+# pipeline raises them inside the Celery worker (workers/tasks.py), so in
+# practice they are a safety net for any future direct-raise route.
+# Register most-specific first (FastAPI matches by exact type).
 # ---------------------------------------------------------------------------
+
+
+@app.exception_handler(LLMUnavailableError)
+async def _llm_unavailable_handler(request: Request, exc: LLMUnavailableError) -> JSONResponse:
+    """Both primary and fallback LLM failed (billing / quota) -> 503."""
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "LLM service is temporarily unavailable. Please try again later."},
+    )
+
+
+@app.exception_handler(IngestionError)
+async def _ingestion_error_handler(request: Request, exc: IngestionError) -> JSONResponse:
+    """File could not be parsed — bad input -> 422."""
+    return JSONResponse(status_code=422, content={"detail": f"Document ingestion failed: {exc}"})
+
+
+@app.exception_handler(ExtractionError)
+async def _extraction_error_handler(request: Request, exc: ExtractionError) -> JSONResponse:
+    """Metric extraction failed -> 422."""
+    return JSONResponse(status_code=422, content={"detail": f"Metric extraction failed: {exc}"})
+
+
+@app.exception_handler(ScoringError)
+async def _scoring_error_handler(request: Request, exc: ScoringError) -> JSONResponse:
+    """Scoring / gap-analysis failed -> 422."""
+    return JSONResponse(status_code=422, content={"detail": f"ESG scoring failed: {exc}"})
+
+
+@app.exception_handler(ReportError)
+async def _report_error_handler(request: Request, exc: ReportError) -> JSONResponse:
+    """Report builder / renderer failed -> 500."""
+    return JSONResponse(status_code=500, content={"detail": f"Report generation failed: {exc}"})
+
+
+@app.exception_handler(ESGCatalystError)
+async def _esg_error_handler(request: Request, exc: ESGCatalystError) -> JSONResponse:
+    """Catch-all for any unhandled pipeline-level error -> 500."""
+    return JSONResponse(status_code=500, content={"detail": f"Pipeline error: {exc}"})
 
 # ---------------------------------------------------------------------------
 # Router registration (alphabetical within logical groups)
