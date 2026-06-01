@@ -1,9 +1,20 @@
 """Celery async tasks — wires the full extraction pipeline together.
 
-Pipeline sequence:
-    ingestion → chunker → classifier → extractor → scorer
+Pipeline sequence (7 stages):
+    1. ingest    — parse file into structured text (M1)
+    2. chunk     — split into retrieval-ready windows (M1/M2)
+    3. classify  — filter for ESG-relevant chunks via arch-B ensemble (M2)
+    4. embed     — store chunks in per-language ChromaDB collections (M2)
+    5. extract   — per-indicator retrieval + LLM calls (M3)
+    6. score     — sector-aware disclosure-quality scoring v1 (M4)
+    7. persist   — write metrics + report scores to Postgres (M6)
 
-Each step has clean typed inputs/outputs so the Phase 2 LangGraph
+Report generation is a *separate* Celery task (``report.generate``)
+triggered after at least one metric is approved. It re-runs scoring, builds
+sections, generates LLM narratives, and renders the PDF. It does NOT
+re-run extraction.
+
+Each step has clean typed inputs/outputs so the Iteration 3 LangGraph
 transition only needs to wrap these same calls in agent nodes.
 
 Usage:
@@ -27,6 +38,14 @@ import structlog
 from sqlalchemy import select, update
 
 from app.config import settings
+from app.core.exceptions import (
+    ESGCatalystError,
+    ExtractionError,
+    IngestionError,
+    LLMUnavailableError,
+    ReportError,
+    ScoringError,
+)
 from app.core.nlp.chunker import chunk_document
 from app.core.nlp.classifier import classify_chunks
 from app.core.extraction.extractor import extract_metrics
@@ -108,13 +127,40 @@ def run_extraction_pipeline(
         )
         raise
 
+    except LLMUnavailableError as exc:
+        # Both primary and fallback LLM failed — log as error, mark failed,
+        # but do NOT retry (retrying a billing failure is pointless).
+        logger.error(
+            "pipeline.llm_unavailable",
+            task_id=self.request.id,
+            document_id=document_id,
+            error=str(exc),
+        )
+        asyncio.run(_mark_document_failed(document_id, str(exc)))
+        raise
+
+    except ESGCatalystError as exc:
+        # Known pipeline-stage failure — log with stage context, mark failed,
+        # and retry up to max_retries (transient infra issues may resolve).
+        logger.error(
+            "pipeline.stage_error",
+            task_id=self.request.id,
+            document_id=document_id,
+            exc_type=type(exc).__name__,
+            error=str(exc),
+        )
+        asyncio.run(_mark_document_failed(document_id, str(exc)))
+        raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
+
     except Exception as exc:
+        # Unexpected failure — wrap in context for observability.
         logger.error(
             "pipeline.failed",
             task_id=self.request.id,
+            document_id=document_id,
+            exc_type=type(exc).__name__,
             error=str(exc),
         )
-        # Mark document as failed in DB
         asyncio.run(_mark_document_failed(document_id, str(exc)))
         raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
 
@@ -378,11 +424,32 @@ def generate_report_task(self, report_id: str) -> dict[str, Any]:
         result = asyncio.run(_generate_report_async(self, uuid.UUID(report_id)))
         logger.info("report.generate.complete", task_id=self.request.id, **result)
         return result
+    except LLMUnavailableError as exc:
+        # Both primary and fallback LLM failed — no point retrying a billing issue.
+        logger.error(
+            "report.generate.llm_unavailable",
+            task_id=self.request.id,
+            report_id=report_id,
+            error=str(exc),
+        )
+        asyncio.run(_mark_report_failed(report_id))
+        raise
+    except (ReportError, ESGCatalystError) as exc:
+        logger.error(
+            "report.generate.stage_error",
+            task_id=self.request.id,
+            report_id=report_id,
+            exc_type=type(exc).__name__,
+            error=str(exc),
+        )
+        asyncio.run(_mark_report_failed(report_id))
+        raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
     except Exception as exc:
         logger.error(
             "report.generate.failed",
             task_id=self.request.id,
             report_id=report_id,
+            exc_type=type(exc).__name__,
             error=str(exc),
         )
         asyncio.run(_mark_report_failed(report_id))
