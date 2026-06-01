@@ -10,6 +10,8 @@ Always store both normalized and original values.
 
 from __future__ import annotations
 
+import re
+
 # ── Unit normalization maps ──────────────────────────────────────────────
 _ENERGY_CONVERSIONS: dict[str, float] = {
     "kwh": 0.0036,       # kWh → GJ
@@ -96,7 +98,6 @@ def clamp(v: float, lo: float, hi: float) -> float:
 
 
 # ── Iteration 2 — monetary parsing & currency normalization ──────────────
-import re  # noqa: E402  (placed here to keep the module's "logic-then-imports" layout intact)
 
 # Currencies we expect to encounter in MENA + globally-reported finance docs.
 # Maps document-spelling fragments (lower-case) to ISO-4217.

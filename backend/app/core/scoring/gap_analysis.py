@@ -329,7 +329,16 @@ def build_gap_analysis(
 
 
 def _assess_indicator(indicator: dict, metric: Any, confidence_threshold: float) -> GapItem | None:
-    """Return a GapItem if the indicator needs attention, else None."""
+    """Return a GapItem if the indicator needs attention, or None if fully covered.
+
+    Args:
+        indicator: Indicator metadata dict from ``gri_indicators.json``.
+        metric: Extracted metric ORM/schema object, or None if not present.
+        confidence_threshold: LLM confidence below which a metric is flagged.
+
+    Returns:
+        A ``GapItem`` describing the gap or ``None`` if no action is required.
+    """
     code           = indicator["code"]
     name           = indicator["name"]
     pillar         = indicator.get("pillar", "E")

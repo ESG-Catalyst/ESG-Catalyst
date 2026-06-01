@@ -235,6 +235,8 @@ def _load_sasb_standards() -> dict:
 
 def _merge_json() -> None:
     standards = _load_sasb_standards()
+    # Mirrors extractor._METRIC_TYPE_MAP and gri_scorer._merge_json_into_registry._MT_MAP.
+    # monetary/rate/activity all score as QUANTITATIVE; keep all three maps in sync.
     _MT_MAP = {
         "quantitative": MetricType.QUANTITATIVE,
         "monetary":     MetricType.QUANTITATIVE,

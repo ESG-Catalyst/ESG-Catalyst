@@ -20,8 +20,8 @@ logger = structlog.get_logger(__name__)
 
 try:
     import mlflow as _mlflow
-except Exception as _exc:  # pragma: no cover
-    _mlflow = None
+except ImportError as _exc:  # pragma: no cover
+    _mlflow = None  # type: ignore[assignment]
     logger.warning("mlflow.import_failed", error=str(_exc))
 
 

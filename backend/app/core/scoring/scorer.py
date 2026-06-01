@@ -56,7 +56,7 @@ Public surface:
 
 from __future__ import annotations
 
-import math
+import datetime
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -255,11 +255,12 @@ def score_q_plus_ql(
         Weighted blend: (q_score × q_weight) + (ql_score × ql_weight), in 0–1.
 
     Raises:
-        AssertionError: if q_weight + ql_weight does not equal ~1.0.
+        ValueError: if q_weight + ql_weight does not equal ~1.0.
     """
-    assert abs(q_weight + ql_weight - 1.0) < 0.001, (
-        f"q_weight ({q_weight}) + ql_weight ({ql_weight}) must sum to 1.0"
-    )
+    if abs(q_weight + ql_weight - 1.0) >= 0.001:
+        raise ValueError(
+            f"q_weight ({q_weight}) + ql_weight ({ql_weight}) must sum to 1.0"
+        )
     q_score = score_quantitative(quantitative_value, benchmark=benchmark, direction=direction)
     ql_score = score_qualitative(qualitative_disclosure, completeness_criteria)
     return (q_score * q_weight) + (ql_score * ql_weight)
@@ -392,15 +393,16 @@ def score_pillar(topics: list[dict]) -> float:
         Float 0.0–1.0.  Returns 0.0 for an empty list.
 
     Raises:
-        AssertionError: if topic weights do not sum to ~1.0 (tolerance 0.001).
+        ValueError: if topic weights do not sum to ~1.0 (tolerance 0.001).
     """
     if not topics:
         return 0.0
 
     total_weight = sum(t["weight"] for t in topics)
-    assert abs(total_weight - 1.0) < 0.001, (
-        f"Topic weights within pillar must sum to 1.0; got {total_weight:.4f}"
-    )
+    if abs(total_weight - 1.0) >= 0.001:
+        raise ValueError(
+            f"Topic weights within pillar must sum to 1.0; got {total_weight:.4f}"
+        )
 
     return sum(t["score"] * t["weight"] for t in topics)
 
@@ -439,11 +441,12 @@ def score_composite(
             grade                   — letter A–F from score_to_grade()
 
     Raises:
-        AssertionError: if pillar weights do not sum to ~1.0.
+        ValueError: if pillar weights do not sum to ~1.0.
     """
-    assert abs(sum(pillar_weights.values()) - 1.0) < 0.001, (
-        f"Pillar weights must sum to 1.0; got {sum(pillar_weights.values()):.4f}"
-    )
+    if abs(sum(pillar_weights.values()) - 1.0) >= 0.001:
+        raise ValueError(
+            f"Pillar weights must sum to 1.0; got {sum(pillar_weights.values()):.4f}"
+        )
 
     # Step 1 — weighted pillar sum → 0–1, then scale to 0–100
     raw = sum(pillar_scores[p] * pillar_weights[p] for p in pillar_scores)
@@ -842,8 +845,6 @@ def score_document(
             'spec_version':        '1.0',
         }
     """
-    import datetime
-
     sector_key = sector.upper()
     if sector_key not in ("FINANCIAL", "MANUFACTURING"):
         raise ValueError(f"sector must be 'FINANCIAL' or 'MANUFACTURING', got '{sector}'")

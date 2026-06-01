@@ -18,12 +18,12 @@ from jinja2 import Environment, select_autoescape
 
 from app.core.reporting.builder import ReportBundle, gri_content_index
 
-
-def _status_label(status) -> str:
-    """Render a metric status as a string regardless of enum/string input."""
-    return status.value if hasattr(status, "value") else str(status)
-
 logger = structlog.get_logger(__name__)
+
+
+def _status_label(status: object) -> str:
+    """Render a metric status as a string regardless of enum/string input."""
+    return status.value if hasattr(status, "value") else str(status)  # type: ignore[attr-defined]
 
 
 # ── HTML template ───────────────────────────────────────────────────────

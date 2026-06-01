@@ -111,30 +111,48 @@ def _build_user_prompt(section: ReportSection) -> str:
     return "\n".join(lines)
 
 
-def _format_value(metric) -> str:
-    """Best human-readable rendering of a metric's value, falling back through
-    normalized → original → none-disclosed."""
-    if metric.value is not None and metric.unit:
-        return f"{metric.value} {metric.unit}"
-    if metric.value is not None:
-        return f"{metric.value}"
-    if metric.original_value:
-        unit = metric.original_unit or ""
-        return f"{metric.original_value} {unit}".strip()
+def _format_value(metric: object) -> str:
+    """Best human-readable rendering of a metric's value.
+
+    Falls back through: normalized → original → ``"(no value)"``.
+
+    Args:
+        metric: An extracted-metric object exposing ``value``, ``unit``,
+                ``original_value``, and ``original_unit``.
+
+    Returns:
+        Human-readable value string.
+    """
+    if metric.value is not None and metric.unit:  # type: ignore[attr-defined]
+        return f"{metric.value} {metric.unit}"  # type: ignore[attr-defined]
+    if metric.value is not None:  # type: ignore[attr-defined]
+        return f"{metric.value}"  # type: ignore[attr-defined]
+    if metric.original_value:  # type: ignore[attr-defined]
+        unit = metric.original_unit or ""  # type: ignore[attr-defined]
+        return f"{metric.original_value} {unit}".strip()  # type: ignore[attr-defined]
     return "(no value)"
 
 
-def _status_str(status) -> str:
-    return status.value if hasattr(status, "value") else str(status)
+def _status_str(status: object) -> str:
+    """Return the string value of a MetricStatus enum or a plain string."""
+    return status.value if hasattr(status, "value") else str(status)  # type: ignore[attr-defined]
 
 
-def _is_disclosed(metric) -> bool:
-    """A metric is 'disclosed' if a value (normalized or original) is present
-    and the status is not explicitly missing/rejected."""
-    status = metric.status
+def _is_disclosed(metric: object) -> bool:
+    """Return True if a metric has a disclosed value and is not rejected/missing.
+
+    Args:
+        metric: Extracted-metric object with ``status``, ``value``, and
+                ``original_value`` attributes.
+
+    Returns:
+        True when the metric has a numeric or original value and is not
+        explicitly in a missing or rejected state.
+    """
+    status = metric.status  # type: ignore[attr-defined]
     if status in (MetricStatus.missing, MetricStatus.rejected):
         return False
-    return metric.value is not None or bool(metric.original_value)
+    return metric.value is not None or bool(metric.original_value)  # type: ignore[attr-defined]
 
 
 def _fallback_narrative(section: ReportSection) -> str:

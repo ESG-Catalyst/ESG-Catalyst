@@ -115,8 +115,15 @@ def _retrieve_chunks_for_indicator(
     for coll_name, lang in (("document_chunks_en", "en"), ("document_chunks_ar", "ar")):
         try:
             collection = client.get_collection(name=coll_name)
-        except Exception:
-            # Collection doesn't exist yet — skip silently
+        except Exception as exc:
+            # Collection doesn't exist yet or ChromaDB API mismatch — skip.
+            # ChromaDB raises different exception types across versions so
+            # we intentionally catch broadly; log at debug to aid diagnosis.
+            logger.debug(
+                "extractor.collection_not_found",
+                collection=coll_name,
+                error=str(exc),
+            )
             continue
 
         # Generate query vector with the model that matches this collection's
