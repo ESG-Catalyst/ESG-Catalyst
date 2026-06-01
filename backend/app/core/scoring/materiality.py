@@ -376,7 +376,7 @@ _DATA_FILE = Path(__file__).resolve().parents[4] / "data" / "sasb_standards.json
 
 @lru_cache(maxsize=1)
 def _load_sasb() -> dict:
-    with open(_DATA_FILE) as f:
+    with open(_DATA_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 

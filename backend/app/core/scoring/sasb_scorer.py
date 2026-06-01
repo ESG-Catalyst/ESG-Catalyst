@@ -226,7 +226,7 @@ _SECTOR_CODE_MAP: dict[str, list[str]] = {
 @lru_cache(maxsize=1)
 def _load_sasb_standards() -> dict:
     try:
-        with open(_DATA_FILE) as f:
+        with open(_DATA_FILE, encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         logger.warning("sasb_scorer.file_missing", path=str(_DATA_FILE))

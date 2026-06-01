@@ -346,7 +346,7 @@ GRI_INDICATOR_REGISTRY: dict[str, GRIIndicatorConfig] = {
 @lru_cache(maxsize=1)
 def _load_json_indicators() -> list[dict]:
     try:
-        with open(_JSON_PATH) as f:
+        with open(_JSON_PATH, encoding="utf-8") as f:
             return json.load(f).get("indicators", [])
     except FileNotFoundError:
         logger.warning("gri_scorer.json_missing", path=str(_JSON_PATH))
