@@ -28,6 +28,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
 from app.config import settings
+from app.core.exceptions import LLMUnavailableError
 
 logger = structlog.get_logger(__name__)
 
@@ -107,17 +108,28 @@ class ModelRouter:
         Activates the fallback ONLY when the primary call fails with a
         billing-related error (HTTP 402, "insufficient credits",
         "payment required", quota exceeded, Groq rate limit). All other
-        failures propagate.
+        failures propagate immediately without attempting the fallback.
+
+        Args:
+            task: Task key (``"extraction"``, ``"scoring"``, ``"report"``).
+            messages: LangChain message sequence to forward to the model.
+            **kwargs: Extra arguments forwarded to ``ainvoke``.
+
+        Returns:
+            The raw LangChain ``AIMessage`` returned by whichever model
+            succeeds (primary or fallback).
 
         Raises:
-            Exception: The original error if no fallback is configured, or
-                the fallback's error if both calls fail.
+            LLMUnavailableError: When the primary fails with a credit /
+                quota error AND the fallback also fails (or is not
+                configured). The original exception is chained via
+                ``__cause__``.
         """
         primary = self.get_model(task)
         try:
             return await primary.ainvoke(messages, **kwargs)
-        except Exception as exc:
-            if not _is_credit_error(exc):
+        except Exception as primary_exc:
+            if not _is_credit_error(primary_exc):
                 raise
 
             fallback = self.get_fallback_model(task)
@@ -126,19 +138,36 @@ class ModelRouter:
                     "model_router.no_fallback_configured",
                     task=task,
                     primary=settings.models[task],
-                    error=str(exc),
+                    error=str(primary_exc),
                 )
-                raise
+                raise LLMUnavailableError(
+                    f"Primary model for task {task!r} is unavailable and no fallback "
+                    f"is configured. Primary error: {primary_exc}"
+                ) from primary_exc
 
             logger.warning(
                 "model_router.fallback_activated",
                 task=task,
                 primary=settings.models[task],
                 fallback=settings.model_fallbacks[task],
-                reason=str(exc)[:200],
+                reason=str(primary_exc)[:200],
                 message="Primary model unavailable, using free fallback",
             )
-            return await fallback.ainvoke(messages, **kwargs)
+            try:
+                return await fallback.ainvoke(messages, **kwargs)
+            except Exception as fallback_exc:
+                logger.error(
+                    "model_router.fallback_failed",
+                    task=task,
+                    primary=settings.models[task],
+                    fallback=settings.model_fallbacks[task],
+                    primary_error=str(primary_exc)[:200],
+                    fallback_error=str(fallback_exc)[:200],
+                )
+                raise LLMUnavailableError(
+                    f"Both primary and fallback models for task {task!r} are "
+                    f"unavailable. Primary: {primary_exc}; Fallback: {fallback_exc}"
+                ) from fallback_exc
 
     def list_tasks(self) -> dict[str, str]:
         """Return the current task → model_id mapping (useful for /health)."""
