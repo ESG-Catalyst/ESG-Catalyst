@@ -63,7 +63,15 @@ _TOPIC_ORDER = [
 
 
 def _topic_of(gri_code: str) -> str:
-    """Extract GRI topic prefix from a full indicator code, e.g. 'GRI 302-1' → 'GRI 302'."""
+    """Extract GRI topic prefix from a full indicator code.
+
+    Args:
+        gri_code: Full GRI code, e.g. ``"GRI 302-1"`` or ``"FRA-36"``.
+
+    Returns:
+        Topic prefix such as ``"GRI 302"`` or ``"FRA"``, or ``"Other"``
+        for unrecognised codes.
+    """
     m = re.match(r"(GRI \d+|FRA)", gri_code)
     return m.group(1) if m else "Other"
 

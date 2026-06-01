@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -17,19 +18,18 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-
-import re
-
 _RE_ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\u0660-\u0669]")
 _RE_LATIN = re.compile(r"[a-zA-Z]")
 _RE_ARABIC_LOGICAL = re.compile(r"[\u0600-\u06ff\u0750-\u077f]")
 _RE_ARABIC_PRESENTATION = re.compile(r"[\ufb50-\ufdff\ufe70-\ufeff]")
 
 def _arabic_char_ratio(text: str) -> float:
+    """Return fraction of script characters that are Arabic (0.0–1.0)."""
     arabic = len(_RE_ARABIC.findall(text))
     latin = len(_RE_LATIN.findall(text))
     total = arabic + latin
     return arabic / total if total else 0.0
+
 
 def _fix_arabic_text(text: str) -> str:
     """Reconstruct Arabic ligatures when text is in visual presentation form.
@@ -37,6 +37,12 @@ def _fix_arabic_text(text: str) -> str:
     Returns the text unchanged if it is already in logical Unicode order
     (U+0600–U+06FF). Only applies reshape+BiDi for presentation-form glyphs
     (U+FB50–U+FEFF).
+
+    Args:
+        text: Raw cell text from a spreadsheet.
+
+    Returns:
+        Text in correct logical Unicode reading order.
     """
     logical_count = len(_RE_ARABIC_LOGICAL.findall(text))
     presentation_count = len(_RE_ARABIC_PRESENTATION.findall(text))
@@ -48,12 +54,18 @@ def _fix_arabic_text(text: str) -> str:
         import arabic_reshaper
         from bidi.algorithm import get_display
     except ImportError:
+        logger.warning(
+            "table_extractor.arabic_fix_skipped",
+            reason="arabic-reshaper or python-bidi not installed",
+        )
         return text
     try:
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
-    except Exception:
+    except (ValueError, RuntimeError) as exc:
+        logger.warning("table_extractor.arabic_fix_failed", error=str(exc))
         return text
+
 
 def _render_dataframe(df: pd.DataFrame, sheet_label: str | None = None) -> str:
     """Render a DataFrame as pipe-delimited text with optional summary."""

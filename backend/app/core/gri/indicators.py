@@ -22,7 +22,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Resolve path relative to the project root (two levels up from this file).
-_DATA_FILE = Path(__file__).resolve().parents[4] / "data" / "gri_indicators.json"
+_DATA_FILE: Path = Path(__file__).resolve().parents[4] / "data" / "gri_indicators.json"
 
 
 @lru_cache(maxsize=1)

@@ -354,6 +354,9 @@ def _load_json_indicators() -> list[dict]:
 
 
 def _merge_json_into_registry() -> None:
+    # gri_indicators.json metric_type shapes → scoring MetricType selector.
+    # Mirrors extractor._METRIC_TYPE_MAP (monetary/rate/activity all score as
+    # QUANTITATIVE). Keep both maps in sync when adding new extraction shapes.
     _MT_MAP = {
         "quantitative": MetricType.QUANTITATIVE,
         "monetary":     MetricType.QUANTITATIVE,
