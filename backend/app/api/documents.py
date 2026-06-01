@@ -1,6 +1,6 @@
-"""Documents API — upload PDFs and read document metadata.
+"""Documents API — upload files and read document metadata.
 
-All endpoints are scoped to the authenticated user's company. Cross-company
+All endpoints are scoped to the authenticated user's company.  Cross-company
 lookups return 404 (not 403) so a caller cannot probe for the existence of
 documents that belong to another tenant.
 """
@@ -11,19 +11,21 @@ import uuid
 from pathlib import Path
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user
+from app.api.deps import get_current_user, get_db, require_company, require_owned_record
 from app.config import settings
 from app.core.ingestion.parser import SUPPORTED_EXTENSIONS, is_supported_extension
-from app.database import get_db
 from app.models.document import Document
 from app.models.enums import DocumentStatus
 from app.models.user import User
 from app.schemas.document import DocumentSchema
+
+log: structlog.BoundLogger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
@@ -38,18 +40,9 @@ class DocumentUploadResponse(BaseModel):
     status: DocumentStatus
 
 
-def _require_company(user: User) -> UUID:
-    """Return the caller's company_id or raise 403 if they have none.
-
-    Consultants without an assigned company can't own per-company documents,
-    so they get a 403 with a clear message instead of a silent empty list.
-    """
-    if user.company_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User has no associated company",
-        )
-    return user.company_id
+# ---------------------------------------------------------------------------
+# POST /documents/upload
+# ---------------------------------------------------------------------------
 
 
 @router.post(
@@ -62,9 +55,14 @@ async def upload_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentUploadResponse:
-    """Accept a multipart PDF and persist it under the caller's company."""
+    """Accept a multipart file and persist it under the caller's company.
+
+    Validates the extension against the same set ``parser.py`` dispatches on
+    so the two sources of truth stay in sync.  Raises 413 when the payload
+    exceeds ``MAX_UPLOAD_SIZE_MB`` and 422 on any other input error.
+    """
     try:
-        company_id = _require_company(current_user)
+        company_id = require_company(current_user)
 
         # Validate against the same set parser.py dispatches on — single
         # source of truth.
@@ -93,8 +91,7 @@ async def upload_document(
 
         company_dir = UPLOAD_ROOT / str(company_id)
         company_dir.mkdir(parents=True, exist_ok=True)
-        # Preserve the real extension on disk so parser.py dispatches
-        # correctly (the dispatcher reads path.suffix).
+        # Preserve the real extension so parser.py dispatches correctly.
         safe_name = f"{uuid.uuid4().hex}{ext}"
         dest_path = company_dir / safe_name
         dest_path.write_bytes(content)
@@ -111,6 +108,7 @@ async def upload_document(
         await db.flush()
         await db.refresh(doc)
 
+        log.info("document.uploaded", document_id=str(doc.id), filename=doc.filename)
         return DocumentUploadResponse(
             document_id=doc.id,
             filename=doc.filename,
@@ -119,10 +117,16 @@ async def upload_document(
     except HTTPException:
         raise
     except Exception as exc:
+        log.exception("document.upload_error", error=str(exc))
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Upload failed: {exc}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Upload failed due to an unexpected server error",
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# GET /documents/
+# ---------------------------------------------------------------------------
 
 
 @router.get("/", response_model=list[DocumentSchema])
@@ -132,7 +136,7 @@ async def list_documents(
 ) -> list[Document]:
     """Return the caller's company's documents, newest first."""
     try:
-        company_id = _require_company(current_user)
+        company_id = require_company(current_user)
         result = await db.execute(
             select(Document)
             .where(Document.company_id == company_id)
@@ -142,10 +146,16 @@ async def list_documents(
     except HTTPException:
         raise
     except Exception as exc:
+        log.exception("document.list_error", error=str(exc))
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"List failed: {exc}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list documents due to an unexpected server error",
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# GET /documents/{document_id}
+# ---------------------------------------------------------------------------
 
 
 @router.get("/{document_id}", response_model=DocumentSchema)
@@ -154,23 +164,20 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Document:
-    """Return current metadata + status for a document the caller owns."""
+    """Return current metadata and status for a document the caller owns."""
     try:
-        company_id = _require_company(current_user)
-        result = await db.execute(select(Document).where(Document.id == document_id))
-        doc = result.scalar_one_or_none()
-        # 404 (not 403) on cross-company so a probe can't distinguish
-        # "doesn't exist" from "belongs to someone else".
-        if doc is None or doc.company_id != company_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found",
-            )
-        return doc
+        return await require_owned_record(
+            db,
+            Document,
+            document_id,
+            current_user,
+            not_found_detail="Document not found",
+        )
     except HTTPException:
         raise
     except Exception as exc:
+        log.exception("document.get_error", document_id=str(document_id), error=str(exc))
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Lookup failed: {exc}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document due to an unexpected server error",
         ) from exc
