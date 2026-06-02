@@ -2,12 +2,53 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/esg-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ESG Catalyst — AI-powered ESG reporting and scoring platform" />
-    <title>ESG Catalyst</title>
 
-    <!-- Google Fonts: Inter Variable + IBM Plex Sans Arabic + JetBrains Mono -->
+    <!-- Primary metadata -->
+    <title>ESG Catalyst — AI-Powered ESG Reporting for Egyptian Banks</title>
+    <meta name="description" content="ESG Catalyst: extract, score, and disclose GRI, FRA, and SASB ESG metrics from Arabic and English documents. Built for Egyptian NBFIs and banking sector." />
+    <meta name="keywords" content="ESG, GRI, FRA, SASB, ESG reporting, Egypt, banks, NBFI, sustainability, disclosure" />
+    <meta name="author" content="ESG Catalyst" />
+
+    <!-- Canonical (update to production domain before go-live) -->
+    <!-- <link rel="canonical" href="https://app.esgcatalyst.io/" /> -->
+
+    <!-- Open Graph / social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ESG Catalyst — AI-Powered ESG Reporting" />
+    <meta property="og:description" content="Extract, score, and disclose GRI, FRA, and SASB ESG metrics from your documents in minutes, not months." />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ar_EG" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/esg-icon.svg" />
+
+    <!-- Theme color — matches --color-primary (#0D9488 teal) -->
+    <meta name="theme-color" content="#0D9488" />
+    <!-- Safari / iOS status bar -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ESG Catalyst" />
+
+    <!-- Color scheme hint (dark default; runtime JS toggles data-theme) -->
+    <meta name="color-scheme" content="dark light" />
+
+    <!--
+      Google Fonts — three typefaces used by tokens.css:
+        --font-sans  : Inter Variable  (LTR body / UI)
+        --font-arabic: IBM Plex Sans Arabic (RTL body)
+        --font-mono  : JetBrains Mono  (numeric values, code)
+
+      Strategy:
+      1. preconnect to both Google Fonts origins (reduces DNS + TLS latency).
+      2. Single combined stylesheet request keeps the waterfall shallow.
+      3. display=swap ensures text is visible immediately with fallback fonts
+         while the web font loads.
+      4. Inter is loaded as a Variable font (opsz + wght axes) so a single
+         binary covers all optical sizes and weights used across the app.
+      5. IBM Plex Sans Arabic covers 400/500/600 — the weights used in RTL UI.
+      6. JetBrains Mono covers 400/500 — the weights used for metric values.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
