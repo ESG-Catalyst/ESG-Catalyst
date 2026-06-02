@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UploadCloud, FileText, X, AlertCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { UploadCloud, FileText, X, AlertCircle, CheckCircle2, Info } from 'lucide-react'
 import { uploadDocument } from '@/api/documents'
 import { runPipeline } from '@/api/pipeline'
 import { useTranslation } from 'react-i18next'
@@ -53,6 +54,40 @@ function validateFile(f: File): { error?: string; warning?: string } {
     }
   }
   return {}
+}
+
+// Format badge for a file extension — groups by type
+function FileTypeBadge({ ext }: { ext: string }) {
+  const groups: Record<string, string> = {
+    '.pdf': 'PDF',
+    '.docx': 'DOCX',
+    '.xlsx': 'XLSX',
+    '.xls': 'XLS',
+    '.csv': 'CSV',
+    '.txt': 'TXT',
+  }
+  const label = groups[ext] ?? ext.replace('.', '').toUpperCase()
+  const isImage = IMAGE_EXTS.has(ext)
+  return (
+    <span
+      className="text-xs font-semibold px-1.5 py-0.5 rounded"
+      style={{
+        background: isImage ? 'rgba(245,158,11,0.1)' : 'rgba(13,148,136,0.1)',
+        color: isImage ? '#F59E0B' : 'var(--color-primary)',
+        fontFamily: 'var(--font-mono)',
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
+function extractErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const r = (err as { response?: { data?: { detail?: string } } }).response
+    if (r?.data?.detail) return r.data.detail
+  }
+  return 'Upload failed. Please try again.'
 }
 
 export default function Upload() {
@@ -173,24 +208,36 @@ export default function Upload() {
   // are rendered inline on each row.
   const imageCount = files.filter((s) => !s.error && IMAGE_EXTS.has(getExt(s.file.name))).length
 
+  const uploadProgress =
+    uploadedCount !== null && validFiles.length > 0
+      ? Math.round((uploadedCount / Math.max(validFiles.length, 1)) * 100)
+      : 0
+  const isUploadComplete = uploadedCount !== null && uploadedCount >= validFiles.length
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
+          Document Upload
+        </p>
         <h1 className="text-2xl font-semibold text-text">{t('upload.title')}</h1>
         <p className="text-sm text-text-muted mt-1">{t('upload.subtitle')}</p>
       </div>
 
+      {/* Server error banner */}
       {serverError && (
-        <div className="mb-5 flex items-start gap-3 px-4 py-3 rounded text-sm border"
-          style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.3)', color: '#EF4444' }}>
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+        <div
+          className="mb-5 flex items-start gap-3 px-4 py-3 rounded-lg text-sm border"
+          role="alert"
+          style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.3)', color: '#EF4444' }}
+        >
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>{serverError}</span>
         </div>
       )}
 
-      {/* Drop zone — stays as the dropzone always (no longer collapses
-          into a single-file card). The selected file list renders below. */}
+      {/* Drop zone */}
       <div
         onClick={() => zoneClickable && inputRef.current?.click()}
         onDrop={onDrop}
@@ -206,78 +253,154 @@ export default function Upload() {
             ? '2px solid var(--color-primary)'
             : '2px dashed var(--color-primary)',
           background: active
-            ? 'rgba(13,148,136,0.07)'
+            ? 'rgba(13,148,136,0.09)'
             : 'var(--color-surface)',
+          boxShadow: active ? '0 0 0 4px rgba(13,148,136,0.08)' : undefined,
+          transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
         }}
         role={zoneClickable ? 'button' : undefined}
         tabIndex={zoneClickable ? 0 : -1}
         onKeyDown={(e) => { if (zoneClickable && (e.key === 'Enter' || e.key === ' ')) inputRef.current?.click() }}
-        aria-label="Upload documents"
+        aria-label={files.length === 0 ? 'Upload documents — click or drag files here' : 'Add more documents — click or drag files here'}
       >
         <input
           ref={inputRef}
           type="file"
           accept={ACCEPT_ATTR}
           multiple
-          className="hidden"
+          className="sr-only"
           onChange={onInputChange}
+          aria-hidden="true"
+          tabIndex={-1}
         />
 
-        <div
+        <motion.div
+          animate={{ scale: active ? 1.1 : 1 }}
+          transition={{ duration: 0.2 }}
           className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ background: 'rgba(13,148,136,0.12)' }}
+          style={{ background: active ? 'rgba(13,148,136,0.18)' : 'rgba(13,148,136,0.10)' }}
         >
-          <UploadCloud size={26} style={{ color: 'var(--color-primary)' }} />
-        </div>
+          <UploadCloud
+            size={26}
+            style={{ color: 'var(--color-primary)' }}
+            aria-hidden="true"
+          />
+        </motion.div>
+
         <div className="text-center">
           <p className="text-base font-semibold text-text">
-            {files.length === 0 ? 'Drag your ESG documents here' : 'Add more documents'}
+            {active
+              ? 'Drop to upload'
+              : files.length === 0
+                ? 'Drag your ESG documents here'
+                : 'Add more documents'}
           </p>
-          <p className="text-sm text-text-muted mt-1">or click to browse</p>
+          <p className="text-sm text-text-muted mt-1">
+            {active ? '' : 'or click to browse'}
+          </p>
         </div>
-        <p className="text-xs text-text-subtle">
-          PDF, DOCX, XLSX, XLS, CSV, TXT, images · Max 50 MB
-        </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-1.5" aria-label="Accepted file types">
+          {['PDF', 'DOCX', 'XLSX', 'CSV', 'TXT'].map((fmt) => (
+            <span
+              key={fmt}
+              className="text-xs px-2 py-0.5 rounded"
+              style={{
+                background: 'rgba(13,148,136,0.08)',
+                color: 'var(--color-primary)',
+                border: '1px solid rgba(13,148,136,0.15)',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              {fmt}
+            </span>
+          ))}
+          <span className="text-xs text-text-subtle">· Max 50 MB</span>
+        </div>
+
+        {/* File count badge when files are selected */}
+        {files.length > 0 && (
+          <span
+            className="absolute top-3 end-3 text-xs font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--color-primary)', color: '#fff' }}
+            aria-label={`${files.length} file${files.length > 1 ? 's' : ''} selected`}
+          >
+            {files.length}/{MAX_FILES}
+          </span>
+        )}
       </div>
 
       {/* Selected-file rows */}
       {files.length > 0 && (
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-4 space-y-2" aria-label="Selected files">
           {files.map((s, i) => (
             <li
               key={`${s.file.name}-${s.file.size}-${i}`}
-              className="rounded-lg px-4 py-3"
+              className="rounded-lg px-4 py-3 transition-all"
               style={{
                 background: 'var(--color-surface)',
                 border: s.error
                   ? '1px solid rgba(239,68,68,0.35)'
-                  : '1px solid var(--color-border-subtle)',
+                  : s.warning
+                    ? '1px solid rgba(245,158,11,0.35)'
+                    : '1px solid var(--color-border-subtle)',
               }}
             >
               <div className="flex items-center gap-3">
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(13,148,136,0.12)' }}
+                  style={{
+                    background: s.error
+                      ? 'rgba(239,68,68,0.1)'
+                      : s.warning
+                        ? 'rgba(245,158,11,0.1)'
+                        : 'rgba(13,148,136,0.10)',
+                  }}
+                  aria-hidden="true"
                 >
-                  <FileText size={18} style={{ color: 'var(--color-primary)' }} />
+                  <FileText
+                    size={18}
+                    style={{
+                      color: s.error ? '#EF4444' : s.warning ? '#F59E0B' : 'var(--color-primary)',
+                    }}
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text truncate">{s.file.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-text truncate">{s.file.name}</p>
+                    <FileTypeBadge ext={getExt(s.file.name)} />
+                  </div>
                   <p className="text-xs text-text-muted mt-0.5">{formatBytes(s.file.size)}</p>
                 </div>
+                {/* Status icon — valid files show a checkmark */}
+                {!s.error && !s.warning && (
+                  <CheckCircle2
+                    size={14}
+                    style={{ color: '#10B981' }}
+                    className="shrink-0"
+                    aria-label="File valid"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => removeAt(i)}
                   disabled={submitting}
-                  className="w-7 h-7 flex items-center justify-center rounded transition-colors text-text-muted hover:text-danger hover:bg-surface-raised disabled:opacity-40"
+                  className="w-7 h-7 flex items-center justify-center rounded transition-colors text-text-muted hover:text-danger hover:bg-surface-raised disabled:opacity-40 focus-visible:ring-2 ring-primary"
                   aria-label={`Remove ${s.file.name}`}
                 >
-                  <X size={15} />
+                  <X size={15} aria-hidden="true" />
                 </button>
               </div>
               {s.error && (
-                <p className="mt-1.5 text-xs text-danger flex items-start gap-1.5">
-                  <AlertCircle size={12} className="shrink-0 mt-0.5" /> {s.error}
+                <p className="mt-2 text-xs text-danger flex items-start gap-1.5" role="alert">
+                  <AlertCircle size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  {s.error}
+                </p>
+              )}
+              {s.warning && !s.error && (
+                <p className="mt-2 text-xs flex items-start gap-1.5" style={{ color: '#F59E0B' }}>
+                  <Info size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  {s.warning}
                 </p>
               )}
             </li>
@@ -285,37 +408,50 @@ export default function Upload() {
         </ul>
       )}
 
-      {imageCount > 0 && (
-        <p
-          className="mt-3 text-xs flex items-start gap-1.5"
-          style={{ color: '#F59E0B' }}
+      {/* Collective image warning — only shown when warnings not already
+          inline on each row (i.e. more than one image file selected) */}
+      {imageCount > 1 && (
+        <div
+          className="mt-3 text-xs flex items-start gap-2 px-3 py-2 rounded-lg"
+          role="status"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.25)',
+            color: '#F59E0B',
+          }}
         >
-          <AlertCircle size={13} className="shrink-0 mt-0.5" />
-          {imageCount === 1
-            ? 'Image OCR is not yet implemented. That file will upload but the pipeline will not extract metrics from it.'
-            : `Image OCR is not yet implemented. ${imageCount} of your files will upload but the pipeline will not extract metrics from them.`}
-        </p>
+          <Info size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+          <span>
+            Image OCR is not yet implemented. {imageCount} of your files will upload but the pipeline will not extract metrics from them.
+          </span>
+        </div>
       )}
 
       {/* Upload progress */}
       {uploadedCount !== null && validFiles.length > 0 && (
-        <div className="mt-4">
+        <div className="mt-4" role="status" aria-label={`Upload progress: ${uploadProgress}%`}>
           <div className="flex items-center justify-between text-xs text-text-muted mb-1.5">
-            <span>
-              {uploadedCount < validFiles.length
-                ? `Uploading… ${uploadedCount} of ${validFiles.length}`
-                : 'Upload complete'}
+            <span className="flex items-center gap-1.5">
+              {isUploadComplete && (
+                <CheckCircle2 size={12} style={{ color: '#10B981' }} aria-hidden="true" />
+              )}
+              {isUploadComplete
+                ? 'Upload complete — starting analysis…'
+                : `Uploading… ${uploadedCount} of ${validFiles.length}`}
             </span>
             <span style={{ fontFamily: 'var(--font-mono)' }}>
-              {Math.round((uploadedCount / Math.max(validFiles.length, 1)) * 100)}%
+              {uploadProgress}%
             </span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
+          <div
+            className="h-1.5 rounded-full overflow-hidden"
+            style={{ background: 'var(--color-border-subtle)' }}
+          >
             <div
               className="h-full rounded-full transition-all duration-300"
               style={{
-                width: `${(uploadedCount / Math.max(validFiles.length, 1)) * 100}%`,
-                background: 'var(--color-primary)',
+                width: `${uploadProgress}%`,
+                background: isUploadComplete ? '#10B981' : 'var(--color-primary)',
               }}
             />
           </div>
@@ -327,13 +463,23 @@ export default function Upload() {
         type="button"
         onClick={handleSubmit}
         disabled={!canSubmit}
-        className="mt-6 w-full py-2.5 text-sm font-semibold rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mt-6 w-full py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 ring-primary ring-offset-2"
         style={{ background: 'var(--color-primary)', color: '#fff' }}
         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
+        aria-busy={submitting}
       >
         {submitting && (
-          <svg className="animate-spin" width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="animate-spin"
+            width={15}
+            height={15}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
             <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
           </svg>
         )}
@@ -350,12 +496,4 @@ export default function Upload() {
       </p>
     </div>
   )
-}
-
-function extractErrorMessage(err: unknown): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const r = (err as { response?: { data?: { detail?: string } } }).response
-    if (r?.data?.detail) return r.data.detail
-  }
-  return 'Upload failed. Please try again.'
 }

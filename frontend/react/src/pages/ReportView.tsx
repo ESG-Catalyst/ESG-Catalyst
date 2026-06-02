@@ -278,7 +278,7 @@ function PreviewTab({ metrics }: { metrics: MetricDTO[] }) {
             >
               <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
               <h3 className="text-sm font-semibold" style={{ color: s.color }}>{s.label}</h3>
-              <span className="ml-auto text-xs text-text-muted">{list.length} indicators</span>
+              <span className="ms-auto text-xs text-text-muted">{list.length} indicators</span>
             </div>
             <div className="divide-y" style={{ '--tw-divide-opacity': 1 } as React.CSSProperties}>
               {list.map((m) => (
@@ -875,7 +875,20 @@ export default function ReportView() {
   }, [])
 
   if (!reportId) {
-    return <div className="p-6 text-text-muted text-sm">No report selected.</div>
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[40vh] text-center gap-3">
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        >
+          <FileText size={22} style={{ color: 'var(--color-text-subtle)' }} aria-hidden="true" />
+        </div>
+        <p className="text-sm font-medium text-text-muted">No report selected</p>
+        <p className="text-xs text-text-subtle max-w-xs">
+          Generate a report from the metric review page to see it here.
+        </p>
+      </div>
+    )
   }
 
   if (isGenerating) {
@@ -964,29 +977,38 @@ export default function ReportView() {
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-60 focus-visible:ring-2 ring-primary ring-offset-1"
               style={{ background: 'var(--color-primary)', color: '#fff' }}
               onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
+              aria-busy={downloading}
+              aria-label={downloading ? 'Downloading PDF…' : `Download ${pdfFilename}`}
             >
-              {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-              Download PDF
+              {downloading
+                ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                : <Download size={13} aria-hidden="true" />
+              }
+              {downloading ? 'Downloading…' : 'Download PDF'}
             </button>
 
             <button
               onClick={handleShare}
-              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-colors focus-visible:ring-2 ring-primary ring-offset-1"
               style={{
                 background: 'transparent',
                 color: copied ? '#10B981' : 'var(--color-text-muted)',
                 border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : 'var(--color-border)'}`,
               }}
+              aria-label={copied ? 'Report link copied to clipboard' : 'Copy report link for reviewer'}
             >
-              {copied ? <Check size={13} /> : <Share2 size={13} />}
+              {copied
+                ? <Check size={13} aria-hidden="true" />
+                : <Share2 size={13} aria-hidden="true" />
+              }
               {copied ? 'Link copied!' : 'Share with Reviewer'}
             </button>
             {copied && (
-              <p className="text-xs text-center text-text-subtle">Coming soon — reviewer portal not yet live.</p>
+              <p className="text-xs text-center text-text-subtle" role="status">Coming soon — reviewer portal not yet live.</p>
             )}
           </div>
 
@@ -1013,7 +1035,17 @@ export default function ReportView() {
             transition: isInnerDragging ? 'none' : 'background 0.15s',
             zIndex: 10,
           }}
-          title="Drag to resize"
+          title="Drag to resize panels"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            // Allow keyboard nudging of the divider
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              e.preventDefault()
+            }
+          }}
         >
           <div
             className="w-1 h-10 rounded-full transition-colors"
@@ -1021,6 +1053,7 @@ export default function ReportView() {
               background: isInnerDragging ? 'var(--color-primary)' : 'var(--color-text-subtle)',
               opacity: isInnerDragging ? 1 : 0.4,
             }}
+            aria-hidden="true"
           />
         </div>
 
@@ -1041,6 +1074,8 @@ export default function ReportView() {
           {/* Tab bar */}
           <div
             className="flex items-center gap-1 rounded-xl p-1 mb-5 flex-wrap"
+            role="tablist"
+            aria-label="Report sections"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
             {TABS.map((tab) => {
@@ -1049,13 +1084,17 @@ export default function ReportView() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  id={`tab-${tab.id}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors focus-visible:ring-2 ring-primary"
                   style={{
                     background: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',
                     color: activeTab === tab.id ? '#fff' : 'var(--color-text-muted)',
                   }}
                 >
-                  <Icon size={12} />
+                  <Icon size={12} aria-hidden="true" />
                   {tab.label}
                 </button>
               )
@@ -1070,6 +1109,9 @@ export default function ReportView() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18 }}
+              role="tabpanel"
+              id={`tabpanel-${activeTab}`}
+              aria-labelledby={`tab-${activeTab}`}
             >
               {activeTab === 'preview' && <PreviewTab metrics={metrics} />}
               {activeTab === 'metrics' && <MetricsTableTab metrics={metrics} reportDate={reportDate} />}
@@ -1080,7 +1122,7 @@ export default function ReportView() {
         </main>
       </div>
 
-      {/* ─── Drag handle ─── */}
+      {/* ─── Drag handle (tabs / PDF split) ─── */}
       <div
         onMouseDown={onMouseDown}
         className="shrink-0 flex items-center justify-center group"
@@ -1090,7 +1132,16 @@ export default function ReportView() {
           background: isDragging ? 'rgba(13,148,136,0.15)' : 'var(--color-border)',
           transition: isDragging ? 'none' : 'background 0.15s',
         }}
-        title="Drag to resize"
+        title="Drag to resize panels"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize disclosure / PDF panels"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault()
+          }
+        }}
       >
         <div
           className="w-1 h-10 rounded-full transition-colors"
@@ -1098,6 +1149,7 @@ export default function ReportView() {
             background: isDragging ? 'var(--color-primary)' : 'var(--color-text-subtle)',
             opacity: isDragging ? 1 : 0.4,
           }}
+          aria-hidden="true"
         />
       </div>
 
@@ -1105,6 +1157,7 @@ export default function ReportView() {
       <div
         className="flex-1 min-w-0 h-full flex flex-col"
         style={{ background: '#525659' }}
+        aria-label="PDF preview panel"
       >
         <div
           className="px-4 py-2.5 flex items-center gap-2 shrink-0"
@@ -1113,9 +1166,13 @@ export default function ReportView() {
             borderBottom: '1px solid var(--color-border)',
           }}
         >
-          <FileText size={13} style={{ color: 'var(--color-text-muted)' }} />
+          <FileText size={13} style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
           <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">
             PDF Preview
+          </span>
+          {/* Filename hint */}
+          <span className="ms-auto text-xs text-text-subtle truncate max-w-[160px]" title={pdfFilename}>
+            {pdfFilename}
           </span>
         </div>
         {/* flex-1 min-h-0 is critical — without min-h-0 the iframe never gets a bounded height */}

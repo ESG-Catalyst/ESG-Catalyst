@@ -271,43 +271,49 @@ function MetricCard({
       )}
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()} role="group" aria-label={`Actions for ${metric.gri_code}`}>
         <button
           onClick={onApprove}
           disabled={metric.status === 'approved' || saving}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors disabled:opacity-40"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors disabled:opacity-40 focus-visible:ring-2 ring-primary"
           style={{
             borderColor: metric.status === 'approved' ? '#10B981' : 'rgba(16,185,129,0.4)',
             color: metric.status === 'approved' ? '#10B981' : 'rgba(16,185,129,0.8)',
             background: metric.status === 'approved' ? 'rgba(16,185,129,0.12)' : 'transparent',
           }}
+          aria-label={metric.status === 'approved' ? `${metric.gri_code} is approved` : `Approve ${metric.gri_code}`}
+          aria-pressed={metric.status === 'approved'}
         >
-          <Check size={12} />
+          <Check size={12} aria-hidden="true" />
           {metric.status === 'approved' ? 'Approved' : 'Approve'}
         </button>
         <button
           onClick={onReject}
           disabled={metric.status === 'rejected' || saving}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors disabled:opacity-40"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors disabled:opacity-40 focus-visible:ring-2 ring-danger"
           style={{
             borderColor: metric.status === 'rejected' ? '#EF4444' : 'rgba(239,68,68,0.4)',
             color: metric.status === 'rejected' ? '#EF4444' : 'rgba(239,68,68,0.8)',
             background: metric.status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'transparent',
           }}
+          aria-label={metric.status === 'rejected' ? `${metric.gri_code} is rejected` : `Reject ${metric.gri_code}`}
+          aria-pressed={metric.status === 'rejected'}
         >
-          <X size={12} />
+          <X size={12} aria-hidden="true" />
           {metric.status === 'rejected' ? 'Rejected' : 'Reject'}
         </button>
         <button
           onClick={() => setEditOpen((o) => !o)}
-          className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors"
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors focus-visible:ring-2 ring-primary"
           style={{
             borderColor: editOpen ? 'var(--color-primary)' : 'var(--color-border)',
             color: editOpen ? 'var(--color-primary)' : 'var(--color-text-muted)',
             background: editOpen ? 'rgba(13,148,136,0.08)' : 'transparent',
           }}
+          aria-expanded={editOpen}
+          aria-label={`Edit value for ${metric.gri_code}`}
         >
-          <Pencil size={12} />
+          <Pencil size={12} aria-hidden="true" />
           Edit
         </button>
       </div>
@@ -391,7 +397,7 @@ function EvidenceViewer({ metric }: { metric: MetricDTO | null }) {
 
       {(metric.source_file || metric.source_page) && (
         <p className="text-xs text-text-muted">
-          <FileText size={11} className="inline mr-1 mb-0.5" />
+          <FileText size={11} className="inline me-1 mb-0.5" aria-hidden="true" />
           {metric.source_file && <span>{metric.source_file}</span>}
           {metric.source_page && <span> · Page {metric.source_page}</span>}
         </p>
@@ -577,7 +583,18 @@ export default function Results() {
 
   if (!documentId) {
     return (
-      <div className="p-6 text-text-muted text-sm">No document selected.</div>
+      <div className="p-6 flex flex-col items-center justify-center min-h-[40vh] text-center gap-3">
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        >
+          <AlertTriangle size={22} style={{ color: 'var(--color-text-subtle)' }} aria-hidden="true" />
+        </div>
+        <p className="text-sm font-medium text-text-muted">No document selected</p>
+        <p className="text-xs text-text-subtle max-w-xs">
+          Return to the upload page to process a document, or navigate to a specific pipeline job.
+        </p>
+      </div>
     )
   }
 
@@ -590,8 +607,8 @@ export default function Results() {
         </p>
         <h1 className="text-2xl font-semibold text-text">Review Extracted Metrics</h1>
         <p className="text-sm text-text-muted mt-1 max-w-xl">
-          Review and approve AI-extracted metrics before generating your report.
-          Metrics with confidence &lt; 80% require review.
+          Approve AI-extracted metrics before generating your ESG report.
+          Metrics below 80% confidence are flagged for manual verification.
         </p>
       </div>
 
@@ -610,17 +627,21 @@ export default function Results() {
       </div>
 
       {/* Filter bar */}
-      <div className="px-6 pb-4 flex flex-wrap items-center gap-3">
+      <div className="px-6 pb-4 flex flex-wrap items-center gap-3" role="toolbar" aria-label="Metric filters">
         {/* Status tabs */}
         <div
           className="flex items-center rounded-lg p-1 gap-0.5"
+          role="tablist"
+          aria-label="Filter by status"
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
         >
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilterTab(tab.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+              role="tab"
+              aria-selected={filterTab === tab.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors focus-visible:ring-2 ring-primary"
               style={{
                 background: filterTab === tab.id ? 'var(--color-primary)' : 'transparent',
                 color: filterTab === tab.id ? '#fff' : 'var(--color-text-muted)',
@@ -643,10 +664,11 @@ export default function Results() {
         </div>
 
         {/* Pillar filter — E / S / G chips */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5" role="group" aria-label="Filter by pillar">
           <button
             onClick={() => setPillarFilter(null)}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+            aria-pressed={pillarFilter === null}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors focus-visible:ring-2 ring-primary"
             style={{
               background: pillarFilter === null ? 'var(--color-surface-raised)' : 'transparent',
               color: pillarFilter === null ? 'var(--color-text)' : 'var(--color-text-muted)',
@@ -662,12 +684,15 @@ export default function Results() {
               <button
                 key={p}
                 onClick={() => setPillarFilter(active ? null : p)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
+                aria-pressed={active}
+                aria-label={`Filter by ${s.label} pillar`}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus-visible:ring-2"
                 style={{
                   background: active ? s.bg : 'transparent',
                   color: active ? s.text : 'var(--color-text-muted)',
                   border: `1.5px solid ${active ? s.text : 'var(--color-border)'}`,
                   boxShadow: active ? `0 0 0 2px ${s.text}22` : undefined,
+                  ['--tw-ring-color' as string]: s.text,
                 }}
               >
                 {p} — {s.label}
@@ -678,23 +703,26 @@ export default function Results() {
 
         {/* Search */}
         <input
-          type="text"
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search GRI code or indicator…"
-          className="flex-1 min-w-40 px-3 py-1.5 text-sm rounded-lg"
+          aria-label="Search metrics by GRI code or indicator name"
+          className="flex-1 min-w-40 px-3 py-1.5 text-sm rounded-lg focus-visible:ring-2 ring-primary outline-none"
           style={{
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             color: 'var(--color-text)',
           }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
         />
 
         {/* Bulk actions — only operate on pending-review rows
             (extracted / ambiguous). 'missing' rows have no value so
             sweeping them to approved would inflate the score. */}
         {bulkActionable.length > 0 && (
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex items-center gap-1.5 ms-auto">
             <button
               onClick={handleApproveAll}
               disabled={mutation.isPending}
@@ -765,18 +793,20 @@ export default function Results() {
 
       {/* Fixed bottom action bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-20 px-6 py-3 flex items-center justify-between"
+        className="fixed bottom-0 inset-x-0 z-20 px-6 py-3 flex items-center justify-between gap-4 flex-wrap"
         style={{
           background: 'rgba(11,18,32,0.95)',
           backdropFilter: 'blur(12px)',
           borderTop: '1px solid var(--color-border)',
         }}
+        role="toolbar"
+        aria-label="Report actions"
       >
         <p className="text-sm text-text-muted">
           <span className="font-semibold text-text">{approved}</span> of{' '}
-          <span className="font-semibold text-text">{total}</span> indicators reviewed
+          <span className="font-semibold text-text">{total}</span> indicators approved
           {pendingReview > 0 && (
-            <span className="ml-2 text-amber-400">
+            <span className="ms-2 text-amber-400">
               · {pendingReview} need{pendingReview === 1 ? 's' : ''} review
             </span>
           )}
@@ -784,18 +814,30 @@ export default function Results() {
         <button
           onClick={handleGenerateReport}
           disabled={approved === 0 || generatingReport}
-          className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 ring-primary ring-offset-2"
           style={{ background: 'var(--color-primary)', color: '#fff' }}
           onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
+          aria-busy={generatingReport}
+          aria-disabled={approved === 0 || generatingReport}
+          title={approved === 0 ? 'Approve at least one metric to generate the report' : undefined}
         >
           {generatingReport && (
-            <svg className="animate-spin" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="animate-spin"
+              width={14}
+              height={14}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
               <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
             </svg>
           )}
           Generate Report
-          {!generatingReport && <ChevronRight size={15} />}
+          {!generatingReport && <ChevronRight size={15} aria-hidden="true" />}
         </button>
       </div>
     </div>
