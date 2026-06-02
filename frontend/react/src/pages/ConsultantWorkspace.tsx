@@ -12,10 +12,13 @@ import {
   AlertCircle,
   BarChart2,
   Users,
+  Search,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import ScoreGauge from '@/components/ui/ScoreGauge'
 import { useConsultantStore } from '@/store/consultant'
 import { useAuthStore } from '@/store/auth'
+import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,8 +168,10 @@ function TYPE_BADGE_STYLE(type: InstitutionType): React.CSSProperties {
 }
 
 function REPORT_STATUS_STYLE(status: ReportStatus): React.CSSProperties {
-  if (status === 'Report locked') return { background: '#A78BFA20', color: '#A78BFA', border: '1px solid #A78BFA40' }
-  if (status === 'Pending review') return { background: '#F59E0B20', color: '#F59E0B', border: '1px solid #F59E0B40' }
+  if (status === 'Report locked')
+    return { background: '#A78BFA20', color: '#A78BFA', border: '1px solid #A78BFA40' }
+  if (status === 'Pending review')
+    return { background: '#F59E0B20', color: '#F59E0B', border: '1px solid #F59E0B40' }
   return { background: '#6B728020', color: '#9CA3AF', border: '1px solid #6B728040' }
 }
 
@@ -183,12 +188,8 @@ function Card({
 }) {
   return (
     <div
-      className={`rounded-lg ${className}`}
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        ...style,
-      }}
+      className={cn('rounded-xl bg-surface border border-border', className)}
+      style={style}
     >
       {children}
     </div>
@@ -207,36 +208,50 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     if (!name.trim() || !email.trim()) return
     setSubmitted(true)
-    setTimeout(onClose, 1200)
+    setTimeout(onClose, 1400)
   }
+
+  const inputCls = cn(
+    'w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-colors',
+    'bg-surface-raised border border-border-subtle hover:border-border',
+    'focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary',
+    'text-text placeholder:text-text-subtle',
+  )
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}
       onClick={onClose}
     >
-      <div
-        className="rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
-        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl bg-surface border border-border"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-text">Add Client Institution</h2>
           <button
             onClick={onClose}
-            className="text-text-muted hover:text-text transition-colors rounded p-1"
+            aria-label="Close"
+            className="text-text-muted hover:text-text transition-colors rounded-lg p-1.5 hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <X size={16} />
+            <X size={15} aria-hidden="true" />
           </button>
         </div>
 
         {submitted ? (
-          <div className="py-6 flex flex-col items-center gap-3 text-center">
-            <CheckCircle2 size={32} style={{ color: '#10B981' }} />
-            <p className="text-sm font-medium text-text">Invitation sent successfully</p>
+          <div className="py-8 flex flex-col items-center gap-3 text-center">
+            <div className="w-12 h-12 rounded-full bg-success/15 flex items-center justify-center">
+              <CheckCircle2 size={24} style={{ color: '#10B981' }} aria-hidden="true" />
+            </div>
+            <p className="text-sm font-semibold text-text">Invitation sent</p>
             <p className="text-xs text-text-muted">
-              {name} will receive an onboarding email at {email}.
+              {name} will receive an onboarding email at{' '}
+              <span className="text-text">{email}</span>.
             </p>
           </div>
         ) : (
@@ -248,12 +263,8 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Cairo International Bank"
-                className="rounded-lg px-3 py-2 text-sm outline-none"
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                }}
+                className={inputCls}
+                autoFocus
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -261,12 +272,7 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as InstitutionType)}
-                className="rounded-lg px-3 py-2 text-sm outline-none appearance-none"
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                }}
+                className={cn(inputCls, 'appearance-none')}
               >
                 <option>Commercial Bank</option>
                 <option>NBFI</option>
@@ -280,35 +286,28 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="sustainability@bank.eg"
-                className="rounded-lg px-3 py-2 text-sm outline-none"
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                }}
+                className={inputCls}
               />
             </div>
-            <div className="flex gap-3 mt-1">
+            <div className="flex gap-3 mt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-surface-raised text-text-muted hover:text-text hover:bg-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!name.trim() || !email.trim()}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'var(--color-primary)', color: '#fff' }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Send Invitation
               </button>
             </div>
           </form>
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -318,19 +317,18 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
 function PillarBar({ label, score, color }: { label: string; score: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs font-medium w-3" style={{ color }}>{label}</span>
-      <div
-        className="flex-1 rounded-full overflow-hidden h-1.5"
-        style={{ background: 'var(--color-border-subtle)' }}
-      >
+      <span className="text-xs font-bold w-3 shrink-0" style={{ color }}>
+        {label}
+      </span>
+      <div className="flex-1 rounded-full overflow-hidden h-1.5 bg-border-subtle">
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-all duration-700"
           style={{ width: `${score}%`, background: color }}
         />
       </div>
       <span
-        className="text-xs tabular-nums w-7 text-right"
-        style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+        className="text-xs tabular-nums w-7 text-end shrink-0 text-text-muted"
+        style={{ fontFamily: 'var(--font-mono)' }}
       >
         {score}
       </span>
@@ -353,108 +351,99 @@ function ClientCard({ client }: { client: ClientInstitution }) {
     navigate('/dashboard')
   }
 
+  const tierColor = TIER_COLOR(client.tier)
+
   return (
-    <Card className="p-5 flex flex-col gap-4 hover:border-primary transition-colors" style={{ borderColor: undefined }}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-text truncate">{client.name}</h3>
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.15 }}
+    >
+      <Card className="p-5 flex flex-col gap-4 hover:border-primary transition-colors cursor-default">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-text truncate">{client.name}</h3>
+            <span
+              className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={TYPE_BADGE_STYLE(client.type)}
+            >
+              {client.type}
+            </span>
+          </div>
+          <div className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-surface-raised">
+            <Building2 size={20} style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
+          </div>
+        </div>
+
+        {/* Score gauge + pillar bars */}
+        <div className="flex items-center gap-4">
+          <div className="shrink-0">
+            <ScoreGauge scores={client.scores} overall={client.scores.overall} size="sm" />
+          </div>
+          <div className="flex-1 flex flex-col gap-2">
+            <PillarBar label="E" score={client.scores.E} color="#10B981" />
+            <PillarBar label="S" score={client.scores.S} color="#38BDF8" />
+            <PillarBar label="G" score={client.scores.G} color="#A78BFA" />
+          </div>
+        </div>
+
+        {/* Meta row */}
+        <div className="flex items-center justify-between text-xs border-t border-border-subtle pt-3">
+          <span className="flex items-center gap-1 text-text-muted">
+            <Clock size={10} aria-hidden="true" />
+            Updated {client.lastActivity}
+          </span>
           <span
-            className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium"
-            style={TYPE_BADGE_STYLE(client.type)}
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+            style={REPORT_STATUS_STYLE(client.reportStatus)}
           >
-            {client.type}
+            {client.reportStatus}
           </span>
         </div>
-        <div
-          className="shrink-0 w-16 h-16 flex items-center justify-center rounded-lg"
-          style={{ background: 'var(--color-surface-raised)' }}
-        >
-          <Building2 size={22} style={{ color: 'var(--color-primary)' }} />
-        </div>
-      </div>
 
-      {/* Score gauge + pillar bars */}
-      <div className="flex items-center gap-4">
-        <div className="shrink-0">
-          <ScoreGauge scores={client.scores} overall={client.scores.overall} size="sm" />
-        </div>
-        <div className="flex-1 flex flex-col gap-1.5">
-          <PillarBar label="E" score={client.scores.E} color="#10B981" />
-          <PillarBar label="S" score={client.scores.S} color="#38BDF8" />
-          <PillarBar label="G" score={client.scores.G} color="#A78BFA" />
-        </div>
-      </div>
-
-      {/* Meta row */}
-      <div className="flex items-center justify-between text-xs text-text-muted">
-        <span className="flex items-center gap-1">
-          <Clock size={11} />
-          Updated {client.lastActivity}
-        </span>
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-          style={REPORT_STATUS_STYLE(client.reportStatus)}
-        >
-          {client.reportStatus}
-        </span>
-      </div>
-
-      {/* Tier badge */}
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
-          style={{
-            background: `${TIER_COLOR(client.tier)}20`,
-            color: TIER_COLOR(client.tier),
-            border: `1px solid ${TIER_COLOR(client.tier)}40`,
-          }}
-        >
-          {client.tier}
-        </span>
-        <span className="text-xs text-text-subtle">
-          {client.griCoverage}% GRI · {client.missingIndicators} missing
-        </span>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 mt-1">
-        <button
-          onClick={openDashboard}
-          className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-primary-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-primary)')}
-        >
-          Open Dashboard
-        </button>
-        {client.latestReportId ? (
-          <Link
-            to={`/report/${client.latestReportId}`}
-            className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-center transition-all"
-            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--color-border)'
-              e.currentTarget.style.color = 'var(--color-text)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--color-surface-raised)'
-              e.currentTarget.style.color = 'var(--color-text-muted)'
+        {/* Tier + coverage summary */}
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border"
+            style={{
+              background: `${tierColor}18`,
+              color: tierColor,
+              borderColor: `${tierColor}35`,
             }}
           >
-            View Report
-          </Link>
-        ) : (
+            {client.tier}
+          </span>
+          <span className="text-xs text-text-subtle">
+            {client.griCoverage}% GRI · {client.missingIndicators} missing
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
           <button
-            disabled
-            className="flex-1 py-1.5 rounded-lg text-xs font-semibold opacity-40 cursor-not-allowed"
-            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }}
+            onClick={openDashboard}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            No Report Yet
+            Open Dashboard
           </button>
-        )}
-      </div>
-    </Card>
+          {client.latestReportId ? (
+            <Link
+              to={`/report/${client.latestReportId}`}
+              className="flex-1 py-2 rounded-lg text-xs font-semibold text-center transition-all bg-surface-raised text-text-muted hover:bg-border hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              View Report
+            </Link>
+          ) : (
+            <button
+              disabled
+              className="flex-1 py-2 rounded-lg text-xs font-semibold opacity-40 cursor-not-allowed bg-surface-raised text-text-muted"
+            >
+              No Report Yet
+            </button>
+          )}
+        </div>
+      </Card>
+    </motion.div>
   )
 }
 
@@ -534,23 +523,10 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
         {comparedClients.length >= 2 && (
           <button
             onClick={() => downloadComparisonCSV(comparedClients)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: 'var(--color-surface-raised)',
-              color: 'var(--color-text-muted)',
-              border: '1px solid var(--color-border)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--color-text)'
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--color-text-muted)'
-              e.currentTarget.style.borderColor = 'var(--color-border)'
-            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-surface-raised text-text-muted border border-border hover:text-text hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <Download size={12} />
-            Export comparison
+            <Download size={12} aria-hidden="true" />
+            Export CSV
           </button>
         )}
       </div>
@@ -559,12 +535,10 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
       <div className="relative mb-5">
         <button
           onClick={() => setDropdownOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors"
-          style={{
-            background: 'var(--color-surface-raised)',
-            border: '1px solid var(--color-border)',
-            color: selected.length ? 'var(--color-text)' : 'var(--color-text-subtle)',
-          }}
+          aria-haspopup="listbox"
+          aria-expanded={dropdownOpen}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors bg-surface-raised border border-border-subtle hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          style={{ color: selected.length ? 'var(--color-text)' : 'var(--color-text-subtle)' }}
         >
           <span className="truncate">
             {selected.length === 0
@@ -574,74 +548,87 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
                   .map((c) => c.name)
                   .join(', ')}
           </span>
-          <ChevronDown size={14} className={`shrink-0 ml-2 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            size={14}
+            className={cn('shrink-0 ms-2 transition-transform', dropdownOpen && 'rotate-180')}
+            aria-hidden="true"
+          />
         </button>
 
-        {dropdownOpen && (
-          <div
-            className="absolute z-20 top-full left-0 right-0 mt-1 rounded-lg py-1 shadow-lg overflow-hidden"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-          >
-            {clients.map((c) => {
-              const checked = selected.includes(c.id)
-              const disabled = !checked && selected.length >= 4
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => !disabled && toggleClient(c.id)}
-                  disabled={disabled}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors disabled:opacity-40"
-                  style={{ color: 'var(--color-text)' }}
-                  onMouseEnter={(e) => {
-                    if (!disabled) e.currentTarget.style.background = 'var(--color-surface-raised)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  <div
-                    className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                    style={{
-                      border: `2px solid ${checked ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                      background: checked ? 'var(--color-primary)' : 'transparent',
-                    }}
+        <AnimatePresence>
+          {dropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.12 }}
+              className="absolute z-20 top-full start-0 end-0 mt-1 rounded-xl py-1 shadow-lg overflow-hidden bg-surface border border-border"
+              role="listbox"
+              aria-multiselectable="true"
+            >
+              {clients.map((c) => {
+                const checked = selected.includes(c.id)
+                const disabled = !checked && selected.length >= 4
+                return (
+                  <button
+                    key={c.id}
+                    role="option"
+                    aria-selected={checked}
+                    onClick={() => !disabled && toggleClient(c.id)}
+                    disabled={disabled}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-start transition-colors disabled:opacity-40 hover:bg-surface-raised text-text focus-visible:outline-none focus-visible:bg-surface-raised"
                   >
-                    {checked && (
-                      <svg viewBox="0 0 8 8" width="8" height="8" fill="none">
-                        <path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="flex-1">{c.name}</span>
-                  <span className="text-xs text-text-muted">{c.type}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
+                    <div
+                      className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors"
+                      style={{
+                        border: `2px solid ${checked ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        background: checked ? 'var(--color-primary)' : 'transparent',
+                      }}
+                    >
+                      {checked && (
+                        <svg viewBox="0 0 8 8" width="8" height="8" fill="none" aria-hidden="true">
+                          <path
+                            d="M1.5 4L3 5.5L6.5 2"
+                            stroke="#fff"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="flex-1 text-sm">{c.name}</span>
+                    <span className="text-xs text-text-muted">{c.type}</span>
+                  </button>
+                )
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Comparison table */}
       {comparedClients.length < 2 ? (
-        <div
-          className="rounded-lg py-10 flex flex-col items-center gap-2 text-center"
-          style={{ background: 'var(--color-surface-raised)' }}
-        >
-          <BarChart2 size={24} style={{ color: 'var(--color-text-subtle)' }} />
+        <div className="rounded-xl py-10 flex flex-col items-center gap-2 text-center bg-surface-raised">
+          <BarChart2 size={24} className="text-text-subtle opacity-50" aria-hidden="true" />
           <p className="text-sm text-text-muted">Select at least 2 institutions to compare</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <th className="py-2.5 px-3 text-left text-xs font-semibold text-text-muted w-40">
+              <tr className="bg-surface-raised border-b border-border">
+                <th
+                  scope="col"
+                  className="py-2.5 px-4 text-start text-xs font-semibold text-text-muted w-44"
+                >
                   Metric
                 </th>
                 {comparedClients.map((c) => (
                   <th
                     key={c.id}
-                    className="py-2.5 px-3 text-left text-xs font-semibold text-text whitespace-nowrap"
+                    scope="col"
+                    className="py-2.5 px-4 text-start text-xs font-semibold text-text whitespace-nowrap"
                   >
                     {c.name}
                   </th>
@@ -657,12 +644,12 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
                 return (
                   <tr
                     key={row.key}
-                    style={{
-                      background: i % 2 === 0 ? 'transparent' : 'var(--color-surface-raised)',
-                      borderBottom: '1px solid var(--color-border)',
-                    }}
+                    className={cn(
+                      'border-b border-border',
+                      i % 2 === 0 ? 'bg-surface' : 'bg-surface-raised/50',
+                    )}
                   >
-                    <td className="py-2.5 px-3 text-xs font-medium text-text-muted whitespace-nowrap">
+                    <td className="py-2.5 px-4 text-xs font-medium text-text-muted whitespace-nowrap">
                       {row.label}
                     </td>
                     {comparedClients.map((c) => {
@@ -671,14 +658,20 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
                       return (
                         <td
                           key={c.id}
-                          className="py-2.5 px-3 text-xs font-medium tabular-nums"
+                          className="py-2.5 px-4 text-xs font-medium tabular-nums"
                           style={{
-                            background: isBest ? '#10B98115' : undefined,
-                            color: isBest ? '#10B981' : isText ? TIER_COLOR(val as string) : 'var(--color-text)',
+                            background: isBest ? '#10B98112' : undefined,
+                            color: isBest
+                              ? '#10B981'
+                              : isText
+                              ? TIER_COLOR(val as string)
+                              : 'var(--color-text)',
                             fontFamily: isText ? undefined : 'var(--font-mono)',
                           }}
                         >
-                          {isText ? val : typeof val === 'number' && row.key !== 'missingIndicators'
+                          {isText
+                            ? val
+                            : typeof val === 'number' && row.key !== 'missingIndicators'
                             ? `${val}${['griCoverage', 'fraCoverage'].includes(row.key) ? '%' : ''}`
                             : val}
                         </td>
@@ -703,23 +696,22 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
   const clients = MOCK_CLIENTS
 
   return (
-    <Card className="p-5 flex flex-col gap-0" style={{ height: 'fit-content' }}>
-      <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-4">
+    <Card className="p-5 flex flex-col gap-3" style={{ height: 'fit-content' }}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1">
         Client Activity
       </p>
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-3" role="list">
         {items.map((item, i) => {
           const client = clients.find((c) => c.id === item.institutionId)
           return (
             <li key={i} className="flex items-start gap-3">
-              {/* Institution avatar */}
               <div
                 className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold"
-                style={{ background: `${item.iconColor}20`, color: item.iconColor }}
+                style={{ background: `${item.iconColor}18`, color: item.iconColor }}
+                aria-hidden="true"
               >
                 {item.institutionName.slice(0, 2).toUpperCase()}
               </div>
-
               <div className="flex-1 min-w-0">
                 <button
                   onClick={() => {
@@ -732,18 +724,14 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
                       navigate('/dashboard')
                     }
                   }}
-                  className="text-xs font-semibold hover:underline text-left"
-                  style={{ color: 'var(--color-primary)' }}
+                  className="text-xs font-semibold hover:underline text-start text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                 >
                   {item.institutionName}
                 </button>
                 <p className="text-xs text-text-muted leading-snug mt-0.5">{item.action}</p>
               </div>
-
-              <span
-                className="text-xs text-text-subtle shrink-0 flex items-center gap-1 mt-0.5"
-              >
-                <Clock size={10} />
+              <span className="text-xs text-text-subtle shrink-0 flex items-center gap-1 mt-0.5">
+                <Clock size={10} aria-hidden="true" />
                 {item.time}
               </span>
             </li>
@@ -759,22 +747,16 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
 function AccessDenied() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div
-        className="w-14 h-14 rounded-full flex items-center justify-center mb-5"
-        style={{ background: 'var(--color-surface-raised)' }}
-      >
-        <Users size={24} style={{ color: '#EF4444' }} />
+      <div className="w-14 h-14 rounded-2xl bg-danger/10 flex items-center justify-center mb-5 border border-danger/20">
+        <Users size={24} style={{ color: '#EF4444' }} aria-hidden="true" />
       </div>
       <p className="text-base font-semibold text-text mb-2">Access restricted</p>
-      <p className="text-sm text-text-muted mb-6 max-w-sm">
+      <p className="text-sm text-text-muted mb-6 max-w-sm leading-relaxed">
         The Consultant Workspace is only available to consultant and admin accounts.
       </p>
       <Link
         to="/dashboard"
-        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded transition-colors"
-        style={{ background: 'var(--color-primary)', color: '#fff' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-primary-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-primary)')}
+        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         Back to Dashboard
       </Link>
@@ -786,6 +768,7 @@ function AccessDenied() {
 
 export default function ConsultantWorkspace() {
   const [showAddModal, setShowAddModal] = useState(false)
+  const [search, setSearch] = useState('')
   const role = useAuthStore((s) => s.role)
 
   if (role !== 'consultant' && role !== 'admin') {
@@ -796,47 +779,76 @@ export default function ConsultantWorkspace() {
     )
   }
 
+  const filteredClients = search.trim()
+    ? MOCK_CLIENTS.filter((c) =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.type.toLowerCase().includes(search.toLowerCase()),
+      )
+    : MOCK_CLIENTS
+
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
       {/* Page header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="text-[28px] font-semibold text-text leading-tight">
+          <h1 className="text-2xl font-semibold text-text leading-tight">
             Consultant Workspace
           </h1>
           <p className="text-sm text-text-muted mt-1">
             Manage and compare your client portfolio.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          {/* Portfolio count chip */}
           <span className="text-xs text-text-muted bg-surface-raised px-3 py-1.5 rounded-full border border-border">
-            <span style={{ background: 'var(--color-surface-raised)' }}>
-              Managing {MOCK_CLIENTS.length} institutions
-            </span>
+            Managing {MOCK_CLIENTS.length} institutions
           </span>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-primary-hover)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-primary)')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <Plus size={15} />
+            <Plus size={15} aria-hidden="true" />
             Add Client
           </button>
         </div>
       </div>
 
+      {/* Search bar */}
+      <div className="mb-5">
+        <div className="relative max-w-sm">
+          <Search
+            size={14}
+            className="absolute start-3 top-1/2 -translate-y-1/2 text-text-muted"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search institutions…"
+            aria-label="Search client institutions"
+            className="w-full ps-9 pe-4 py-2 text-sm rounded-lg bg-surface border border-border-subtle hover:border-border text-text placeholder:text-text-subtle outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary transition-colors"
+          />
+        </div>
+      </div>
+
       {/* Main layout: portfolio grid + activity feed */}
       <div className="flex gap-6">
-        {/* Left: grid + comparison */}
+        {/* Left: client grid + comparison */}
         <div className="flex-1 min-w-0 flex flex-col gap-6">
           {/* Client portfolio grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
-            {MOCK_CLIENTS.map((client) => (
-              <ClientCard key={client.id} client={client} />
-            ))}
-          </div>
+          {filteredClients.length === 0 ? (
+            <div className="rounded-xl border border-border bg-surface-raised py-12 flex flex-col items-center gap-2 text-center">
+              <Building2 size={24} className="text-text-subtle opacity-40" aria-hidden="true" />
+              <p className="text-sm text-text-muted">No institutions match your search.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {filteredClients.map((client) => (
+                <ClientCard key={client.id} client={client} />
+              ))}
+            </div>
+          )}
 
           {/* Comparison panel */}
           <ComparisonPanel clients={MOCK_CLIENTS} />
@@ -848,7 +860,10 @@ export default function ConsultantWorkspace() {
         </div>
       </div>
 
-      {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} />}
+      {/* Add client modal */}
+      <AnimatePresence>
+        {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} />}
+      </AnimatePresence>
     </div>
   )
 }
