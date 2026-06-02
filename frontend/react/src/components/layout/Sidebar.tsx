@@ -12,8 +12,11 @@ import {
   Globe,
   Sun,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
-import { useUIStore } from '@/store/ui'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useUIStore, applyLang } from '@/store/ui'
 import { useAuthStore, emailInitials, emailHandle } from '@/store/auth'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -31,7 +34,9 @@ const TOOLS_NAV = [
   { to: '/admin', icon: Settings, label: 'nav.admin', roles: ['admin'] },
 ] as const
 
-export default function Sidebar() {
+// ─── Sidebar inner (shared between full and collapsed) ──────────────────────
+
+function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
   const { i18n, t } = useTranslation()
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar, language, setLanguage, theme, toggleTheme } = useUIStore()
@@ -44,11 +49,10 @@ export default function Sidebar() {
   }
 
   function toggleLang() {
-    const next = language === 'en' ? 'ar' : 'en'
+    const next: 'en' | 'ar' = language === 'en' ? 'ar' : 'en'
     setLanguage(next)
     i18n.changeLanguage(next)
-    document.documentElement.lang = next
-    document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
+    applyLang(next)
   }
 
   function NavItem({
@@ -60,40 +64,56 @@ export default function Sidebar() {
     icon: React.ElementType
     label: string
   }) {
-    // Translate if it's an i18n key (contains dot), otherwise use as-is
     const displayLabel = label.includes('.') ? t(label) : label
     return (
       <NavLink
         to={to}
+        end
+        onClick={onNavClick}
+        aria-label={displayLabel}
         className={({ isActive }) =>
           cn(
-            'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-surface-raised relative',
-            isActive ? 'text-primary bg-surface-raised' : 'text-text-muted hover:text-text',
+            'relative flex items-center gap-3 px-3 py-2.5 text-sm rounded-md mx-1.5 transition-colors duration-150',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            isActive
+              ? 'text-primary bg-primary/10 font-medium'
+              : 'text-text-muted hover:text-text hover:bg-surface-raised',
           )
         }
       >
         {({ isActive }) => (
           <>
+            {/* Active indicator bar — on the inner edge in RTL, outer edge in LTR */}
             {isActive && (
               <span
-                className="absolute top-1 bottom-1 w-0.5 rounded"
+                className="absolute top-1 bottom-1 w-0.5 rounded-full"
                 style={{
                   background: 'var(--color-primary)',
-                  [isRTL ? 'right' : 'left']: 0,
+                  [isRTL ? 'insetInlineEnd' : 'insetInlineStart']: 0,
                 }}
+                aria-hidden="true"
               />
             )}
-            <Icon size={18} className="shrink-0" />
-            {!sidebarCollapsed && (
-              <span className="whitespace-nowrap">{displayLabel}</span>
-            )}
+            <Icon size={17} className="shrink-0" aria-hidden="true" />
+            <AnimatePresence initial={false}>
+              {!sidebarCollapsed && (
+                <motion.span
+                  key="label"
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="whitespace-nowrap overflow-hidden"
+                >
+                  {displayLabel}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </>
         )}
       </NavLink>
     )
   }
-
-  const sideEdge = isRTL ? 'right-0' : 'left-0'
 
   // Visible tool nav items filtered by role
   const visibleTools = TOOLS_NAV.filter((item) =>
@@ -103,24 +123,24 @@ export default function Sidebar() {
   const initials = emailInitials(email)
   const handle = emailHandle(email)
 
+  // Collapse icon logic:
+  // LTR: collapsed=PanelLeftOpen (expand), expanded=PanelLeftClose (collapse)
+  // RTL: collapsed=ChevronLeft  (expand toward left), expanded=ChevronRight (collapse toward right)
+  const CollapseIcon = sidebarCollapsed
+    ? isRTL ? ChevronLeft : PanelLeftOpen
+    : isRTL ? ChevronRight : PanelLeftClose
+
   return (
-    <aside
-      className={`fixed top-0 ${sideEdge} h-full flex flex-col z-40 transition-all duration-300`}
-      style={{
-        width: sidebarCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)',
-        background: 'var(--color-surface)',
-        [isRTL ? 'borderLeft' : 'borderRight']: '1px solid var(--color-border)',
-      }}
-    >
-      {/* Wordmark — clicking goes to Landing page */}
+    <div className="flex flex-col h-full">
+      {/* Wordmark */}
       <div
-        className="flex items-center px-4 h-14 shrink-0 overflow-hidden"
+        className="flex items-center h-14 px-4 shrink-0"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
         <Link
           to="/"
-          className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-          title="Home"
+          className="flex items-center gap-1.5 hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+          title="ESG Catalyst Home"
         >
           {sidebarCollapsed ? (
             <span className="text-base font-bold" style={{ color: 'var(--color-primary)' }}>E</span>
@@ -134,106 +154,254 @@ export default function Sidebar() {
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
-        <div className="flex flex-col">
+      <nav aria-label="Main navigation" className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
+        <ul className="flex flex-col gap-0.5" role="list">
           {MAIN_NAV.map((item) => (
-            <NavItem key={item.to} {...item} />
+            <li key={item.to}>
+              <NavItem {...item} />
+            </li>
           ))}
-        </div>
+        </ul>
 
-        {/* Tools section — only shown if the user's role allows it */}
+        {/* Tools section — role-gated */}
         {visibleTools.length > 0 && (
-          <>
-            <div className="my-2 mx-4 border-t" style={{ borderColor: 'var(--color-border)' }} />
-            {!sidebarCollapsed && (
-              <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-text-subtle">
-                Tools
-              </p>
-            )}
-            <div className="flex flex-col">
+          <div className="mt-2">
+            <div className="mx-4 my-1.5 border-t" style={{ borderColor: 'var(--color-border)' }} />
+            <AnimatePresence initial={false}>
+              {!sidebarCollapsed && (
+                <motion.p
+                  key="tools-label"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="px-4 pb-1 pt-0.5 text-xs font-semibold uppercase tracking-widest text-text-subtle"
+                >
+                  Tools
+                </motion.p>
+              )}
+            </AnimatePresence>
+            <ul className="flex flex-col gap-0.5" role="list">
               {visibleTools.map((item) => (
-                <NavItem key={item.to} {...item} />
+                <li key={item.to}>
+                  <NavItem {...item} />
+                </li>
               ))}
-            </div>
-          </>
+            </ul>
+          </div>
         )}
       </nav>
 
-      {/* Bottom area */}
-      <div style={{ borderTop: '1px solid var(--color-border)' }}>
+      {/* Bottom controls */}
+      <div className="shrink-0" style={{ borderTop: '1px solid var(--color-border)' }}>
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="flex items-center gap-3 px-4 py-2.5 w-full text-sm text-text-muted hover:text-text hover:bg-surface-raised transition-colors"
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className={cn(
+            'flex items-center gap-3 w-full px-4 py-2.5 text-sm text-text-muted',
+            'hover:text-text hover:bg-surface-raised transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
         >
           {theme === 'dark'
-            ? <Sun size={18} className="shrink-0" />
-            : <Moon size={18} className="shrink-0" />}
-          {!sidebarCollapsed && (
-            <span className="whitespace-nowrap">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-          )}
+            ? <Sun size={17} className="shrink-0" aria-hidden="true" />
+            : <Moon size={17} className="shrink-0" aria-hidden="true" />}
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.span
+                key="theme-label"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="whitespace-nowrap overflow-hidden"
+              >
+                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
 
         {/* Language toggle */}
         <button
           onClick={toggleLang}
-          className="flex items-center gap-3 px-4 py-2.5 w-full text-sm text-text-muted hover:text-text hover:bg-surface-raised transition-colors"
-        >
-          <Globe size={18} className="shrink-0" />
-          {!sidebarCollapsed && (
-            <span className="whitespace-nowrap">{language === 'en' ? 'العربية' : 'English'}</span>
+          aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
+          className={cn(
+            'flex items-center gap-3 w-full px-4 py-2.5 text-sm text-text-muted',
+            'hover:text-text hover:bg-surface-raised transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           )}
+        >
+          <Globe size={17} className="shrink-0" aria-hidden="true" />
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.span
+                key="lang-label"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="whitespace-nowrap overflow-hidden"
+              >
+                {language === 'en' ? 'العربية' : 'English'}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
 
-        {/* User row — shows email-derived initials + handle, hides raw UUID */}
+        {/* User identity row */}
         <div className="flex items-center gap-2.5 px-4 py-2.5">
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 select-none"
             style={{ background: 'var(--color-primary)', color: '#fff' }}
             title={email ?? 'User'}
+            aria-label={`Logged in as ${email ?? 'User'}`}
           >
             {initials}
           </div>
-          {!sidebarCollapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-medium text-text truncate">{handle}</span>
-              <span
-                className="text-xs text-text-subtle truncate"
-                style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem' }}
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.div
+                key="user-meta"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex flex-col min-w-0 overflow-hidden"
               >
-                {role}
-              </span>
-            </div>
-          )}
+                <span className="text-xs font-medium text-text truncate">{handle}</span>
+                <span
+                  className="text-xs text-text-subtle truncate"
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem' }}
+                >
+                  {role}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Logout */}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-2.5 w-full text-sm text-text-muted hover:text-danger hover:bg-surface-raised transition-colors"
+          aria-label="Log out"
+          className={cn(
+            'flex items-center gap-3 w-full px-4 py-2.5 text-sm text-text-muted',
+            'hover:text-danger hover:bg-surface-raised transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
         >
-          <LogOut size={18} className="shrink-0" />
-          {!sidebarCollapsed && <span>{t('nav.logout')}</span>}
+          <LogOut size={17} className="shrink-0" aria-hidden="true" />
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.span
+                key="logout-label"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="whitespace-nowrap overflow-hidden"
+              >
+                {t('nav.logout')}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
 
         {/* Collapse toggle */}
         <button
           onClick={toggleSidebar}
-          className="flex items-center gap-3 px-4 py-2.5 w-full text-sm text-text-subtle hover:text-text hover:bg-surface-raised transition-colors"
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {sidebarCollapsed ? (
-            isRTL ? <ChevronLeft size={18} className="shrink-0" /> : <ChevronRight size={18} className="shrink-0" />
-          ) : (
-            <>
-              {isRTL ? <ChevronRight size={18} className="shrink-0" /> : <ChevronLeft size={18} className="shrink-0" />}
-              {!sidebarCollapsed && <span>{t('nav.collapse')}</span>}
-            </>
+          className={cn(
+            'flex items-center gap-3 w-full px-4 py-2.5 text-sm text-text-subtle',
+            'hover:text-text hover:bg-surface-raised transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           )}
+        >
+          <CollapseIcon size={17} className="shrink-0" aria-hidden="true" />
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.span
+                key="collapse-label"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="whitespace-nowrap overflow-hidden"
+              >
+                {t('nav.collapse')}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
       </div>
-    </aside>
+    </div>
+  )
+}
+
+// ─── Main Sidebar export ────────────────────────────────────────────────────
+
+export default function Sidebar() {
+  const { sidebarCollapsed, language, mobileSidebarOpen, setMobileSidebarOpen } = useUIStore()
+  const isRTL = language === 'ar'
+
+  const sideEdge = isRTL ? 'end-0' : 'start-0'
+  const sideWidth = sidebarCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)'
+
+  return (
+    <>
+      {/* ── Desktop sidebar (hidden on mobile) ─────────────────────────────── */}
+      <motion.aside
+        role="complementary"
+        aria-label="Application sidebar"
+        animate={{ width: sidebarCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 36, mass: 0.8 }}
+        className={`hidden md:flex flex-col fixed top-0 ${sideEdge} h-full z-40 overflow-hidden`}
+        style={{
+          background: 'var(--color-surface)',
+          [isRTL ? 'borderLeft' : 'borderRight']: '1px solid var(--color-border)',
+        }}
+      >
+        <SidebarInner />
+      </motion.aside>
+
+      {/* ── Mobile: overlay + drawer ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/60 md:hidden"
+              aria-hidden="true"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+            {/* Drawer */}
+            <motion.aside
+              key="sidebar-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
+              initial={{ x: isRTL ? '100%' : '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: isRTL ? '100%' : '-100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 36, mass: 0.8 }}
+              className={`fixed top-0 ${sideEdge} h-full z-50 md:hidden flex flex-col overflow-hidden`}
+              style={{
+                width: sideWidth,
+                background: 'var(--color-surface)',
+                [isRTL ? 'borderLeft' : 'borderRight']: '1px solid var(--color-border)',
+              }}
+            >
+              <SidebarInner onNavClick={() => setMobileSidebarOpen(false)} />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
