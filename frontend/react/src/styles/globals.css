@@ -1,26 +1,143 @@
 @import './tokens.css';
 @import 'tailwindcss';
 
+/* ═══════════════════════════════════════════════════════
+   Tailwind v4 @theme block — maps CSS vars → utility classes.
+   Keep token NAMES in sync with tokens.css.
+   ═══════════════════════════════════════════════════════ */
 @theme {
-  --color-bg: #0B1220;
-  --color-surface: #111827;
-  --color-surface-raised: #1F2937;
-  --color-border: #1F2937;
-  --color-border-subtle: #374151;
-  --color-primary: #0D9488;
-  --color-primary-hover: #0F766E;
-  --color-text: #F9FAFB;
-  --color-text-muted: #6B7280;
-  --color-text-subtle: #4B5563;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
-  --color-info: #38BDF8;
+  /* Backgrounds */
+  --color-bg:             var(--color-bg);
+  --color-surface:        var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
 
-  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
-  --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Borders */
+  --color-border:         var(--color-border);
+  --color-border-subtle:  var(--color-border-subtle);
 
-  --radius: 0.5rem;
-  --radius-lg: 0.75rem;
+  /* Brand */
+  --color-primary:        var(--color-primary);
+  --color-primary-hover:  var(--color-primary-hover);
+  --color-primary-subtle: var(--color-primary-subtle);
+
+  /* Text */
+  --color-text:           var(--color-text);
+  --color-text-muted:     var(--color-text-muted);
+  --color-text-subtle:    var(--color-text-subtle);
+
+  /* Semantic */
+  --color-success:        var(--color-success);
+  --color-success-subtle: var(--color-success-subtle);
+  --color-warning:        var(--color-warning);
+  --color-warning-subtle: var(--color-warning-subtle);
+  --color-danger:         var(--color-danger);
+  --color-danger-subtle:  var(--color-danger-subtle);
+  --color-info:           var(--color-info);
+  --color-info-subtle:    var(--color-info-subtle);
+
+  /* Chart colours */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Typography */
+  --font-sans:   var(--font-sans);
+  --font-arabic: var(--font-arabic);
+  --font-mono:   var(--font-mono);
+
+  /* Radius */
+  --radius:    var(--radius);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}
+
+/* ─── Typography rhythm ───────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+
+p {
+  line-height: 1.7;
+}
+
+/* Numeric columns — keep digits tabular so they don't jump */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ─── Focus visible defaults ──────────────────────────── */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Button / interactive elements get a tighter ring */
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* ─── Scrollbars (chromium + firefox) ────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-subtle);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-subtle) transparent;
+}
+
+/* ─── Text selection ──────────────────────────────────── */
+::selection {
+  background-color: var(--color-primary);
+  color: #fff;
+  text-shadow: none;
+}
+
+/* ─── Prefers-reduced-motion guard ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Utility helpers ─────────────────────────────────── */
+/* Gradient brand surface — use as background on hero cards */
+.bg-brand-gradient {
+  background: var(--gradient-brand);
+}
+
+/* Gradient bar fill — use on progress bars */
+.bg-brand-bar {
+  background: var(--gradient-brand-bar);
 }
