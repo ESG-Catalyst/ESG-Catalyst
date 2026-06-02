@@ -242,8 +242,8 @@ function RegulatoryStrip() {
                   style={{
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
-                    borderStartWidth: '3px',
-                    borderStartColor: 'var(--color-primary)',
+                    borderInlineStartWidth: '3px',
+                    borderInlineStartColor: 'var(--color-primary)',
                   }}
                 >
                   <div className="flex items-start gap-3">
