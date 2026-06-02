@@ -339,7 +339,7 @@ export default function PipelineProgress() {
   const { jobId } = useParams<{ jobId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { documentId: storedDocId, setJob } = usePipelineStore()
+  const { documentId: storedDocId, documentName: storedDocName, setJob } = usePipelineStore()
   const documentId = searchParams.get('doc') ?? storedDocId ?? ''
 
   // Persist job context so navigating away and back restores state
@@ -394,26 +394,41 @@ export default function PipelineProgress() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <div className="flex items-start gap-3 px-4 py-4 rounded" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
-          <AlertTriangle size={18} style={{ color: '#EF4444' }} className="mt-0.5 shrink-0" />
+      <div className="p-6 max-w-2xl mx-auto" role="alert">
+        <div
+          className="flex items-start gap-3 px-4 py-4 rounded-xl"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}
+        >
+          <AlertTriangle size={18} style={{ color: '#EF4444' }} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div>
             <p className="text-sm font-semibold" style={{ color: '#EF4444' }}>Could not load pipeline status</p>
-            <p className="text-xs text-text-muted mt-1">Job ID: {jobId}</p>
+            <p className="text-xs text-text-muted mt-1">Job ID: <span style={{ fontFamily: 'var(--font-mono)' }}>{jobId}</span></p>
+            <p className="text-xs text-text-subtle mt-2">Try refreshing the page. If this persists, the job may have expired.</p>
           </div>
         </div>
       </div>
     )
   }
 
+  // Show a human-readable document name if available from the pipeline store
+  const docLabel = storedDocName
+    ? storedDocName
+    : documentId
+      ? `${documentId.slice(0, 8)}…`
+      : null
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Pipeline</p>
-        <h1 className="text-2xl font-semibold text-text">Analysis in Progress</h1>
-        {documentId && (
-          <p className="text-sm text-text-muted mt-1 truncate max-w-sm">Document: {documentId.slice(0, 8)}…</p>
+        <h1 className="text-2xl font-semibold text-text">
+          {isComplete ? 'Analysis Complete' : isFailed ? 'Analysis Failed' : 'Analysis in Progress'}
+        </h1>
+        {docLabel && (
+          <p className="text-sm text-text-muted mt-1 truncate max-w-sm" title={storedDocName ?? documentId}>
+            <span className="font-medium text-text-subtle">Document:</span> {docLabel}
+          </p>
         )}
       </div>
 
@@ -510,25 +525,30 @@ export default function PipelineProgress() {
             transition={{ duration: 0.4, ease: 'easeOut' }}
             className="mt-8 rounded-xl p-8 flex flex-col items-center text-center"
             style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.25)' }}
+            role="status"
+            aria-live="polite"
+            aria-label="Analysis complete"
           >
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.1 }}
             >
-              <CheckCircle2 size={52} style={{ color: '#10B981' }} />
+              <CheckCircle2 size={52} style={{ color: '#10B981' }} aria-hidden="true" />
             </motion.div>
             <p className="text-lg font-semibold text-text mt-4">Analysis complete</p>
-            <p className="text-sm text-text-muted mt-1">Metrics are ready for review</p>
+            <p className="text-sm text-text-muted mt-1">Metrics are ready for your review and approval</p>
             {documentId && (
               <Link
                 to={`/results/${documentId}`}
-                className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded transition-colors"
-                style={{ background: '#10B981', color: '#fff' }}
+                className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-colors focus-visible:ring-2 ring-offset-2"
+                style={{ background: '#10B981', color: '#fff', '--tw-ring-color': '#10B981' } as React.CSSProperties}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#059669')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#10B981')}
+                aria-label="Review extracted metrics"
               >
-                Review Metrics →
+                Review Metrics
+                <CheckCircle2 size={14} aria-hidden="true" />
               </Link>
             )}
           </motion.div>
@@ -544,12 +564,14 @@ export default function PipelineProgress() {
             transition={{ duration: 0.35 }}
             className="mt-8 rounded-xl p-6 flex flex-col gap-4"
             style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}
+            role="alert"
+            aria-live="assertive"
           >
             <div className="flex items-start gap-3">
               {errInfo.type === 'abort' ? (
-                <Ban size={24} style={{ color: '#EF4444' }} className="shrink-0 mt-0.5" />
+                <Ban size={24} style={{ color: '#EF4444' }} className="shrink-0 mt-0.5" aria-hidden="true" />
               ) : (
-                <XCircle size={24} style={{ color: '#EF4444' }} className="shrink-0 mt-0.5" />
+                <XCircle size={24} style={{ color: '#EF4444' }} className="shrink-0 mt-0.5" aria-hidden="true" />
               )}
               <div>
                 <p className="text-base font-semibold" style={{ color: '#EF4444' }}>{errInfo.title}</p>
@@ -567,7 +589,7 @@ export default function PipelineProgress() {
                 automatically switched to the free fallback model. If you see this after the fallback also failed, both OpenRouter
                 accounts are out of credits.
                 <br /><br />
-                <strong>Fix:</strong> Top up at <span className="font-mono">openrouter.ai/credits</span>, then click &quot;Try Again&quot; below.
+                <strong>Fix:</strong> Top up at <span style={{ fontFamily: 'var(--font-mono)' }}>openrouter.ai/credits</span>, then click &quot;Try Again&quot; below.
               </div>
             )}
             {errInfo.type === 'abort' && (
@@ -580,12 +602,12 @@ export default function PipelineProgress() {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {errInfo.canRetry && (
                 <button
                   onClick={retryPipeline}
                   disabled={!documentId}
-                  className="px-5 py-2.5 text-sm font-semibold rounded transition-colors disabled:opacity-40"
+                  className="px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 focus-visible:ring-2 ring-primary ring-offset-1"
                   style={{ background: 'var(--color-primary)', color: '#fff' }}
                   onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
@@ -595,7 +617,7 @@ export default function PipelineProgress() {
               )}
               <a
                 href="mailto:support@esgcatalyst.io"
-                className="text-sm text-text-muted hover:text-text transition-colors"
+                className="text-sm text-text-muted hover:text-text transition-colors focus-visible:ring-2 ring-primary rounded px-1"
               >
                 Contact Support
               </a>
