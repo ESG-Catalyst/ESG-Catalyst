@@ -106,6 +106,14 @@ Surviving findings, most-severe first:
 
 ## 5. Bugs found but NOT fixed (out of scope — owner / frozen-schema / roadmap)
 
+> **✅ Follow-up — fixed in commit `28fcec2` (four correctness bugs resolved; 498 tests still pass):**
+> - **`gap_analysis` priority** now reads `materiality_weights` (max weight across sectors → 0.5–2.0 rubric: ≥1.5 high, ≥1.0 medium, else low) instead of the non-existent `materiality_score` — real gap prioritisation restored.
+> - **`compute_tcfd_score`** infers each metric's TCFD pillar from its GRI/FRA code via a new `_tcfd_pillar_for_metric()` (emissions/energy → Metrics & Targets, governance → Governance) — **no schema change**; the dead `m.tcfd_pillar` reference is gone.
+> - **`extractor.py`** re-raises `LLMUnavailableError` (instead of swallowing it per-indicator), so a credit-exhausted run **fails the document** via the task handler instead of silently "completing" with 0 metrics — the error hierarchy is now effective end-to-end (closes §4 #1 / §6 #1).
+> - **`datetime.utcnow()`** → `datetime.now(timezone.utc)` in `fra_compliance.py` **and** `scorer.py` (deprecation warnings gone).
+>
+> Remaining rows are infra/cleanup, **not correctness bugs**: `--max-tasks-per-child=1` is in fact **already present** in `Dockerfile.worker:80`; the stray test scripts + unwired `extraction_concurrency` / `CLIMATEBERT_MODEL` are tidy-ups.
+
 | Item | Location | Why deferred |
 |---|---|---|
 | `gap_analysis` keys on `materiality_score` (field is `materiality_weights`) → **every gap silently scores `priority="medium"`** | `core/scoring/gap_analysis.py` | M4-owned logic bug; real, found by Agent A. Recommend M4 fix next. |
