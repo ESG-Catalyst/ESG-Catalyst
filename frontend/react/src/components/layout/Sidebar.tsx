@@ -20,6 +20,7 @@ import { useUIStore, applyLang } from '@/store/ui'
 import { useAuthStore, emailInitials, emailHandle } from '@/store/auth'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { humanizeLabel } from '@/lib/format'
 
 const MAIN_NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -270,11 +271,8 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
                 className="flex flex-col min-w-0 overflow-hidden"
               >
                 <span className="text-xs font-medium text-text truncate">{handle}</span>
-                <span
-                  className="text-xs text-text-subtle truncate"
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem' }}
-                >
-                  {role}
+                <span className="text-xs text-text-subtle truncate">
+                  {humanizeLabel(role)}
                 </span>
               </motion.div>
             )}

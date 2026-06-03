@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { getMetrics, updateMetric, type MetricDTO } from '@/api/metrics'
 import { generateReport } from '@/api/reports'
+import { getDocument } from '@/api/documents'
 import StatusPill from '@/components/ui/StatusPill'
 import { usePipelineStore } from '@/store/pipeline'
 
@@ -181,6 +182,7 @@ function EditForm({
 
 function MetricCard({
   metric,
+  fileName,
   selected,
   onClick,
   onApprove,
@@ -189,6 +191,7 @@ function MetricCard({
   saving,
 }: {
   metric: MetricDTO
+  fileName: string | null
   selected: boolean
   onClick: () => void
   onApprove: () => void
@@ -252,10 +255,10 @@ function MetricCard({
         <ConfidenceBar value={confidence} />
       </div>
 
-      {/* Source */}
-      {(metric.source_file || metric.source_page) && (
+      {/* Source — human filename, not the internal storage id */}
+      {(fileName || metric.source_page) && (
         <p className="text-xs text-text-subtle mb-3">
-          Source:{metric.source_file ? ` ${metric.source_file}` : ''}{metric.source_page ? `, page ${metric.source_page}` : ''}
+          Source:{fileName ? ` ${fileName}` : ''}{metric.source_page ? `, page ${metric.source_page}` : ''}
         </p>
       )}
 
@@ -338,7 +341,7 @@ function MetricCard({
 
 // ─── Evidence viewer ──────────────────────────────────────────────────────────
 
-function EvidenceViewer({ metric }: { metric: MetricDTO | null }) {
+function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileName: string | null }) {
   if (!metric) {
     return (
       <div
@@ -395,10 +398,10 @@ function EvidenceViewer({ metric }: { metric: MetricDTO | null }) {
         )}
       </div>
 
-      {(metric.source_file || metric.source_page) && (
+      {(fileName || metric.source_page) && (
         <p className="text-xs text-text-muted">
           <FileText size={11} className="inline me-1 mb-0.5" aria-hidden="true" />
-          {metric.source_file && <span>{metric.source_file}</span>}
+          {fileName && <span>{fileName}</span>}
           {metric.source_page && <span> · Page {metric.source_page}</span>}
         </p>
       )}
@@ -473,7 +476,7 @@ type FilterTab = 'all' | 'review' | 'approved' | 'rejected'
 
 export default function Results() {
   const { documentId: paramDocId } = useParams<{ documentId: string }>()
-  const { documentId: storedDocId } = usePipelineStore()
+  const { documentId: storedDocId, documentName } = usePipelineStore()
   const documentId = paramDocId ?? storedDocId ?? undefined
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -489,6 +492,16 @@ export default function Results() {
     queryFn: () => getMetrics(documentId!),
     enabled: !!documentId,
   })
+
+  // Resolve the human filename for the "Source" line (instead of the internal
+  // storage id). Fetch the document record for the viewed id; while it loads,
+  // fall back to the name stashed in the pipeline store if it matches.
+  const { data: docRecord } = useQuery({
+    queryKey: ['document', documentId],
+    queryFn: () => getDocument(documentId!),
+    enabled: !!documentId,
+  })
+  const fileName = docRecord?.filename ?? (documentId === storedDocId ? documentName : null)
 
   const mutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateMetric>[1] }) =>
@@ -774,6 +787,7 @@ export default function Results() {
               <MetricCard
                 key={m.id}
                 metric={m}
+                fileName={fileName}
                 selected={selectedMetric?.id === m.id}
                 onClick={() => setSelectedId(m.id)}
                 onApprove={() => handleApprove(m)}
@@ -787,15 +801,15 @@ export default function Results() {
 
         {/* Right — evidence viewer */}
         <div className="hidden lg:block">
-          <EvidenceViewer metric={selectedMetric} />
+          <EvidenceViewer metric={selectedMetric} fileName={fileName} />
         </div>
       </div>
 
       {/* Fixed bottom action bar */}
       <div
-        className="fixed bottom-0 inset-x-0 z-20 px-6 py-3 flex items-center justify-between gap-4 flex-wrap"
+        className="sticky bottom-0 z-20 px-6 py-3 flex items-center justify-between gap-4 flex-wrap"
         style={{
-          background: 'rgba(11,18,32,0.95)',
+          background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)',
           backdropFilter: 'blur(12px)',
           borderTop: '1px solid var(--color-border)',
         }}
