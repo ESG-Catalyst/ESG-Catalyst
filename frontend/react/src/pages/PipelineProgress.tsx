@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { getPipelineStatus } from '@/api/pipeline'
 import { usePipelineStore } from '@/store/pipeline'
+import { shortRef } from '@/lib/format'
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
@@ -428,6 +429,7 @@ export default function PipelineProgress() {
         {docLabel && (
           <p className="text-sm text-text-muted mt-1 truncate max-w-sm" title={storedDocName ?? documentId}>
             <span className="font-medium text-text-subtle">Document:</span> {docLabel}
+            {jobId && <span className="text-text-subtle"> · Job {shortRef(jobId)}</span>}
           </p>
         )}
       </div>

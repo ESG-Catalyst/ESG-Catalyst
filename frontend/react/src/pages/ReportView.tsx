@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { getReport, getReportPdf } from '@/api/reports'
 import { getMetrics, type MetricDTO } from '@/api/metrics'
+import { getDocument } from '@/api/documents'
+import { formatDate, shortRef } from '@/lib/format'
 import ScoreGauge from '@/components/ui/ScoreGauge'
 import StatusPill from '@/components/ui/StatusPill'
 
@@ -32,10 +34,6 @@ function TIER_COLOR(score: number): string {
   if (score >= 55) return '#38BDF8'
   if (score >= 35) return '#F59E0B'
   return '#EF4444'
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 // Pillar scores come from the backend ScoringResult (persisted on the
@@ -749,7 +747,7 @@ function useResizableInner(
 
 // ─── PDF Preview panel ────────────────────────────────────────────────────────
 
-function PdfPreview({ reportId }: { reportId: string }) {
+function PdfPreview({ reportId, fileName }: { reportId: string; fileName: string | null }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -791,7 +789,7 @@ function PdfPreview({ reportId }: { reportId: string }) {
     <iframe
       // #toolbar=0 hides Chrome's built-in PDF toolbar; view=FitH fits width
       src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-      title="PDF Preview"
+      title={fileName ? `ESG Disclosure Report — ${fileName}` : 'ESG Disclosure Report preview'}
       style={{
         width: '100%',
         height: '100%',
@@ -855,8 +853,17 @@ export default function ReportView() {
     overall: Math.round(report?.total_score ?? 0),
   }), [report])
 
+  const { data: srcDoc } = useQuery({
+    queryKey: ['document', docId],
+    queryFn: () => getDocument(docId!),
+    enabled: !!docId,
+  })
+  const fileName = srcDoc?.filename ?? null
+
   const reportDate = report?.created_at ? new Date(report.created_at).toISOString().slice(0, 10) : 'report'
-  const pdfFilename = `esg-report-${reportDate}.pdf`
+  const pdfFilename = fileName
+    ? `${fileName.replace(/\.[^.]+$/, '')}-esg-report.pdf`
+    : `esg-report-${reportDate}.pdf`
 
   const handleDownload = useCallback(async () => {
     if (!reportId || downloading) return
@@ -934,12 +941,9 @@ export default function ReportView() {
               <p className="text-xs text-text">{report ? formatDate(report.created_at) : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted mb-0.5">Report ID</p>
-              <p
-                className="text-xs text-text-subtle break-all"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                {reportId}
+              <p className="text-xs text-text-muted mb-0.5">Source Document</p>
+              <p className="text-xs text-text break-words">
+                {fileName ?? `Report ${shortRef(reportId)}`}
               </p>
             </div>
             <div className="flex items-center gap-1 flex-wrap">
@@ -1064,7 +1068,9 @@ export default function ReportView() {
             <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
               Report
             </p>
-            <h1 className="text-xl font-semibold text-text">ESG Disclosure Report</h1>
+            <h1 className="text-xl font-semibold text-text">
+              ESG Disclosure Report{fileName ? ` — ${fileName}` : ''}
+            </h1>
             <p className="text-sm text-text-muted mt-1">
               {report ? formatDate(report.created_at) : ''}
               {metrics.length > 0 && ` · ${metrics.filter((m) => m.status === 'approved').length} approved metrics`}
@@ -1177,7 +1183,7 @@ export default function ReportView() {
         </div>
         {/* flex-1 min-h-0 is critical — without min-h-0 the iframe never gets a bounded height */}
         <div className="flex-1 min-h-0" style={{ overflow: 'hidden' }}>
-          <PdfPreview reportId={reportId} />
+          <PdfPreview reportId={reportId} fileName={fileName} />
         </div>
       </div>
     </div>
