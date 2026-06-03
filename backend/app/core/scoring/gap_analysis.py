@@ -342,10 +342,16 @@ def _assess_indicator(indicator: dict, metric: Any, confidence_threshold: float)
     code           = indicator["code"]
     name           = indicator["name"]
     pillar         = indicator.get("pillar", "E")
-    materiality    = indicator.get("materiality_score", 0.5)
+    # materiality_weights is a {sector: weight} map on the 0.5–2.0 rubric
+    # (2.0 = SASB-material / FRA-mandated, 1.5 = highly relevant, 1.0 = standard,
+    # 0.5 = de-emphasized). Use the indicator's strongest materiality across
+    # sectors as the gap-priority signal. The old code read a non-existent
+    # "materiality_score" key, so every gap silently defaulted to medium.
+    _weights       = indicator.get("materiality_weights", {})
+    materiality    = max(_weights.values()) if _weights else 1.0
     primary_source = indicator.get("primary_source", "sustainability report")
 
-    priority = "high" if materiality >= 0.7 else "medium" if materiality >= 0.4 else "low"
+    priority = "high" if materiality >= 1.5 else "medium" if materiality >= 1.0 else "low"
 
     if metric is None:
         return GapItem(
