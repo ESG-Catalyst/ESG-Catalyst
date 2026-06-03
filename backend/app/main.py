@@ -23,6 +23,19 @@ from app.database import Base, get_engine
 log: structlog.BoundLogger = structlog.get_logger(__name__)
 
 
+class UTF8JSONResponse(JSONResponse):
+    """JSON response that declares ``charset=utf-8``.
+
+    Starlette only appends a charset to ``text/*`` media types, so the default
+    ``application/json`` response ships raw UTF-8 bytes with no declared
+    charset. Some clients (e.g. a Windows browser defaulting to cp1252) then
+    mis-decode non-ASCII content — a clean em-dash ``—`` renders as ``â€"``.
+    Declaring the charset removes that ambiguity.
+    """
+
+    media_type = "application/json; charset=utf-8"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create tables on startup (SQLite dev convenience; production uses migrations)."""
@@ -41,6 +54,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
+    default_response_class=UTF8JSONResponse,
 )
 
 # ---------------------------------------------------------------------------
