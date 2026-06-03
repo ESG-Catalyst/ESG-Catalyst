@@ -62,7 +62,10 @@ def _fix_arabic_text(text: str) -> str:
     try:
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
-    except (ValueError, RuntimeError) as exc:
+    except Exception as exc:
+        # arabic_reshaper / python-bidi can raise varied exception types; this
+        # is a best-effort cosmetic fixup, so stay fail-safe and return the
+        # original text on ANY failure (logged for diagnosis).
         logger.warning("table_extractor.arabic_fix_failed", error=str(exc))
         return text
 

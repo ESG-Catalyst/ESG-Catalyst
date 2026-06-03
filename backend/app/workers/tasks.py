@@ -332,6 +332,18 @@ async def _run_pipeline_async(
                 evidence_chunk=m.evidence_chunk,
                 extraction_method=m.extraction_method,
                 note=m.note,
+                # Restore fields the extractor sets but this hand-written ORM
+                # construction previously dropped — they were left NULL in the
+                # DB, which (for pillar) broke the E/S/G filter on the review page.
+                framework=m.framework,
+                metric_type=m.metric_type,
+                sector_standard_ref=m.sector_standard_ref,
+                currency=m.currency,
+                reporting_period_start=m.reporting_period_start,
+                reporting_period_end=m.reporting_period_end,
+                breakdown=m.breakdown,
+                pillar=m.pillar,
+                topic=m.topic,
             )
             session.add(metric_row)
 
