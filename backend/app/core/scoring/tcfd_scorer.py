@@ -30,17 +30,37 @@ _TCFD_PILLAR_KEYWORDS: dict[str, list[str]] = {
 }
 
 
+def _tcfd_pillar_for_metric(metric: object) -> str | None:
+    """Infer a TCFD pillar from an extracted metric's GRI/FRA code + topic.
+
+    ``ExtractedMetric`` has no dedicated ``tcfd_pillar`` field (the data
+    contract is frozen), so derive it: GHG / energy / Scope disclosures map to
+    "Metrics & Targets"; board / governance disclosures to "Governance".
+    Strategy and Risk-Management are left to keyword detection on the text.
+    Returns None when no confident mapping exists.
+    """
+    code = str(getattr(metric, "gri_code", "") or "")
+    topic = str(getattr(metric, "topic", "") or "")
+    hay = f"{code} {topic}".upper()
+    if any(k in hay for k in ("305", "302", "FRA", "GHG", "EMISSION", "SCOPE")):
+        return "metrics_targets"
+    if any(k in hay for k in ("GRI 2-", "GRI 2 ", "405", "GOVERNANCE", "BOARD")):
+        return "governance"
+    return None
+
+
 def compute_tcfd_score(metrics: list, full_text: str = "") -> dict[str, float]:
     """Score TCFD pillar coverage from extracted metrics and document text.
 
     Args:
-        metrics: Extracted metrics with ``tcfd_pillar`` field.
+        metrics: Extracted metrics (TCFD pillar inferred per metric via
+            ``_tcfd_pillar_for_metric`` — the schema has no ``tcfd_pillar``).
         full_text: Optional raw document text for keyword-based pillar detection.
 
     Returns:
         Dict mapping pillar name → 0–100 score, plus ``"overall"`` key.
     """
-    metric_pillars = {m.tcfd_pillar for m in metrics if getattr(m, "tcfd_pillar", None)}
+    metric_pillars = {p for m in metrics if (p := _tcfd_pillar_for_metric(m))}
 
     pillar_scores: dict[str, float] = {}
     lower_text = full_text.lower()

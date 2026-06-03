@@ -26,6 +26,7 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import settings
+from app.core.exceptions import LLMUnavailableError
 from app.core.extraction.prompts import SYSTEM_PROMPT, build_user_prompt
 from app.core.extraction.validator import (
     clamp,
@@ -330,6 +331,12 @@ async def extract_metrics(
                     status=metric.status.value,
                     confidence=metric.confidence,
                 )
+            except LLMUnavailableError:
+                # Both primary and fallback LLM failed — the whole run is doomed,
+                # so propagate to the Celery task handler (which marks the
+                # document failed) instead of silently marking every remaining
+                # indicator "missing" and "completing" with zero metrics.
+                raise
             except Exception as exc:
                 logger.error(
                     "extractor.indicator_failed",

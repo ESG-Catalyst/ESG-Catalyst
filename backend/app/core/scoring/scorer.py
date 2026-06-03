@@ -965,6 +965,6 @@ def score_document(
         "gap_analysis":         gap_results,
         "improvement_roadmap": roadmap,
         "weight_registry_used": sector_key,
-        "scoring_timestamp":    datetime.datetime.utcnow().isoformat() + "Z",
+        "scoring_timestamp":    datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
         "spec_version":         "1.0",
     }

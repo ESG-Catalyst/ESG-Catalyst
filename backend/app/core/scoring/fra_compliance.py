@@ -14,7 +14,7 @@ Public surface:
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -266,5 +266,5 @@ def get_fra_compliance_report(
             }
             for c in missing_mandatory
         ],
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
