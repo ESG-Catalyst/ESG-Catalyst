@@ -1,12 +1,14 @@
 import apiClient from './client'
 
 export interface PipelineRunRequest {
-  document_id: string
+  document_ids: string[]
 }
 
 export interface PipelineJob {
   job_id: string
-  document_id?: string
+  document_id: string
+  document_ids?: string[]
+  report_id?: string
 }
 
 export interface PipelineStatus {

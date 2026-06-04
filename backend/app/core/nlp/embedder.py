@@ -213,6 +213,8 @@ def embed_and_store(
     chunks: list[Chunk],
     company_id: str | None = None,
     report_id: str | None = None,
+    document_id: str | None = None,
+    filename: str | None = None,
 ) -> dict[Language, list[str]]:
     """Compute embeddings and upsert into per-language ChromaDB collections.
 
@@ -256,6 +258,8 @@ def embed_and_store(
         metadatas = [
             {
                 "source_file": ec.chunk.source_file,
+                "filename": filename or ec.chunk.source_file,
+                "document_id": document_id or "",
                 "page_number": ec.chunk.page_number,
                 "section_header": ec.chunk.section_header or "",
                 "chunk_type": ec.chunk.chunk_type,
