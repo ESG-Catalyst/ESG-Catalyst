@@ -8,6 +8,8 @@ import { motion } from 'framer-motion'
 import AuthPanel from '@/components/layout/AuthPanel'
 import { register as registerUser, type InstitutionType } from '@/api/auth'
 import { useAuthStore } from '@/store/auth'
+import { useQueryClient } from '@tanstack/react-query'
+import { clearAccountState } from '@/lib/session'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
@@ -67,6 +69,7 @@ export default function Register() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const queryClient = useQueryClient()
   const [serverError, setServerError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -102,6 +105,7 @@ export default function Register() {
         institution_name: values.institution_name,
         institution_type: values.institution_type,
       })
+      clearAccountState(queryClient)
       setAuth(res.access_token, res.user_id, res.role, values.email)
       navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
