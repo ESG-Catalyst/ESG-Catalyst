@@ -14,7 +14,7 @@ from uuid import UUID
 import structlog
 from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,16 +36,23 @@ router = APIRouter(prefix="/api/v1/pipeline", tags=["pipeline"])
 
 
 class PipelineRunRequest(BaseModel):
-    """Body for POST /pipeline/run."""
+    """Body for POST /pipeline/run.
 
-    document_id: UUID
+    Accepts one OR more documents to analyse together as a single Report (a
+    "document set"): each file is ingested/chunked/classified/embedded into a
+    shared pool, then ONE pooled extraction pass runs, with each metric
+    attributed to the document its evidence came from.
+    """
+
+    document_ids: list[UUID] = Field(..., min_length=1)
 
 
 class PipelineRunResponse(BaseModel):
     """Returned immediately after enqueueing the pipeline task."""
 
     job_id: str
-    document_id: UUID
+    document_id: UUID            # primary (first) document — for navigation
+    document_ids: list[UUID]
     report_id: UUID
     status: str  # always "queued"
 
@@ -104,31 +111,44 @@ async def run_pipeline(
     try:
         company_id = require_company(current_user)
 
-        result = await db.execute(select(Document).where(Document.id == body.document_id))
-        doc = result.scalar_one_or_none()
-        # 404 (not 403) on cross-company so a probe can't distinguish
-        # "doesn't exist" from "belongs to someone else".
-        if doc is None or doc.company_id != company_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found",
-            )
+        # Fetch + validate every document in the set (all must belong to the
+        # caller's company; 404 on any cross-company id to avoid existence leaks).
+        result = await db.execute(
+            select(Document).where(Document.id.in_(body.document_ids))
+        )
+        found = {d.id: d for d in result.scalars().all()}
+        ordered: list[Document] = []
+        for did in body.document_ids:
+            doc = found.get(did)
+            if doc is None or doc.company_id != company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Document not found",
+                )
+            if doc.status == DocumentStatus.processing:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Pipeline already running for document {doc.filename!r}",
+                )
+            ordered.append(doc)
 
-        if doc.status == DocumentStatus.processing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Pipeline already running for this document",
-            )
+        primary = ordered[0]
 
-        # Auto-create or reuse the Report record this pipeline will populate.
+        # One Report groups the whole document set. Reuse the primary doc's
+        # report if it already has one; else create it and link EVERY doc to it.
         report: Optional[Report] = None
-        if doc.report_id is not None:
-            res = await db.execute(select(Report).where(Report.id == doc.report_id))
+        if primary.report_id is not None:
+            res = await db.execute(select(Report).where(Report.id == primary.report_id))
             report = res.scalar_one_or_none()
         if report is None:
+            title = (
+                f"ESG Report — {primary.filename}"
+                if len(ordered) == 1
+                else f"ESG Report — {primary.filename} +{len(ordered) - 1} more"
+            )
             report = Report(
-                company_id=doc.company_id,
-                title=f"ESG Report — {doc.filename}",
+                company_id=company_id,
+                title=title,
                 reporting_year=datetime.now().year,
                 frameworks=["GRI", "FRA", "SASB"],
                 status=ReportStatus.draft,
@@ -136,14 +156,15 @@ async def run_pipeline(
             db.add(report)
             await db.flush()
             await db.refresh(report)
+        for doc in ordered:
             doc.report_id = report.id
-            await db.flush()
+        await db.flush()
 
         async_result = celery_app.send_task(
             "pipeline.run_extraction",
             kwargs={
-                "document_id": str(doc.id),
-                "company_id": str(doc.company_id),
+                "document_ids": [str(d.id) for d in ordered],
+                "company_id": str(company_id),
                 "report_id": str(report.id),
             },
         )
@@ -151,19 +172,20 @@ async def run_pipeline(
         log.info(
             "pipeline.enqueued",
             job_id=async_result.id,
-            document_id=str(doc.id),
+            document_ids=[str(d.id) for d in ordered],
             report_id=str(report.id),
         )
         return PipelineRunResponse(
             job_id=async_result.id,
-            document_id=doc.id,
+            document_id=primary.id,
+            document_ids=[d.id for d in ordered],
             report_id=report.id,
             status="queued",
         )
     except HTTPException:
         raise
     except Exception as exc:
-        log.exception("pipeline.enqueue_error", document_id=str(body.document_id), error=str(exc))
+        log.exception("pipeline.enqueue_error", error=str(exc))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to enqueue pipeline due to an unexpected server error",

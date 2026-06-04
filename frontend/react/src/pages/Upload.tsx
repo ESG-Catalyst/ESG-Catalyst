@@ -178,21 +178,21 @@ export default function Upload() {
         }),
       )
 
-      // Trigger the pipeline for every uploaded doc in parallel; Celery
-      // queues whatever the worker can't run immediately.
-      const jobs = await Promise.all(
-        docs.map(async ({ doc, original }) => {
-          const job = await runPipeline({ document_id: doc.document_id })
-          return { job_id: job.job_id, document_id: doc.document_id, filename: original.name }
-        }),
-      )
+      // Run ONE pooled pipeline over the whole set: every file is
+      // chunked / classified / embedded together, then a single extraction
+      // pass runs with per-metric source attribution (46 LLM calls, not 46×N).
+      const documentIds = docs.map(({ doc }) => doc.document_id)
+      const job = await runPipeline({ document_ids: documentIds })
 
-      // Navigate to the first job's progress page. The pipeline store
-      // currently tracks a single active job, so others run in the
-      // background and surface on the dashboard / documents list.
-      const first = jobs[0]
-      setJob(first.job_id, first.document_id, first.filename)
-      navigate(`/pipeline/${first.job_id}?doc=${first.document_id}`)
+      // Track the primary document for navigation; the Results page reads the
+      // whole Report (all the set's metrics) via any of its documents.
+      const primary = docs[0]
+      const setLabel =
+        docs.length === 1
+          ? primary.original.name
+          : `${primary.original.name} +${docs.length - 1} more`
+      setJob(job.job_id, job.document_id, setLabel)
+      navigate(`/pipeline/${job.job_id}?doc=${job.document_id}`)
     } catch (err: unknown) {
       setUploadedCount(null)
       setServerError(extractErrorMessage(err))

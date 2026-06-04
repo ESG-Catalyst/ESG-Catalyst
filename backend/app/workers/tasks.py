@@ -78,12 +78,12 @@ class NoTextExtractedError(Exception):
 )
 def run_extraction_pipeline(
     self,
-    document_id: str,
+    document_ids: list[str],
     company_id: str,
     report_id: str,
     indicator_codes: Optional[list[str]] = None,
 ) -> dict[str, Any]:
-    """Run the full extraction pipeline for one document.
+    """Run the full extraction pipeline for a set of documents.
 
     Args:
         document_id: UUID of the uploaded document.
@@ -97,7 +97,7 @@ def run_extraction_pipeline(
     logger.info(
         "pipeline.start",
         task_id=self.request.id,
-        document_id=document_id,
+        document_ids=document_ids,
         company_id=company_id,
         report_id=report_id,
     )
@@ -107,7 +107,7 @@ def run_extraction_pipeline(
         result = asyncio.run(
             _run_pipeline_async(
                 task=self,
-                document_id=uuid.UUID(document_id),
+                document_ids=[uuid.UUID(d) for d in document_ids],
                 company_id=uuid.UUID(company_id),
                 report_id=uuid.UUID(report_id),
                 indicator_codes=indicator_codes,
@@ -122,7 +122,7 @@ def run_extraction_pipeline(
         logger.warning(
             "pipeline.no_text",
             task_id=self.request.id,
-            document_id=document_id,
+            document_ids=document_ids,
             error=str(exc),
         )
         raise
@@ -133,10 +133,10 @@ def run_extraction_pipeline(
         logger.error(
             "pipeline.llm_unavailable",
             task_id=self.request.id,
-            document_id=document_id,
+            document_ids=document_ids,
             error=str(exc),
         )
-        asyncio.run(_mark_document_failed(document_id, str(exc)))
+        asyncio.run(_mark_documents_failed(document_ids, str(exc)))
         raise
 
     except ESGCatalystError as exc:
@@ -145,11 +145,11 @@ def run_extraction_pipeline(
         logger.error(
             "pipeline.stage_error",
             task_id=self.request.id,
-            document_id=document_id,
+            document_ids=document_ids,
             exc_type=type(exc).__name__,
             error=str(exc),
         )
-        asyncio.run(_mark_document_failed(document_id, str(exc)))
+        asyncio.run(_mark_documents_failed(document_ids, str(exc)))
         raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
 
     except Exception as exc:
@@ -157,36 +157,39 @@ def run_extraction_pipeline(
         logger.error(
             "pipeline.failed",
             task_id=self.request.id,
-            document_id=document_id,
+            document_ids=document_ids,
             exc_type=type(exc).__name__,
             error=str(exc),
         )
-        asyncio.run(_mark_document_failed(document_id, str(exc)))
+        asyncio.run(_mark_documents_failed(document_ids, str(exc)))
         raise self.retry(exc=exc) if self.request.retries < self.max_retries else exc
 
 
 async def _run_pipeline_async(
     task,
-    document_id: uuid.UUID,
+    document_ids: list[uuid.UUID],
     company_id: uuid.UUID,
     report_id: uuid.UUID,
     indicator_codes: Optional[list[str]] = None,
 ) -> dict[str, Any]:
-    """Async pipeline orchestration — called from the sync Celery task."""
+    """Async pipeline orchestration — called from the sync Celery task.
+
+    Processes a SET of documents: each is ingested -> chunked -> classified ->
+    embedded into the shared ChromaDB pool (tagged by report_id), then a single
+    extraction pass runs over the pool with per-metric source attribution.
+    """
 
     factory = get_session_factory()
 
-    # ── 1. Fetch document + company from DB ───────────────────────────
+    # ── 1. Fetch all documents in the set + company sector ────────────
     async with factory() as session:
         result = await session.execute(
-            select(Document).where(Document.id == document_id)
+            select(Document).where(Document.id.in_(document_ids))
         )
-        doc_record = result.scalar_one_or_none()
-        if doc_record is None:
-            raise ValueError(f"Document {document_id} not found in database")
-
-        file_path = doc_record.file_path
-        source_file = doc_record.filename
+        doc_map = {d.id: d for d in result.scalars().all()}
+        docs = [doc_map[did] for did in document_ids if did in doc_map]
+        if not docs:
+            raise ValueError(f"No documents found for {document_ids}")
 
         # Look up the company's sector (industry) — scorer needs it for the
         # sector-specific materiality_weights lookup. Default to "banking"
@@ -206,101 +209,97 @@ async def _run_pipeline_async(
         else:
             sector = company_record.industry.lower()
 
-        # Mark document as processing
+        # Mark every document in the set as processing.
         await session.execute(
             update(Document)
-            .where(Document.id == document_id)
+            .where(Document.id.in_(document_ids))
             .values(status=DocumentStatus.processing)
         )
         await session.commit()
 
-    _update_state(task, "INGESTING", "Parsing document...")
+    n_docs = len(docs)
+    total_embedded = 0
+    fallback_parts: list[str] = []
+    doc_meta: dict[uuid.UUID, tuple[Optional[int], Optional[str]]] = {}
+    any_text = False
 
-    # ── 2. Ingestion — parse file into structured text ────────────────
-    ingested = ingest_document(file_path)
-    logger.info(
-        "pipeline.ingested",
-        file=source_file,
-        pages=ingested.page_count,
-        chars=len(ingested.full_text),
-    )
+    from app.core.nlp.embedder import embed_and_store
 
-    # ── 2a. Zero-text guard ──────────────────────────────────────────
-    # Image-only docs hit the stubbed OCR path and return 0 pages.
-    # Plain-text / docx / spreadsheets can also be empty. Either way we
-    # cannot chunk → classify → extract on nothing; fail fast with a
-    # message the UI can show, and skip Celery retries.
-    if not ingested.full_text.strip():
-        ext = (doc_record.file_type or "").lower()
-        if ext in ("png", "jpg", "jpeg", "tiff", "tif", "bmp"):
-            msg = (
-                "Could not extract text — image OCR is not yet implemented. "
-                "Please upload a PDF, DOCX, XLSX, CSV, or TXT file instead."
-            )
+    # ── 2-4. Per document: ingest → chunk → classify → embed (shared pool) ─
+    for i, doc in enumerate(docs, start=1):
+        _update_state(task, "INGESTING", f"Parsing document {i}/{n_docs}...")
+        ingested = ingest_document(doc.file_path)
+        doc_meta[doc.id] = (ingested.page_count, ingested.language)
+        logger.info(
+            "pipeline.ingested",
+            document_id=str(doc.id),
+            file=doc.filename,
+            pages=ingested.page_count,
+            chars=len(ingested.full_text),
+        )
+        # One empty document must not sink the whole set — skip it and keep
+        # going; the whole-set guard below fails only if ALL are empty.
+        if not ingested.full_text.strip():
+            logger.warning("pipeline.doc_empty", document_id=str(doc.id), file=doc.filename)
+            continue
+        any_text = True
+
+        _update_state(task, "CHUNKING", f"Splitting document {i}/{n_docs}...")
+        chunks = chunk_document(ingested)
+
+        _update_state(task, "CLASSIFYING", f"Filtering ESG content {i}/{n_docs}...")
+        classified = classify_chunks(chunks, threshold=0.3, use_climate_model=True)
+        relevant_chunks = [c.chunk for c in classified if c.is_relevant]
+        logger.info(
+            "pipeline.classified",
+            document_id=str(doc.id),
+            total=len(classified),
+            relevant=len(relevant_chunks),
+        )
+
+        _update_state(task, "EMBEDDING", f"Embedding document {i}/{n_docs}...")
+        chunks_to_embed = relevant_chunks if len(relevant_chunks) >= 3 else chunks
+        embed_and_store(
+            chunks_to_embed,
+            company_id=str(company_id),
+            report_id=str(report_id),
+            document_id=str(doc.id),
+            filename=doc.filename,
+        )
+        total_embedded += len(chunks_to_embed)
+        # Per-doc fallback text (only used if ChromaDB is unreachable).
+        if len(relevant_chunks) >= 3:
+            fallback_parts.append("\n\n".join(c.text for c in relevant_chunks))
         else:
-            msg = (
-                f"Could not extract any text from {source_file!r}. "
-                "The file may be empty, password-protected, or corrupted."
-            )
-        await _mark_document_failed_async(document_id, msg)
+            fallback_parts.append(ingested.full_text)
+
+    # ── 2a. Whole-set zero-text guard ─────────────────────────────────
+    if not any_text:
+        msg = (
+            "Could not extract any text from the uploaded document(s) — they may be "
+            "empty, image-only (OCR not implemented), password-protected, or corrupted."
+        )
+        for doc in docs:
+            await _mark_document_failed_async(doc.id, msg)
         raise NoTextExtractedError(msg)
 
-    _update_state(task, "CHUNKING", "Splitting into chunks...")
-
-    # ── 3. Chunking — split into retrieval-ready chunks ───────────────
-    chunks = chunk_document(ingested)
-    logger.info("pipeline.chunked", chunks=len(chunks))
-
-    _update_state(task, "CLASSIFYING", "Filtering ESG-relevant content...")
-
-    # ── 4. Classification — filter for ESG-relevant chunks ────────────
-    classified = classify_chunks(chunks, threshold=0.3, use_climate_model=True)
-    relevant_chunks = [c.chunk for c in classified if c.is_relevant]
-    logger.info(
-        "pipeline.classified",
-        total=len(classified),
-        relevant=len(relevant_chunks),
-    )
-
-    _update_state(task, "EMBEDDING", "Embedding chunks into ChromaDB...")
-
-    # ── 4b. Embed relevant chunks → ChromaDB (per-indicator retrieval) ──
-    from app.core.nlp.embedder import embed_and_store
-    chunks_to_embed = relevant_chunks if len(relevant_chunks) >= 3 else chunks
-    embed_and_store(
-        chunks_to_embed,
-        company_id=str(company_id),
-        report_id=str(report_id),
-    )
-    logger.info("pipeline.embedded", chunks=len(chunks_to_embed))
-
-    # Build full-doc fallback text (used if ChromaDB is unreachable)
-    if len(relevant_chunks) >= 3:
-        extraction_text = "\n\n".join(c.text for c in relevant_chunks)
-    else:
-        logger.warning(
-            "pipeline.classification_fallback",
-            relevant=len(relevant_chunks),
-            reason="Too few relevant chunks, using full document text",
-        )
-        extraction_text = ingested.full_text
+    extraction_text = "\n\n".join(fallback_parts)
 
     _update_state(task, "EXTRACTING", "Extracting ESG metrics via LLM...")
 
-    # ── 5. Extraction — per-indicator retrieval + LLM calls ───────────
-    # ChromaDB chunks store ingested.source_file (UUID-named disk file,
-    # e.g. "aa11bb…pdf"), while source_file is the user-facing filename
-    # ("report.pdf"). We pass the disk name for ChromaDB filtering.
+    # ── 5. Extraction — ONE pooled pass over ALL docs' chunks ─────────
+    # Retrieval filters by report_id, so chunks from every document in the set
+    # compete for each indicator; each metric is then attributed to the source
+    # document of its winning evidence chunk. ~46 LLM calls total, not 46 × N.
     metrics = await extract_metrics(
         company_id=company_id,
         report_id=report_id,
-        source_file=ingested.source_file,   # disk filename for ChromaDB where-filter
         indicator_codes=indicator_codes,
-        document_id=document_id,
-        n_chunks_processed=len(chunks_to_embed),
-        document_text=extraction_text,  # fallback if ChromaDB is down
+        document_id=docs[0].id,
+        n_chunks_processed=total_embedded,
+        document_text=extraction_text,  # combined fallback if ChromaDB is down
     )
-    logger.info("pipeline.extracted", metrics=len(metrics))
+    logger.info("pipeline.extracted", metrics=len(metrics), documents=n_docs)
 
     _update_state(task, "SCORING", "Computing ESG scores...")
 
@@ -365,16 +364,19 @@ async def _run_pipeline_async(
             )
         )
 
-        # Mark document as processed
-        await session.execute(
-            update(Document)
-            .where(Document.id == document_id)
-            .values(
-                status=DocumentStatus.processed,
-                page_count=ingested.page_count,
-                language=ingested.language,
+        # Mark every document in the set as processed (each with its own page
+        # count + language captured during ingestion).
+        for doc in docs:
+            pc, lang = doc_meta.get(doc.id, (None, None))
+            await session.execute(
+                update(Document)
+                .where(Document.id == doc.id)
+                .values(
+                    status=DocumentStatus.processed,
+                    page_count=pc,
+                    language=lang,
+                )
             )
-        )
 
         await session.commit()
 
@@ -386,12 +388,12 @@ async def _run_pipeline_async(
 
     # ── 8. Build result summary ───────────────────────────────────────
     return {
-        "document_id": str(document_id),
+        "document_id": str(docs[0].id),
+        "document_ids": [str(d.id) for d in docs],
+        "documents": n_docs,
         "company_id": str(company_id),
         "report_id": str(report_id),
-        "pages_parsed": ingested.page_count,
-        "chunks_total": len(chunks),
-        "chunks_relevant": len(relevant_chunks),
+        "chunks_total": total_embedded,
         "metrics_extracted": scoring_result.indicators_found,
         "metrics_total": scoring_result.indicators_total,
         "total_score": scoring_result.total_score,
@@ -409,6 +411,12 @@ async def _run_pipeline_async(
             for g in scoring_result.gaps
         ],
     }
+
+
+async def _mark_documents_failed(document_ids: list[str], msg: str) -> None:
+    """Mark every document in a set as failed (used by the task error handlers)."""
+    for did in document_ids:
+        await _mark_document_failed(did, msg)
 
 
 def _update_state(task, state: str, status: str) -> None:

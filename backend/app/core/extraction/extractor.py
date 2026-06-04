@@ -89,7 +89,7 @@ def _build_retrieval_query(indicator: dict) -> str:
 
 def _retrieve_chunks_for_indicator(
     indicator: dict,
-    source_file: str,
+    report_id: str,
     top_k: int,
 ) -> list[dict]:
     """Retrieve the top-k chunks for one indicator from ChromaDB.
@@ -109,7 +109,10 @@ def _retrieve_chunks_for_indicator(
     query_text = _build_retrieval_query(indicator)
 
     client = _get_chroma_client()
-    where_filter = {"source_file": source_file}
+    # Pool across every document in the set: filter by report_id, not a single
+    # source_file. Chunks from all docs compete; provenance is recovered per
+    # chunk from its "filename" metadata.
+    where_filter = {"report_id": report_id}
     include = ["documents", "metadatas", "distances"]
 
     merged: list[dict] = []
@@ -161,6 +164,7 @@ def _retrieve_chunks_for_indicator(
                     "distance": float(dist),
                     "page_number": (meta or {}).get("page_number"),
                     "section_header": (meta or {}).get("section_header"),
+                    "source_filename": (meta or {}).get("filename") or (meta or {}).get("source_file"),
                 })
 
     # Deduplicate by text content, keep lowest distance
@@ -232,7 +236,7 @@ async def extract_metrics(
 
     # Test ChromaDB reachability once up front
     chromadb_available = False
-    if source_file:
+    if report_id:
         try:
             _get_chroma_client().heartbeat()
             chromadb_available = True
@@ -276,17 +280,25 @@ async def extract_metrics(
             try:
                 indicator_text: str | None = None
                 n_retrieved = 0
+                prov_source: str | None = None  # winning chunk's source document
+                prov_page: int | None = None     # winning chunk's page
 
-                if chromadb_available and source_file:
+                if chromadb_available:
                     try:
                         retrieved = _retrieve_chunks_for_indicator(
                             indicator=indicator,
-                            source_file=source_file,
+                            report_id=str(report_id),
                             top_k=settings.extraction_top_k,
                         )
                         n_retrieved = len(retrieved)
                         if n_retrieved >= settings.extraction_min_chunks:
                             indicator_text = _format_retrieved_chunks(retrieved)
+                            # Provenance: the top-ranked chunk is the most
+                            # relevant evidence — attribute the metric to its
+                            # source document + page.
+                            top_chunk = retrieved[0]
+                            prov_source = top_chunk.get("source_filename")
+                            prov_page = safe_int(top_chunk.get("page_number"))
                         else:
                             logger.warning(
                                 "extractor.no_chunks_retrieved",
@@ -307,7 +319,7 @@ async def extract_metrics(
                         indicator_text = fallback_text
                     else:
                         metrics.append(_missing_metric(
-                            indicator, company_id, report_id, source_file,
+                            indicator, company_id, report_id, None,
                             Exception("No chunks retrieved and no fallback text"),
                         ))
                         raw_responses[indicator["code"]] = "<no_chunks>"
@@ -318,9 +330,15 @@ async def extract_metrics(
                     document_text=indicator_text,
                     company_id=company_id,
                     report_id=report_id,
-                    source_file=source_file,
+                    source_file=None,
                     n_chunks=n_retrieved,
                 )
+                # Stamp per-metric provenance from the winning evidence chunk —
+                # which document + page the value was actually found in.
+                if prov_source:
+                    metric.source_file = prov_source
+                    if prov_page is not None:
+                        metric.source_page = prov_page
                 metrics.append(metric)
                 raw_responses[indicator["code"]] = raw
                 if n_retrieved > 0:
