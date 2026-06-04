@@ -21,6 +21,8 @@ import { useAuthStore, emailInitials, emailHandle } from '@/store/auth'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { humanizeLabel } from '@/lib/format'
+import { useQueryClient } from '@tanstack/react-query'
+import { clearAccountState } from '@/lib/session'
 
 const MAIN_NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -42,10 +44,12 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar, language, setLanguage, theme, toggleTheme } = useUIStore()
   const { email, role, clearAuth } = useAuthStore()
+  const queryClient = useQueryClient()
   const isRTL = language === 'ar'
 
   function handleLogout() {
     clearAuth()
+    clearAccountState(queryClient)
     navigate('/auth/login')
   }
 
