@@ -105,6 +105,40 @@ class Settings(BaseSettings):
         description="Free-tier fallback for M5 report narrative generation.",
     )
 
+    # ── LLM completion-length caps (per task) ────────────────────────────────
+    # An UNCAPPED request defaults to the model's full output ceiling (e.g.
+    # 64000 tokens for Claude Sonnet). OpenRouter's affordability pre-check then
+    # reserves credit for that entire ceiling — so a tiny prompt 402s on a low
+    # balance ("requires more credits, or fewer max_tokens"). Capping per task
+    # both fixes that and bounds runaway generations. These are assembled into
+    # settings.model_max_tokens by _build_models_dict and injected by
+    # ModelRouter.ainvoke_with_fallback. Tune via env without code changes.
+    model_extraction_max_tokens: int = Field(
+        default=2000,
+        description=(
+            "Max completion tokens per M3 extraction call. One indicator's JSON "
+            "response is a few hundred tokens, so 2000 is ample headroom while "
+            "staying affordable on a low OpenRouter balance. "
+            "Env: MODEL_EXTRACTION_MAX_TOKENS."
+        ),
+    )
+    model_scoring_max_tokens: int = Field(
+        default=2000,
+        description=(
+            "Max completion tokens per M4 LLM-assisted scoring call (unused in "
+            "v1 deterministic scoring; kept for future LLM gap narratives). "
+            "Env: MODEL_SCORING_MAX_TOKENS."
+        ),
+    )
+    model_report_max_tokens: int = Field(
+        default=3000,
+        description=(
+            "Max completion tokens per M5 narrative call. Narratives are "
+            "generated one-section-per-call, so each only needs a single "
+            "section of prose. Env: MODEL_REPORT_MAX_TOKENS."
+        ),
+    )
+
     # Assembled dicts consumed by ModelRouter — populated by _build_models_dict.
     # Do NOT set these directly via env vars; they are derived fields.
     models: dict[str, str] = Field(
@@ -114,6 +148,10 @@ class Settings(BaseSettings):
     model_fallbacks: dict[str, str] = Field(
         default_factory=dict,
         description="Derived: task → fallback model ID. Built by _build_models_dict.",
+    )
+    model_max_tokens: dict[str, int] = Field(
+        default_factory=dict,
+        description="Derived: task → max completion tokens. Built by _build_models_dict.",
     )
 
     @model_validator(mode="after")
@@ -134,6 +172,11 @@ class Settings(BaseSettings):
             # report fallback added 2026-05-10 — was missing, caused silent
             # no-fallback bug when primary 402'd during report generation.
             "report": self.model_report_fallback,
+        }
+        self.model_max_tokens = {
+            "extraction": self.model_extraction_max_tokens,
+            "scoring": self.model_scoring_max_tokens,
+            "report": self.model_report_max_tokens,
         }
         return self
 

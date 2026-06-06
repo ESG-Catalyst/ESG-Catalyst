@@ -34,23 +34,36 @@ def start_extraction_run(
 ) -> Iterator[Any]:
     """Yield an active MLflow run, or None if tracking is unavailable.
 
-    Failures (server unreachable, package missing, etc.) are swallowed
-    and a warning is logged — the caller still gets ``None`` and the
-    pipeline continues.
+    Failures while *starting* the run (server unreachable, package missing,
+    etc.) are swallowed and a warning is logged — the caller still gets
+    ``None`` and the pipeline continues.
+
+    Exceptions raised inside the caller's ``with`` body are NOT swallowed:
+    they propagate normally so the real error is visible (the MLflow run is
+    still ended in ``finally``). Yielding a second time from the ``except``
+    here would make CPython raise ``RuntimeError("generator didn't stop
+    after throw()")`` and mask the caller's true exception — so the
+    ``yield`` is deliberately kept out of the start-up ``try/except``.
     """
     if _mlflow is None:
         yield None
         return
 
+    # Start the run. A failure here is non-fatal: log it and yield None so
+    # the pipeline still runs untracked. No `yield` inside this try/except.
     run = None
     try:
         _mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
         _mlflow.set_experiment(experiment)
         run = _mlflow.start_run(run_name=run_name)
-        yield run
     except Exception as exc:
         logger.warning("mlflow.run_start_failed", error=str(exc))
-        yield None
+        run = None
+
+    # Single yield in its own try/finally — caller-body exceptions propagate
+    # untouched; the run is always ended.
+    try:
+        yield run
     finally:
         if run is not None:
             try:
