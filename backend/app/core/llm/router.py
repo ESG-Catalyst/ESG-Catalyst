@@ -20,7 +20,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 import structlog
 from langchain_core.messages import BaseMessage
@@ -62,11 +62,19 @@ class ModelRouter:
     """
 
     def __init__(self) -> None:
-        self._cache: dict[str, BaseChatModel] = {}
+        # Keyed by (model_id, max_tokens): the SAME model can serve two tasks
+        # with different completion caps (e.g. extraction=2000, report=3000),
+        # so the cap must be part of the cache identity — otherwise the first
+        # task to build a shared model would leak its cap to the other.
+        self._cache: dict[tuple[str, Optional[int]], BaseChatModel] = {}
 
     # ── public API ───────────────────────────────────────────────────────
     def get_model(self, task: str) -> BaseChatModel:
         """Return a LangChain ChatModel for the given *task*.
+
+        The model is built with the per-task completion cap from
+        ``settings.model_max_tokens`` (see ``_build_openrouter`` for why an
+        uncapped request 402s on OpenRouter).
 
         Args:
             task: One of the keys in ``settings.models``
@@ -82,20 +90,28 @@ class ModelRouter:
             )
 
         model_id = settings.models[task]
-
-        if model_id not in self._cache:
-            self._cache[model_id] = self._build(model_id, task)
-
-        return self._cache[model_id]
+        max_tokens = settings.model_max_tokens.get(task)
+        return self._get_or_build(model_id, task, max_tokens)
 
     def get_fallback_model(self, task: str) -> BaseChatModel | None:
-        """Return the configured free-tier fallback for *task*, or None."""
+        """Return the configured free-tier fallback for *task*, or None.
+
+        The fallback inherits the same per-task completion cap as the primary.
+        """
         fallback_id = settings.model_fallbacks.get(task)
         if not fallback_id:
             return None
-        if fallback_id not in self._cache:
-            self._cache[fallback_id] = self._build(fallback_id, f"{task}_fallback")
-        return self._cache[fallback_id]
+        max_tokens = settings.model_max_tokens.get(task)
+        return self._get_or_build(fallback_id, f"{task}_fallback", max_tokens)
+
+    def _get_or_build(
+        self, model_id: str, label: str, max_tokens: Optional[int]
+    ) -> BaseChatModel:
+        """Build (or return cached) model for *model_id* at the given cap."""
+        key = (model_id, max_tokens)
+        if key not in self._cache:
+            self._cache[key] = self._build(model_id, label, max_tokens)
+        return self._cache[key]
 
     async def ainvoke_with_fallback(
         self,
@@ -174,7 +190,9 @@ class ModelRouter:
         return dict(settings.models)
 
     # ── internals ────────────────────────────────────────────────────────
-    def _build(self, model_id: str, task: str) -> BaseChatModel:
+    def _build(
+        self, model_id: str, task: str, max_tokens: Optional[int] = None
+    ) -> BaseChatModel:
         """Dispatch to the correct provider based on the model_id prefix.
 
         Args:
@@ -182,27 +200,40 @@ class ModelRouter:
                       (e.g. ``"groq/llama-3.1-70b-versatile"`` or
                       ``"openrouter/qwen/qwen-2.5-7b-instruct:free"``).
             task: Human-readable task name for logging only.
+            max_tokens: Per-task completion cap to bake into the model, or None.
         """
-        logger.info("model_router.loading", task=task, model_id=model_id)
+        logger.info(
+            "model_router.loading", task=task, model_id=model_id, max_tokens=max_tokens
+        )
 
         if model_id.startswith("groq/"):
-            return self._build_groq(model_id, task)
+            return self._build_groq(model_id, task, max_tokens)
 
         # Default: treat as OpenRouter (handles both "openrouter/..." and bare IDs)
-        return self._build_openrouter(model_id, task)
+        return self._build_openrouter(model_id, task, max_tokens)
 
-    def _build_openrouter(self, model_id: str, task: str) -> ChatOpenAI:
+    def _build_openrouter(
+        self, model_id: str, task: str, max_tokens: Optional[int] = None
+    ) -> ChatOpenAI:
         """Instantiate a ChatOpenAI client pointed at OpenRouter.
 
         Args:
             model_id: Full model ID, optionally prefixed with ``openrouter/``.
             task: Human-readable task name for logging only.
+            max_tokens: Completion cap. CRITICAL for OpenRouter billing — an
+                uncapped request defaults to the model's full output ceiling
+                (e.g. 64000 for Claude Sonnet) and OpenRouter's affordability
+                pre-check reserves credit for that whole ceiling, so even a
+                tiny prompt 402s on a low balance. langchain_openai emits this
+                as ``max_completion_tokens`` (OpenAI's current field), which
+                OpenRouter honors. MUST be set at construction — call-time
+                kwargs are not forwarded by langchain_openai 1.x.
         """
         # Strip the "openrouter/" prefix if present — OpenRouter expects
         # just the provider/model portion (e.g. "anthropic/claude-3.5-sonnet").
         openrouter_model = model_id.removeprefix("openrouter/")
 
-        return ChatOpenAI(
+        kwargs: dict[str, Any] = dict(
             model=openrouter_model,
             openai_api_key=settings.openrouter_api_key,
             openai_api_base=_OPENROUTER_BASE_URL,
@@ -210,8 +241,13 @@ class ModelRouter:
             max_retries=2,
             request_timeout=120,
         )
+        if max_tokens:
+            kwargs["max_tokens"] = max_tokens
+        return ChatOpenAI(**kwargs)
 
-    def _build_groq(self, model_id: str, task: str) -> BaseChatModel:
+    def _build_groq(
+        self, model_id: str, task: str, max_tokens: Optional[int] = None
+    ) -> BaseChatModel:
         """Instantiate a ChatGroq client for the Groq free-tier API.
 
         Groq is significantly faster than OpenRouter for open-source models
@@ -239,13 +275,16 @@ class ModelRouter:
 
         groq_model = model_id.removeprefix("groq/")
 
-        return ChatGroq(
+        kwargs: dict[str, Any] = dict(
             model=groq_model,
             groq_api_key=settings.groq_api_key,
             temperature=0.0,
             max_retries=2,
             request_timeout=60,  # Groq responds much faster than OpenRouter
         )
+        if max_tokens:
+            kwargs["max_tokens"] = max_tokens
+        return ChatGroq(**kwargs)
 
 
 def _is_credit_error(exc: BaseException) -> bool:
