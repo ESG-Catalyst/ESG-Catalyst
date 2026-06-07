@@ -355,7 +355,7 @@
     "nav_get_started": "Get Started",
     "regulatory_coverage": "Regulatory Coverage",
     "how_it_works_heading": "How it works",
-    "how_it_works_subheading": "Three steps from document upload to regulatory disclosure.",
+    "how_it_works_subheading": "From raw Arabic and English documents to a regulator-ready disclosure — handled end-to-end by a multi-model AI pipeline.",
     "pricing_heading": "Pricing",
     "pricing_subheading": "Transparent pricing built for Egyptian financial institutions. All plans include a 14-day free trial — no credit card required.",
     "most_popular": "Most Popular",
@@ -365,7 +365,7 @@
     "contact_heading": "Get in touch",
     "contact_body": "Interested in ESG Catalyst for your institution? We'll walk you through a live demo using your own documents and show you exactly what we extract.",
     "contact_location": "Cairo, Egypt",
-    "contact_email": "hello@esgcatalyst.io",
+    "contact_email": "contact@esg-catalyst.tech",
     "contact_languages": "Available in Arabic and English",
     "contact_name_label": "Name",
     "contact_name_placeholder": "Your name",
@@ -377,8 +377,48 @@
     "contact_submitted": "Thanks! We'll reach out within 24 hours.",
     "bottom_cta_heading": "Ready to file your ESG disclosure?",
     "bottom_cta_body": "Join Egyptian financial institutions that have moved from manual spreadsheets to automated, auditable ESG reporting.",
-    "bottom_cta_button": "Get Started",
-    "footer_confidential": "ESG Catalyst — Confidential. Not for distribution."
+    "bottom_cta_button": "Get Started Free",
+    "talk_to_expert": "Talk to an expert",
+    "nav_dashboard": "Go to Dashboard",
+    "footer_copyright": "© 2026 ESG Catalyst. All Rights Reserved.",
+    "footer_frameworks": "Frameworks",
+    "footer_pricing": "Pricing",
+    "footer_contact": "Contact",
+    "hero_features": [
+      "Arabic and English document support",
+      "46 GRI + SASB + FRA indicators scored automatically",
+      "AI extraction with per-metric confidence scoring"
+    ],
+    "regulatory_items": [
+      { "title": "CBE Sustainable Finance Guidelines", "body": "Central Bank of Egypt directive requiring banks to integrate ESG risk into credit decisions and disclosures." },
+      { "title": "FRA Decree 108/2021", "body": "Financial Regulatory Authority mandate requiring ESG disclosure from all listed non-banking financial institutions." },
+      { "title": "GRI Universal Standards", "body": "Global Reporting Initiative 2021 framework — the internationally recognised baseline for ESG disclosures." }
+    ],
+    "pipeline_badge": "Multi-model AI pipeline",
+    "steps": [
+      { "step": "01", "title": "Upload your documents", "body": "Arabic and English PDFs, Word, Excel, annual reports, and utility bills. The pipeline reads both languages natively." },
+      { "step": "02", "title": "AI reads & classifies", "body": "A three-model ensemble flags ESG-relevant passages and sorts each into Environmental, Social, or Governance — across both languages." },
+      { "step": "03", "title": "Metrics extracted with evidence", "body": "Per-indicator semantic retrieval feeds a language model that pulls structured values, units, and a source citation for each of the 46 GRI, SASB, and FRA indicators." },
+      { "step": "04", "title": "Scored & disclosed", "body": "Disclosure-quality scoring weighted by sector materiality, then a GRI/FRA-ready PDF and a machine-readable export." }
+    ],
+    "confidence_preview_title": "Every metric carries a confidence score",
+    "confidence_preview_note": "Reviewers see exactly how certain the AI is — so they know what to trust and what to double-check.",
+    "confidence_examples": [
+      { "label": "Scope 1 Emissions", "value": "1,250 tCO₂e", "confidence": 98 },
+      { "label": "Board Gender Diversity", "value": "33% female", "confidence": 92 },
+      { "label": "Energy Consumption", "value": "45,000 GJ", "confidence": 87 }
+    ],
+    "stats": [
+      { "value": "46", "label": "GRI, FRA & SASB indicators scored" },
+      { "value": "AR + EN", "label": "Arabic and English document support" },
+      { "value": "3", "label": "Frameworks: GRI / FRA / SASB" },
+      { "value": "0–100%", "label": "Confidence score per extracted metric" }
+    ],
+    "plans": [
+      { "name": "Starter", "price": "EGP 4,500", "period": "/mo", "description": "For single NBFIs starting their ESG journey.", "cta": "Get Started", "features": ["1 company profile", "Up to 5 document uploads/month", "13 core GRI indicators", "PDF disclosure report", "FRA framework coverage", "Email support"] },
+      { "name": "Professional", "price": "EGP 14,900", "period": "/mo", "description": "For growing banks and NBFIs that need full coverage.", "cta": "Start Free Trial", "features": ["1 company profile", "Unlimited document uploads", "All 46 GRI + FRA + SASB indicators", "Arabic & English document support", "Metric review & approval workflow", "Confidence tracking", "Priority support"] },
+      { "name": "Consultant", "price": "EGP 39,000", "period": "/mo", "description": "For advisory firms managing multiple client portfolios.", "cta": "Contact Us", "features": ["Up to 20 client companies", "Unified consultant dashboard", "Bulk document processing", "All 46 GRI + FRA + SASB indicators", "White-label PDF reports", "Benchmark comparisons across clients", "Dedicated account manager"] }
+    ]
   },
   "theme": {
     "light_mode": "Light mode",
