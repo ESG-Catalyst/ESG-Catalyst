@@ -618,7 +618,7 @@ export default function PipelineProgress() {
                 </button>
               )}
               <a
-                href="mailto:support@esgcatalyst.io"
+                href="mailto:support@esg-catalyst.tech"
                 className="text-sm text-text-muted hover:text-text transition-colors focus-visible:ring-2 ring-primary rounded px-1"
               >
                 Contact Support

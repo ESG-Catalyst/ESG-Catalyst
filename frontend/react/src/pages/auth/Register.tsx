@@ -109,8 +109,13 @@ export default function Register() {
       clearAccountState(queryClient)
       setAuth(res.access_token, res.user_id, res.role, values.email)
       // Honor a post-signup redirect (e.g. "Talk to an Expert" → "/#contact").
-      const next = searchParams.get('next')
-      navigate(next || '/dashboard', { replace: true })
+      // Only same-app paths — guard against open-redirect via a crafted ?next.
+      const nextParam = searchParams.get('next')
+      const next =
+        nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+          ? nextParam
+          : '/dashboard'
+      navigate(next, { replace: true })
     } catch (err: unknown) {
       setServerError(extractErrorMessage(err))
     }
