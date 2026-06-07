@@ -1,26 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell, Menu, LogOut, LayoutDashboard, CheckCircle2 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/store/ui'
 import { useAuthStore, emailInitials, emailHandle } from '@/store/auth'
 import { cn } from '@/lib/utils'
 
 // ─── Breadcrumb labels ───────────────────────────────────────────────────────
 
-const BREADCRUMB_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  upload: 'Upload',
-  pipeline: 'Pipeline',
-  results: 'Results',
-  report: 'Disclosures',
-  consultant: 'Consultant',
-  admin: 'Admin',
-  auth: 'Auth',
-  login: 'Login',
-  register: 'Register',
+// Path segment → i18n key (nav namespace). Segments without a key fall back to
+// a capitalized form.
+const BREADCRUMB_KEYS: Record<string, string> = {
+  dashboard: 'nav.dashboard',
+  upload: 'nav.upload',
+  pipeline: 'nav.pipeline',
+  results: 'nav.results',
+  report: 'nav.report',
+  consultant: 'nav.consultant',
+  admin: 'nav.admin',
 }
 
 function useBreadcrumbs() {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
   const segments = pathname.split('/').filter(Boolean)
   return segments
@@ -28,12 +29,16 @@ function useBreadcrumbs() {
       return !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg) &&
         !/^\d+$/.test(seg)
     })
-    .map((seg) => BREADCRUMB_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1))
+    .map((seg) => {
+      const key = BREADCRUMB_KEYS[seg]
+      return key ? t(key) : seg.charAt(0).toUpperCase() + seg.slice(1)
+    })
 }
 
 // ─── TopBar ──────────────────────────────────────────────────────────────────
 
 export default function TopBar() {
+  const { t } = useTranslation()
   const { setMobileSidebarOpen } = useUIStore()
   const email = useAuthStore((s) => s.email)
   const clearAuth = useAuthStore((s) => s.clearAuth)
@@ -129,7 +134,7 @@ export default function TopBar() {
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               notifOpen && 'text-text bg-surface-raised',
             )}
-            aria-label="Notifications"
+            aria-label={t('notifications.title')}
             aria-haspopup="menu"
             aria-expanded={notifOpen}
           >
@@ -143,11 +148,11 @@ export default function TopBar() {
               className="absolute end-0 mt-2 w-72 rounded-lg overflow-hidden z-50"
               style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 12px 32px rgba(0,0,0,0.18)' }}
             >
-              <div className="px-4 py-3 border-b border-border text-sm font-semibold text-text">Notifications</div>
+              <div className="px-4 py-3 border-b border-border text-sm font-semibold text-text">{t('notifications.title')}</div>
               <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
                 <CheckCircle2 size={22} style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
-                <p className="text-sm text-text-muted">You're all caught up</p>
-                <p className="text-xs text-text-subtle">Pipeline and review alerts will appear here.</p>
+                <p className="text-sm text-text-muted">{t('notifications.empty')}</p>
+                <p className="text-xs text-text-subtle">{t('notifications.empty_hint')}</p>
               </div>
             </div>
           )}
@@ -191,7 +196,7 @@ export default function TopBar() {
                   className={menuItemCls}
                 >
                   <LayoutDashboard size={14} aria-hidden="true" />
-                  Dashboard
+                  {t('nav.dashboard')}
                 </button>
                 <button
                   type="button"
@@ -200,7 +205,7 @@ export default function TopBar() {
                   className={cn(menuItemCls, 'text-danger hover:text-danger')}
                 >
                   <LogOut size={14} aria-hidden="true" />
-                  Sign out
+                  {t('nav.logout')}
                 </button>
               </div>
             </div>

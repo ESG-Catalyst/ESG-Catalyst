@@ -28,7 +28,7 @@ const MAIN_NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'nav.dashboard' },
   { to: '/upload', icon: Upload, label: 'nav.upload' },
   { to: '/results', icon: BarChart2, label: 'nav.results' },
-  { to: '/report', icon: FileText, label: 'Disclosures' },
+  { to: '/report', icon: FileText, label: 'nav.report' },
 ] as const
 
 // Consultant and Admin are role-gated — shown only when the user has the right role
@@ -181,7 +181,7 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
                   exit={{ opacity: 0 }}
                   className="px-4 pb-1 pt-0.5 text-xs font-semibold uppercase tracking-widest text-text-subtle"
                 >
-                  Tools
+                  {t('nav.tools')}
                 </motion.p>
               )}
             </AnimatePresence>
@@ -201,7 +201,7 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? t('theme.switch_to_light') : t('theme.switch_to_dark')}
           className={cn(
             'flex items-center gap-3 w-full px-4 py-2.5 text-sm text-text-muted',
             'hover:text-text hover:bg-surface-raised transition-colors',
@@ -221,7 +221,7 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
                 transition={{ duration: 0.15 }}
                 className="whitespace-nowrap overflow-hidden"
               >
-                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                {theme === 'dark' ? t('theme.light_mode') : t('theme.dark_mode')}
               </motion.span>
             )}
           </AnimatePresence>
@@ -230,7 +230,7 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
         {/* Language toggle */}
         <button
           onClick={toggleLang}
-          aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
+          aria-label={t('language.switch_hint')}
           className={cn(
             'flex items-center gap-3 w-full px-4 py-2.5 text-sm text-text-muted',
             'hover:text-text hover:bg-surface-raised transition-colors',
@@ -347,7 +347,10 @@ export default function Sidebar() {
   const { sidebarCollapsed, language, mobileSidebarOpen, setMobileSidebarOpen } = useUIStore()
   const isRTL = language === 'ar'
 
-  const sideEdge = isRTL ? 'end-0' : 'start-0'
+  // `start-0` is a logical property (inset-inline-start) that already flips with
+  // dir: left in LTR, right in RTL. Do NOT add an isRTL conditional here — that
+  // double-flips and leaves the sidebar on the left in Arabic.
+  const sideEdge = 'start-0'
   const sideWidth = sidebarCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)'
 
   return (
