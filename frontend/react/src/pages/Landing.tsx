@@ -224,7 +224,7 @@ function Hero() {
               style={{ background: 'rgba(13,148,136,0.12)', border: '1px solid rgba(13,148,136,0.25)', color: 'var(--color-primary)' }}
             >
               <Shield size={11} aria-hidden="true" />
-              FRA · CBE · GRI Aligned
+              FRA · SASB · GRI Aligned
             </div>
           </FadeIn>
           <FadeIn delay={0.07}>

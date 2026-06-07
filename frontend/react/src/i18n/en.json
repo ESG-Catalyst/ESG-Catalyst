@@ -13,6 +13,11 @@
     "tools": "Tools",
     "home": "Home"
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You're all caught up",
+    "empty_hint": "Pipeline and review alerts will appear here."
+  },
   "page": {
     "dashboard": "Dashboard",
     "upload": "Upload Document",
