@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -68,6 +68,7 @@ const STRENGTH_COLOR = ['', '#EF4444', '#F59E0B', '#0D9488', '#10B981']
 export default function Register() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const setAuth = useAuthStore((s) => s.setAuth)
   const queryClient = useQueryClient()
   const [serverError, setServerError] = useState<string | null>(null)
@@ -107,7 +108,9 @@ export default function Register() {
       })
       clearAccountState(queryClient)
       setAuth(res.access_token, res.user_id, res.role, values.email)
-      navigate('/dashboard', { replace: true })
+      // Honor a post-signup redirect (e.g. "Talk to an Expert" → "/#contact").
+      const next = searchParams.get('next')
+      navigate(next || '/dashboard', { replace: true })
     } catch (err: unknown) {
       setServerError(extractErrorMessage(err))
     }
