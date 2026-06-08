@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import apiClient from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import type { UserRole } from '@/store/auth'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,12 +53,18 @@ const ROLE_META: Record<UserRole, { label: string; color: string; bg: string }> 
 
 const ALL_ROLES: UserRole[] = ['company', 'company_admin', 'consultant', 'admin']
 
-function timeAgo(iso: string) {
+type TFn = (k: string, o?: Record<string, unknown>) => string
+
+function roleLabel(role: UserRole, t: TFn): string {
+  return t(`admin.roles.${role}`)
+}
+
+function timeAgo(iso: string, t: TFn) {
   const d = (Date.now() - new Date(iso).getTime()) / 1000
-  if (d < 60) return 'just now'
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`
-  return `${Math.floor(d / 86400)}d ago`
+  if (d < 60) return t('time.just_now')
+  if (d < 3600) return t('time.minutes_ago', { n: Math.floor(d / 60) })
+  if (d < 86400) return t('time.hours_ago', { n: Math.floor(d / 3600) })
+  return t('time.days_ago', { n: Math.floor(d / 86400) })
 }
 
 // ─── Role selector dropdown ───────────────────────────────────────────────────
@@ -71,6 +78,7 @@ function RoleSelector({
   current: UserRole
   selfId: string | null
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
 
@@ -93,11 +101,11 @@ function RoleSelector({
         disabled={isSelf}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={isSelf ? "Can't change your own role" : 'Change role'}
+        title={isSelf ? t('admin.cannot_change_own_role') : t('admin.change_role')}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         style={{ background: meta.bg, color: meta.color }}
       >
-        {meta.label}
+        {roleLabel(current, t)}
         {!isSelf && (
           <ChevronDown
             size={11}
@@ -106,10 +114,10 @@ function RoleSelector({
           />
         )}
         {mutation.isPending && (
-          <RefreshCw size={11} className="animate-spin ms-0.5" aria-label="Saving…" />
+          <RefreshCw size={11} className="animate-spin ms-0.5" aria-label={t('admin.saving')} />
         )}
         {mutation.isSuccess && !mutation.isPending && (
-          <Check size={11} className="ms-0.5" aria-label="Saved" />
+          <Check size={11} className="ms-0.5" aria-label={t('admin.saved')} />
         )}
       </button>
 
@@ -149,7 +157,7 @@ function RoleSelector({
                       className="flex-1"
                       style={{ color: isActive ? rm.color : 'var(--color-text)' }}
                     >
-                      {rm.label}
+                      {roleLabel(r, t)}
                     </span>
                     {isActive && (
                       <Check size={11} className="ms-auto" style={{ color: rm.color }} aria-hidden="true" />
@@ -168,6 +176,7 @@ function RoleSelector({
 // ─── Stats bar ────────────────────────────────────────────────────────────────
 
 function StatsBar({ users }: { users: UserRecord[] }) {
+  const { t } = useTranslation()
   const byRole = (r: UserRole) => users.filter((u) => u.role === r).length
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -180,7 +189,7 @@ function StatsBar({ users }: { users: UserRecord[] }) {
             className="rounded-xl px-4 py-3 flex flex-col gap-1 bg-surface border border-border"
           >
             <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-              {m.label}
+              {roleLabel(r, t)}
             </span>
             <span className="text-2xl font-bold tabular-nums" style={{ color: m.color, fontFamily: 'var(--font-mono)' }}>
               {count}
@@ -233,6 +242,7 @@ function SkeletonRow() {
 // ─── Admin page ───────────────────────────────────────────────────────────────
 
 export default function Admin() {
+  const { t } = useTranslation()
   const selfId = useAuthStore((s) => s.userId)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
@@ -266,9 +276,9 @@ export default function Admin() {
             >
               <Shield size={15} style={{ color: '#EF4444' }} aria-hidden="true" />
             </div>
-            <h1 className="text-xl font-semibold text-text">Admin Console</h1>
+            <h1 className="text-xl font-semibold text-text">{t('admin.title')}</h1>
           </div>
-          <p className="text-sm text-text-muted">Manage users, roles, and institutions.</p>
+          <p className="text-sm text-text-muted">{t('admin.subtitle')}</p>
         </div>
         <button
           onClick={() => refetch()}
@@ -280,7 +290,7 @@ export default function Admin() {
           )}
         >
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} aria-hidden="true" />
-          Refresh
+          {t('admin.refresh')}
         </button>
       </div>
 
@@ -307,8 +317,8 @@ export default function Admin() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search users…"
-            aria-label="Search users"
+            placeholder={t('admin.search_placeholder')}
+            aria-label={t('admin.search_placeholder')}
             className="w-full ps-9 pe-4 py-2 text-sm rounded-lg bg-surface border border-border-subtle hover:border-border text-text placeholder:text-text-subtle outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary transition-colors"
           />
         </div>
@@ -316,7 +326,7 @@ export default function Admin() {
         {/* Role filter chips */}
         <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Filter by role">
           {(['all', ...ALL_ROLES] as const).map((r) => {
-            const label = r === 'all' ? 'All' : ROLE_META[r].label
+            const label = r === 'all' ? t('admin.role_filter_all') : roleLabel(r, t)
             const active = roleFilter === r
             return (
               <button
@@ -350,11 +360,10 @@ export default function Admin() {
             <AlertCircle size={16} style={{ color: '#EF4444' }} className="mt-0.5 shrink-0" aria-hidden="true" />
             <div>
               <p className="text-sm font-semibold" style={{ color: '#EF4444' }}>
-                Could not load users
+                {t('admin.could_not_load')}
               </p>
               <p className="text-xs text-text-muted mt-0.5">
-                The admin API endpoint may not be deployed yet. See the instructions below to
-                promote your account.
+                {t('admin.could_not_load_hint')}
               </p>
             </div>
           </motion.div>
@@ -367,7 +376,7 @@ export default function Admin() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-raised border-b border-border">
-                {['User', 'Institution', 'Role', 'Joined', ''].map((h) => (
+                {[t('admin.table_headers.user'), t('admin.table_headers.institution'), t('admin.table_headers.role'), t('admin.table_headers.joined'), ''].map((h) => (
                   <th
                     key={h}
                     scope="col"
@@ -431,14 +440,14 @@ export default function Admin() {
 
                       {/* Joined */}
                       <td className="px-4 py-3 text-xs text-text-muted whitespace-nowrap">
-                        {timeAgo(u.created_at)}
+                        {timeAgo(u.created_at, t)}
                       </td>
 
                       {/* You badge */}
                       <td className="px-4 py-3">
                         {isSelf && (
                           <span className="text-xs text-text-subtle italic px-2 py-0.5 rounded-full bg-surface-raised border border-border">
-                            you
+                            {t('admin.you_badge')}
                           </span>
                         )}
                       </td>
@@ -451,7 +460,7 @@ export default function Admin() {
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center">
                     <Users size={22} className="mx-auto mb-2 opacity-30 text-text-subtle" aria-hidden="true" />
-                    <p className="text-sm text-text-subtle">No users match the current filter.</p>
+                    <p className="text-sm text-text-subtle">{t('admin.no_users')}</p>
                   </td>
                 </tr>
               )}
@@ -463,7 +472,7 @@ export default function Admin() {
       {/* User count footer */}
       {!isLoading && !error && filtered.length > 0 && (
         <p className="mt-2 text-xs text-text-subtle text-end">
-          Showing {filtered.length} of {users.length} user{users.length !== 1 ? 's' : ''}
+          {t('admin.showing_count', { shown: filtered.length, total: users.length })}
         </p>
       )}
 
@@ -471,10 +480,10 @@ export default function Admin() {
       <div className="mt-8 rounded-xl p-5 bg-surface border border-border">
         <div className="flex items-center gap-2.5 mb-3">
           <Terminal size={14} style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
-          <p className="text-sm font-semibold text-text">How to grant admin access</p>
+          <p className="text-sm font-semibold text-text">{t('admin.grant_admin_title')}</p>
         </div>
         <p className="text-xs text-text-muted mb-3">
-          Run the command below in a terminal to promote any registered user to admin:
+          {t('admin.grant_admin_hint')}
         </p>
         <pre
           className="text-xs rounded-lg px-4 py-3 overflow-x-auto bg-bg border border-border"
@@ -484,22 +493,7 @@ export default function Admin() {
   -c "UPDATE users SET role='admin' WHERE email='your@email.com';"`}
         </pre>
         <p className="text-xs text-text-subtle mt-3 leading-relaxed">
-          After running this, log out and back in — the new role is read from the JWT on next
-          login. To promote to consultant instead, replace{' '}
-          <code
-            className="px-1.5 py-0.5 rounded"
-            style={{ background: 'var(--color-surface-raised)', fontFamily: 'var(--font-mono)' }}
-          >
-            admin
-          </code>{' '}
-          with{' '}
-          <code
-            className="px-1.5 py-0.5 rounded"
-            style={{ background: 'var(--color-surface-raised)', fontFamily: 'var(--font-mono)' }}
-          >
-            consultant
-          </code>
-          .
+          {t('admin.grant_admin_note')} {t('admin.grant_admin_consultant')}
         </p>
       </div>
     </div>
