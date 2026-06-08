@@ -307,7 +307,14 @@
       "Hard": "Hard"
     },
     "pdf_preview": "PDF Preview",
-    "could_not_load_pdf": "Could not load PDF preview"
+    "could_not_load_pdf": "Could not load PDF preview",
+    "eyebrow": "Report",
+    "status_label": "Status",
+    "reviewer_notice": "Reviewer portal coming in Iteration 4 — share the link with your reviewer for now.",
+    "source_document": "Source Document",
+    "loading_pdf": "Loading PDF…",
+    "no_report_hint": "Generate a report from the metric review page to see it here.",
+    "generating_title": "Generating your ESG report…"
   },
   "framework": {
     "GRI": "GRI",

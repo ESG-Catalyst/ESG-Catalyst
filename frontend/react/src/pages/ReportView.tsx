@@ -19,6 +19,7 @@ import { getDocument } from '@/api/documents'
 import { formatDate, shortRef } from '@/lib/format'
 import ScoreGauge from '@/components/ui/ScoreGauge'
 import StatusPill from '@/components/ui/StatusPill'
+import { useTranslation } from 'react-i18next'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,12 +44,13 @@ function TIER_COLOR(score: number): string {
 // ─── Generating state ─────────────────────────────────────────────────────────
 
 const GEN_STEPS = [
-  { label: 'Building report sections', estimateSec: 10 },
-  { label: 'Drafting narratives with LLM', estimateSec: 60 },
-  { label: 'Rendering PDF', estimateSec: 20 },
+  { label: 'report.building_sections', estimateSec: 10 },
+  { label: 'report.drafting_narratives', estimateSec: 60 },
+  { label: 'report.rendering_pdf', estimateSec: 20 },
 ]
 
 function GeneratingState() {
+  const { t } = useTranslation()
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
@@ -83,12 +85,12 @@ function GeneratingState() {
       )}
       <div className="text-center">
         <p className="text-xl font-semibold text-text mb-1">
-          {isTimedOut ? 'Report is taking longer than expected…' : 'Generating your ESG report…'}
+          {isTimedOut ? t('report.status_taking_long') : t('report.generating_title')}
         </p>
         <p className="text-sm text-text-muted">
           {isTimedOut
-            ? `${formatSec(elapsed)} elapsed. The narrative LLM may be slow or unavailable. The page will update automatically when done.`
-            : 'This usually takes 1–2 minutes.'}
+            ? t('report.timeout_warning', { elapsed: formatSec(elapsed) })
+            : t('report.generating_note')}
         </p>
       </div>
       <div className="space-y-3 w-72">
@@ -119,7 +121,7 @@ function GeneratingState() {
                   color: isDone ? '#10B981' : isActive ? 'var(--color-text)' : 'var(--color-text-subtle)',
                 }}
               >
-                {step.label}
+                {t(step.label)}
               </span>
             </div>
           )
@@ -154,25 +156,26 @@ function FwChip({ label }: { label: string }) {
 type ReportStatus = 'draft' | 'in_review' | 'approved' | 'locked' | string
 
 function StatusWorkflow({ status }: { status: ReportStatus }) {
+  const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
 
   const NEXT: Record<string, { label: string; color: string }> = {
-    draft: { label: 'Submit for Review', color: 'var(--color-primary)' },
-    in_review: { label: 'Approve', color: '#10B981' },
-    approved: { label: 'Lock Report', color: '#A78BFA' },
+    draft: { label: t('report.submit_for_review'), color: 'var(--color-primary)' },
+    in_review: { label: t('report.approve_report'), color: '#10B981' },
+    approved: { label: t('report.lock_report'), color: '#A78BFA' },
   }
   const next = NEXT[status.toLowerCase()]
   const pill = (status === 'published' ? 'PUBLISHED' : status.toUpperCase()) as 'DRAFT'
 
   function handleWorkflowAction() {
-    setNotice('Reviewer portal coming in Iteration 4 — share the link with your reviewer for now.')
+    setNotice(t('report.reviewer_notice'))
     setTimeout(() => setNotice(null), 4000)
   }
 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-text-muted">Status:</span>
+        <span className="text-xs text-text-muted">{t('report.status_label')}:</span>
         <StatusPill status={pill === 'DRAFT' ? 'DRAFT' : pill} />
       </div>
       {next ? (
@@ -185,7 +188,7 @@ function StatusWorkflow({ status }: { status: ReportStatus }) {
         </button>
       ) : status.toLowerCase() === 'locked' ? (
         <div className="flex items-center gap-1.5 text-xs text-text-muted">
-          <Lock size={12} /> Report is locked
+          <Lock size={12} /> {t('report.report_is_locked')}
         </div>
       ) : null}
       {notice && (
@@ -240,6 +243,7 @@ const PILLAR_STYLE: Record<string, { color: string; label: string }> = {
 }
 
 function PreviewTab({ metrics }: { metrics: MetricDTO[] }) {
+  const { t } = useTranslation()
   const byPillar = useMemo(() => {
     const map: Record<string, MetricDTO[]> = { E: [], S: [], G: [], Other: [] }
     for (const m of metrics) {
@@ -253,7 +257,7 @@ function PreviewTab({ metrics }: { metrics: MetricDTO[] }) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <FileText size={28} style={{ color: 'var(--color-text-subtle)' }} />
-        <p className="text-sm text-text-muted">No metrics available for preview.</p>
+        <p className="text-sm text-text-muted">{t('report.no_metrics_preview')}</p>
       </div>
     )
   }
@@ -275,8 +279,8 @@ function PreviewTab({ metrics }: { metrics: MetricDTO[] }) {
               style={{ background: `${s.color}12`, borderBottom: '1px solid var(--color-border)' }}
             >
               <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-              <h3 className="text-sm font-semibold" style={{ color: s.color }}>{s.label}</h3>
-              <span className="ms-auto text-xs text-text-muted">{list.length} indicators</span>
+              <h3 className="text-sm font-semibold" style={{ color: s.color }}>{t('pillar.' + p)}</h3>
+              <span className="ms-auto text-xs text-text-muted">{t('report.indicators', { count: list.length })}</span>
             </div>
             <div className="divide-y" style={{ '--tw-divide-opacity': 1 } as React.CSSProperties}>
               {list.map((m) => (
@@ -315,10 +319,11 @@ function PreviewTab({ metrics }: { metrics: MetricDTO[] }) {
 // ─── Metrics table tab ────────────────────────────────────────────────────────
 
 function MetricsTableTab({ metrics, reportDate }: { metrics: MetricDTO[]; reportDate: string }) {
+  const { t } = useTranslation()
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-text-muted">{metrics.length} metrics in this report</p>
+        <p className="text-sm text-text-muted">{t('report.metrics_in_report', { count: metrics.length })}</p>
         <button
           onClick={() => exportCsv(metrics, `esg-metrics-${reportDate}.csv`)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded transition-colors"
@@ -329,14 +334,14 @@ function MetricsTableTab({ metrics, reportDate }: { metrics: MetricDTO[]; report
           }}
         >
           <Download size={12} />
-          Export CSV
+          {t('report.export_csv')}
         </button>
       </div>
       <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--color-border)' }}>
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'var(--color-surface-raised)', borderBottom: '1px solid var(--color-border)' }}>
-              {['GRI Code', 'Indicator', 'Value', 'Unit', 'Confidence', 'Status', 'Source'].map((h) => (
+              {[t('metrics.gri_code'), t('metrics.label'), t('metrics.value'), t('metrics.unit'), t('metrics.confidence'), t('metrics.status'), t('metrics.source')].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-muted whitespace-nowrap">
                   {h}
                 </th>
@@ -427,6 +432,7 @@ const GRI_INDICATORS_SAMPLE = [
 type GRIStatus = 'reported' | 'partial' | 'omitted'
 
 function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
+  const { t } = useTranslation()
   function getStatus(code: string): GRIStatus {
     const m = metrics.find((x) => x.gri_code === code)
     if (!m) return 'omitted'
@@ -444,13 +450,13 @@ function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
   return (
     <div>
       <p className="text-xs text-text-muted mb-4">
-        GRI Content Index — disclosure status against GRI Universal Standards and Sector Standards.
+        {t('report.gri_index_note')}
       </p>
       <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--color-border)' }}>
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'var(--color-surface-raised)', borderBottom: '1px solid var(--color-border)' }}>
-              {['GRI Indicator', 'Disclosure', 'Required', 'Status', 'Page Ref'].map((h) => (
+              {[t('report.gri_columns.indicator'), t('report.gri_columns.disclosure'), t('report.gri_columns.required'), t('report.gri_columns.status'), t('report.gri_columns.page_ref')].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-muted whitespace-nowrap">
                   {h}
                 </th>
@@ -482,9 +488,9 @@ function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
                   </td>
                   <td className="px-4 py-2.5">
                     {ind.required ? (
-                      <span className="text-xs font-medium" style={{ color: '#EF4444' }}>Required</span>
+                      <span className="text-xs font-medium" style={{ color: '#EF4444' }}>{t('report.gri_required')}</span>
                     ) : (
-                      <span className="text-xs text-text-subtle">Voluntary</span>
+                      <span className="text-xs text-text-subtle">{t('report.gri_voluntary')}</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5">
@@ -492,7 +498,7 @@ function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
                       className="text-xs font-semibold px-2 py-0.5 rounded"
                       style={{ color: st.color, background: st.bg }}
                     >
-                      {st.label}
+                      {t('report.gri_status.' + getStatus(ind.code))}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-text-muted">
@@ -577,6 +583,7 @@ const DIFF_STYLE: Record<GapRow['difficulty'], { color: string; bg: string }> = 
 }
 
 function GapAnalysisTab({ metrics }: { metrics: MetricDTO[] }) {
+  const { t } = useTranslation()
   const approvedCodes = new Set(metrics.filter((m) => m.status === 'approved').map((m) => m.gri_code))
   const gaps = GAP_TEMPLATES.filter((g) => !approvedCodes.has(g.code))
     .sort((a, b) => Number(b.mandatory) - Number(a.mandatory))
@@ -585,8 +592,8 @@ function GapAnalysisTab({ metrics }: { metrics: MetricDTO[] }) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <CheckCircle2 size={32} style={{ color: '#10B981' }} />
-        <p className="text-base font-semibold text-text">All tracked indicators reported</p>
-        <p className="text-sm text-text-muted">No gaps identified in the current indicator set.</p>
+        <p className="text-base font-semibold text-text">{t('report.all_indicators_reported')}</p>
+        <p className="text-sm text-text-muted">{t('report.no_gaps')}</p>
       </div>
     )
   }
@@ -594,14 +601,15 @@ function GapAnalysisTab({ metrics }: { metrics: MetricDTO[] }) {
   return (
     <div>
       <p className="text-xs text-text-muted mb-4">
-        {gaps.length} indicator{gaps.length !== 1 ? 's' : ''} missing from approved disclosures.
-        Mandatory regulatory requirements listed first.
+        {gaps.length === 1
+          ? t('report.gap_analysis_note_single')
+          : t('report.gap_analysis_note_plural', { count: gaps.length })}
       </p>
       <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--color-border)' }}>
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'var(--color-surface-raised)', borderBottom: '1px solid var(--color-border)' }}>
-              {['Missing Indicator', 'Why It Matters', 'Difficulty', 'Data Source Needed'].map((h) => (
+              {[t('report.gap_columns.missing'), t('report.gap_columns.why'), t('report.gap_columns.difficulty'), t('report.gap_columns.data_source')].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-muted whitespace-nowrap">
                   {h}
                 </th>
@@ -643,7 +651,7 @@ function GapAnalysisTab({ metrics }: { metrics: MetricDTO[] }) {
                       className="text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap"
                       style={{ color: d.color, background: d.bg }}
                     >
-                      {g.difficulty}
+                      {t('report.difficulty.' + g.difficulty)}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -664,10 +672,10 @@ function GapAnalysisTab({ metrics }: { metrics: MetricDTO[] }) {
 type Tab = 'preview' | 'metrics' | 'gri' | 'gaps'
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'preview', label: 'Preview', icon: FileText },
-  { id: 'metrics', label: 'Metrics Table', icon: BarChart2 },
-  { id: 'gri', label: 'GRI Content Index', icon: CheckCircle2 },
-  { id: 'gaps', label: 'Gap Analysis', icon: AlertTriangle },
+  { id: 'preview', label: 'report.tabs.preview', icon: FileText },
+  { id: 'metrics', label: 'report.tabs.metrics', icon: BarChart2 },
+  { id: 'gri', label: 'report.tabs.gri', icon: CheckCircle2 },
+  { id: 'gaps', label: 'report.tabs.gaps', icon: AlertTriangle },
 ]
 
 // ─── Resizable split pane hooks ───────────────────────────────────────────────
@@ -748,6 +756,7 @@ function useResizableInner(
 // ─── PDF Preview panel ────────────────────────────────────────────────────────
 
 function PdfPreview({ reportId, fileName }: { reportId: string; fileName: string | null }) {
+  const { t } = useTranslation()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -770,7 +779,7 @@ function PdfPreview({ reportId, fileName }: { reportId: string; fileName: string
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
         <AlertTriangle size={28} style={{ color: '#EF4444' }} />
-        <p className="text-sm text-text-muted">Could not load PDF preview</p>
+        <p className="text-sm text-text-muted">{t('report.could_not_load_pdf')}</p>
         <p className="text-xs text-text-subtle">{error}</p>
       </div>
     )
@@ -780,7 +789,7 @@ function PdfPreview({ reportId, fileName }: { reportId: string; fileName: string
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3">
         <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
-        <p className="text-xs text-text-muted">Loading PDF…</p>
+        <p className="text-xs text-text-muted">{t('report.loading_pdf')}</p>
       </div>
     )
   }
@@ -803,6 +812,7 @@ function PdfPreview({ reportId, fileName }: { reportId: string; fileName: string
 }
 
 export default function ReportView() {
+  const { t } = useTranslation()
   const { reportId } = useParams<{ reportId: string }>()
   const [searchParams] = useSearchParams()
   const docId = searchParams.get('doc')
@@ -890,9 +900,9 @@ export default function ReportView() {
         >
           <FileText size={22} style={{ color: 'var(--color-text-subtle)' }} aria-hidden="true" />
         </div>
-        <p className="text-sm font-medium text-text-muted">No report selected</p>
+        <p className="text-sm font-medium text-text-muted">{t('report.no_report_selected')}</p>
         <p className="text-xs text-text-subtle max-w-xs">
-          Generate a report from the metric review page to see it here.
+          {t('report.no_report_hint')}
         </p>
       </div>
     )
@@ -933,15 +943,15 @@ export default function ReportView() {
             style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
           >
             <div>
-              <p className="text-xs text-text-muted mb-0.5">Institution</p>
+              <p className="text-xs text-text-muted mb-0.5">{t('report.institution')}</p>
               <p className="text-sm font-semibold text-text">ESG Company</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted mb-0.5">Report Date</p>
+              <p className="text-xs text-text-muted mb-0.5">{t('report.report_date')}</p>
               <p className="text-xs text-text">{report ? formatDate(report.created_at) : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted mb-0.5">Source Document</p>
+              <p className="text-xs text-text-muted mb-0.5">{t('report.source_document')}</p>
               <p className="text-xs text-text break-words">
                 {fileName ?? `Report ${shortRef(reportId)}`}
               </p>
@@ -959,7 +969,7 @@ export default function ReportView() {
             style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
           >
             <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">
-              ESG Score
+              {t('report.esg_score')}
             </p>
             <ScoreGauge scores={scores} overall={scores.overall} size="sm" />
             <div className="mt-3 text-center">
@@ -971,7 +981,7 @@ export default function ReportView() {
                   border: `1px solid ${TIER_COLOR(scores.overall)}44`,
                 }}
               >
-                {TIER_LABEL(scores.overall)}
+                {t('tier.' + TIER_LABEL(scores.overall))}
               </span>
             </div>
           </div>
@@ -992,7 +1002,7 @@ export default function ReportView() {
                 ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
                 : <Download size={13} aria-hidden="true" />
               }
-              {downloading ? 'Downloading…' : 'Download PDF'}
+              {downloading ? t('report.downloading') : t('report.download')}
             </button>
 
             <button
@@ -1009,10 +1019,10 @@ export default function ReportView() {
                 ? <Check size={13} aria-hidden="true" />
                 : <Share2 size={13} aria-hidden="true" />
               }
-              {copied ? 'Link copied!' : 'Share with Reviewer'}
+              {copied ? t('report.link_copied') : t('report.share')}
             </button>
             {copied && (
-              <p className="text-xs text-center text-text-subtle" role="status">Coming soon — reviewer portal not yet live.</p>
+              <p className="text-xs text-center text-text-subtle" role="status">{t('report.reviewer_coming_soon')}</p>
             )}
           </div>
 
@@ -1022,7 +1032,7 @@ export default function ReportView() {
             style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
           >
             <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-2">
-              Workflow
+              {t('report.workflow')}
             </p>
             <StatusWorkflow status={report?.status ?? 'complete'} />
           </div>
@@ -1066,14 +1076,14 @@ export default function ReportView() {
           {/* Page header */}
           <div className="mb-5">
             <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
-              Report
+              {t('report.eyebrow')}
             </p>
             <h1 className="text-xl font-semibold text-text">
-              ESG Disclosure Report{fileName ? ` — ${fileName}` : ''}
+              {t('report.disclosure_report')}{fileName ? ` — ${fileName}` : ''}
             </h1>
             <p className="text-sm text-text-muted mt-1">
               {report ? formatDate(report.created_at) : ''}
-              {metrics.length > 0 && ` · ${metrics.filter((m) => m.status === 'approved').length} approved metrics`}
+              {metrics.length > 0 && ` · ${t('report.approved_metrics', { count: metrics.filter((m) => m.status === 'approved').length })}`}
             </p>
           </div>
 
@@ -1101,7 +1111,7 @@ export default function ReportView() {
                   }}
                 >
                   <Icon size={12} aria-hidden="true" />
-                  {tab.label}
+                  {t(tab.label)}
                 </button>
               )
             })}
@@ -1174,7 +1184,7 @@ export default function ReportView() {
         >
           <FileText size={13} style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
           <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">
-            PDF Preview
+            {t('report.pdf_preview')}
           </span>
           {/* Filename hint */}
           <span className="ms-auto text-xs text-text-subtle truncate max-w-[160px]" title={pdfFilename}>
