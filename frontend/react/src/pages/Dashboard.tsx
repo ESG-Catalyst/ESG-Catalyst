@@ -19,6 +19,7 @@ import { listDocuments } from '@/api/documents'
 import { getMetrics, type MetricDTO } from '@/api/metrics'
 import { listReports, generateReport } from '@/api/reports'
 import { useAuthStore, emailHandle } from '@/store/auth'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ function StatChip({
 // ─── Score overview card ──────────────────────────────────────────────────────
 
 function ScoreCard({ metrics }: { metrics: MetricDTO[] }) {
+  const { t } = useTranslation()
   const eMetrics = metrics.filter((m) => m.pillar === 'E' && m.value != null)
   const sMetrics = metrics.filter((m) => m.pillar === 'S' && m.value != null)
   const gMetrics = metrics.filter((m) => m.pillar === 'G' && m.value != null)
@@ -122,7 +124,7 @@ function ScoreCard({ metrics }: { metrics: MetricDTO[] }) {
 
   return (
     <Card className="flex flex-col gap-4">
-      <SectionTitle>ESG Score Overview</SectionTitle>
+      <SectionTitle>{t('dashboard.esg_score_overview')}</SectionTitle>
 
       <div className="flex justify-center">
         <ScoreGauge scores={scores} overall={overall} size="md" />
@@ -145,9 +147,9 @@ function ScoreCard({ metrics }: { metrics: MetricDTO[] }) {
 
       {/* Stat chips */}
       <div className="grid grid-cols-3 gap-2 mt-1">
-        <StatChip label="Approved" value={approved} color="#10B981" />
-        <StatChip label="Extracted" value={extracted} color="#38BDF8" />
-        <StatChip label="Missing" value={missing} color="#F59E0B" />
+        <StatChip label={t('dashboard.stat_approved')} value={approved} color="#10B981" />
+        <StatChip label={t('dashboard.stat_extracted')} value={extracted} color="#38BDF8" />
+        <StatChip label={t('dashboard.stat_missing')} value={missing} color="#F59E0B" />
       </div>
     </Card>
   )
@@ -156,6 +158,7 @@ function ScoreCard({ metrics }: { metrics: MetricDTO[] }) {
 // ─── Framework coverage card ──────────────────────────────────────────────────
 
 function CoverageCard({ metrics }: { metrics: MetricDTO[] }) {
+  const { t } = useTranslation()
   const disclosed = (fw: string) =>
     metrics.filter(
       (m) =>
@@ -177,7 +180,7 @@ function CoverageCard({ metrics }: { metrics: MetricDTO[] }) {
 
   return (
     <Card className="flex flex-col gap-4">
-      <SectionTitle>Framework Coverage</SectionTitle>
+      <SectionTitle>{t('dashboard.framework_coverage')}</SectionTitle>
       <div className="flex flex-col gap-5">
         <FrameworkCoverageBar framework="GRI" covered={disclosed('GRI')} total={GRI_TOTAL} />
         <FrameworkCoverageBar framework="FRA" covered={disclosed('FRA')} total={FRA_TOTAL} />
@@ -186,8 +189,7 @@ function CoverageCard({ metrics }: { metrics: MetricDTO[] }) {
       <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
         <Activity size={12} className="text-text-subtle" aria-hidden="true" />
         <p className="text-xs text-text-subtle">
-          <span className="font-semibold text-text">{totalDisclosed}</span> of 46 indicators
-          disclosed
+          {t('dashboard.indicators_disclosed', { count: totalDisclosed })}
         </p>
       </div>
     </Card>
@@ -203,12 +205,12 @@ interface ActivityItem {
   time: string
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (k: string, o?: Record<string, unknown>) => string): string {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
+  if (diff < 60) return t('time.just_now')
+  if (diff < 3600) return t('time.minutes_ago', { n: Math.floor(diff / 60) })
+  if (diff < 86400) return t('time.hours_ago', { n: Math.floor(diff / 3600) })
+  return t('time.days_ago', { n: Math.floor(diff / 86400) })
 }
 
 function ActivityFeed({
@@ -218,6 +220,7 @@ function ActivityFeed({
   documents: { filename: string; status: string; uploaded_at?: string }[]
   metrics: MetricDTO[]
 }) {
+  const { t } = useTranslation()
   const items: ActivityItem[] = []
 
   documents.slice(0, 2).forEach((doc) => {
@@ -225,16 +228,16 @@ function ActivityFeed({
       items.push({
         icon: Upload,
         color: '#38BDF8',
-        text: `"${doc.filename}" uploaded`,
-        time: timeAgo(doc.uploaded_at),
+        text: t('dashboard.activity_uploaded', { filename: doc.filename }),
+        time: timeAgo(doc.uploaded_at, t),
       })
     }
     if (doc.status === 'complete' || doc.status === 'extracted') {
       items.push({
         icon: BarChart2,
         color: '#0D9488',
-        text: `Pipeline completed for "${doc.filename}"`,
-        time: doc.uploaded_at ? timeAgo(doc.uploaded_at) : '—',
+        text: t('dashboard.activity_pipeline_complete', { filename: doc.filename }),
+        time: doc.uploaded_at ? timeAgo(doc.uploaded_at, t) : '—',
       })
     }
   })
@@ -244,8 +247,8 @@ function ActivityFeed({
     items.push({
       icon: CheckCircle2,
       color: '#10B981',
-      text: `${approved} metric${approved > 1 ? 's' : ''} approved`,
-      time: 'recently',
+      text: t('dashboard.activity_metrics_approved', { count: approved }),
+      time: t('time.recently'),
     })
   }
 
@@ -254,8 +257,8 @@ function ActivityFeed({
     items.push({
       icon: AlertCircle,
       color: '#F59E0B',
-      text: `${missing} indicator${missing > 1 ? 's' : ''} not yet disclosed`,
-      time: 'pending',
+      text: t('dashboard.activity_indicators_missing', { count: missing }),
+      time: t('dashboard.activity_pending'),
     })
   }
 
@@ -263,12 +266,12 @@ function ActivityFeed({
 
   return (
     <Card className="flex flex-col gap-4">
-      <SectionTitle>Recent Activity</SectionTitle>
+      <SectionTitle>{t('dashboard.recent_activity')}</SectionTitle>
 
       {feed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-6 gap-2 text-center">
           <Activity size={20} className="text-text-subtle opacity-50" />
-          <p className="text-sm text-text-subtle">No activity yet.</p>
+          <p className="text-sm text-text-subtle">{t('dashboard.no_activity')}</p>
         </div>
       ) : (
         <ul className="flex flex-col gap-3" role="list">
@@ -296,7 +299,7 @@ function ActivityFeed({
         to="/results"
         className="flex items-center gap-1 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded mt-auto pt-1 border-t border-border-subtle"
       >
-        View all activity <ArrowRight size={12} aria-hidden="true" />
+        {t('dashboard.view_all_activity')} <ArrowRight size={12} aria-hidden="true" />
       </Link>
     </Card>
   )
@@ -409,6 +412,7 @@ function MetricsSummaryTable({
   documentName: string
   documentId: string
 }) {
+  const { t } = useTranslation()
   const preview = metrics.slice(0, 8)
 
   return (
@@ -416,14 +420,14 @@ function MetricsSummaryTable({
       {/* Table header row */}
       <div className="flex items-center justify-between px-5 py-3.5 bg-surface border-b border-border">
         <div>
-          <p className="text-sm font-semibold text-text">Latest Extraction</p>
+          <p className="text-sm font-semibold text-text">{t('dashboard.latest_extraction')}</p>
           <p className="text-xs text-text-muted mt-0.5 truncate max-w-[280px]">{documentName}</p>
         </div>
         <Link
           to={`/results/${documentId}`}
           className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
         >
-          View all metrics <ArrowRight size={12} aria-hidden="true" />
+          {t('dashboard.view_all_metrics')} <ArrowRight size={12} aria-hidden="true" />
         </Link>
       </div>
 
@@ -431,7 +435,15 @@ function MetricsSummaryTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-surface-raised border-b border-border">
-              {['GRI Code', 'Indicator', 'Value', 'Unit', 'Pillar', 'Confidence', 'Status'].map(
+              {[
+                t('dashboard.table_headers.gri_code'),
+                t('dashboard.table_headers.indicator'),
+                t('dashboard.table_headers.value'),
+                t('dashboard.table_headers.unit'),
+                t('dashboard.table_headers.pillar'),
+                t('dashboard.table_headers.confidence'),
+                t('dashboard.table_headers.status'),
+              ].map(
                 (h) => (
                   <th
                     key={h}
@@ -480,7 +492,7 @@ function MetricsSummaryTable({
         </table>
         {metrics.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-text-subtle">
-            No metrics extracted yet.
+            {t('dashboard.no_metrics_yet')}
           </div>
         )}
       </div>
@@ -491,6 +503,7 @@ function MetricsSummaryTable({
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyState() {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -501,17 +514,16 @@ function EmptyState() {
       <div className="w-16 h-16 rounded-2xl bg-surface-raised flex items-center justify-center mb-5 border border-border">
         <FileText size={28} style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
       </div>
-      <p className="text-base font-semibold text-text mb-2">No documents yet</p>
+      <p className="text-base font-semibold text-text mb-2">{t('dashboard.no_documents')}</p>
       <p className="text-sm text-text-muted mb-6 max-w-sm leading-relaxed">
-        Upload your first ESG report to begin. The pipeline will extract, score, and structure
-        your data automatically.
+        {t('dashboard.no_documents_hint')}
       </p>
       <Link
         to="/upload"
         className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Upload size={15} aria-hidden="true" />
-        Upload Document
+        {t('dashboard.upload_document_cta')}
       </Link>
     </motion.div>
   )
@@ -540,6 +552,7 @@ function LoadingSkeleton() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const email = useAuthStore((s) => s.email)
   const queryClient = useQueryClient()
@@ -578,9 +591,9 @@ export default function Dashboard() {
 
   const greeting = (() => {
     const h = new Date().getHours()
-    if (h < 12) return 'Good morning'
-    if (h < 18) return 'Good afternoon'
-    return 'Good evening'
+    if (h < 12) return t('dashboard.greeting_morning')
+    if (h < 18) return t('dashboard.greeting_afternoon')
+    return t('dashboard.greeting_evening')
   })()
 
   const handle = emailHandle(email)
@@ -600,8 +613,8 @@ export default function Dashboard() {
         </h1>
         <p className="text-sm text-text-muted mt-1">
           {hasDocuments
-            ? `Here's your ESG reporting status${latestDoc ? ` — ${latestDoc.filename}` : ''}`
-            : 'Upload a document to begin your ESG reporting workflow.'}
+            ? t('dashboard.status_with_doc', { filename: latestDoc?.filename ?? '' })
+            : t('dashboard.status_empty')}
         </p>
       </motion.div>
 
@@ -627,17 +640,17 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <QuickActionCard
               icon={Upload}
-              title="Upload Document"
-              subtitle="Add an Arabic or English ESG report to the pipeline."
-              buttonLabel="Upload"
+              title={t('dashboard.action_upload_title')}
+              subtitle={t('dashboard.action_upload_subtitle')}
+              buttonLabel={t('dashboard.action_upload_button')}
               onClick={() => navigate('/upload')}
               variant="primary"
             />
             <QuickActionCard
               icon={BarChart2}
-              title="Review Metrics"
-              subtitle="Approve, reject, or edit extracted values."
-              buttonLabel="Review"
+              title={t('dashboard.action_review_title')}
+              subtitle={t('dashboard.action_review_subtitle')}
+              buttonLabel={t('dashboard.action_review_button')}
               onClick={() =>
                 navigate(latestDoc ? `/results/${latestDoc.document_id}` : '/results')
               }
@@ -645,14 +658,14 @@ export default function Dashboard() {
             />
             <QuickActionCard
               icon={FileText}
-              title="Generate Report"
-              subtitle="Create a GRI/FRA-compliant PDF disclosure."
+              title={t('dashboard.action_generate_title')}
+              subtitle={t('dashboard.action_generate_subtitle')}
               buttonLabel={
                 generateMutation.isPending
-                  ? 'Generating…'
+                  ? t('dashboard.action_generate_button_generating')
                   : hasApprovedMetrics
-                  ? 'Generate'
-                  : 'Approve metrics first'
+                  ? t('dashboard.action_generate_button')
+                  : t('dashboard.action_generate_button_disabled')
               }
               onClick={() => {
                 if (latestDoc?.document_id) generateMutation.mutate(latestDoc.document_id)
@@ -661,9 +674,9 @@ export default function Dashboard() {
             />
             <QuickActionCard
               icon={FileText}
-              title="View Last Report"
-              subtitle="Open your most recently generated disclosure PDF."
-              buttonLabel="Open"
+              title={t('dashboard.action_view_report_title')}
+              subtitle={t('dashboard.action_view_report_subtitle')}
+              buttonLabel={t('dashboard.action_view_report_button')}
               onClick={() => {
                 const docSuffix = latestDoc ? `?doc=${latestDoc.document_id}` : ''
                 navigate(latestReport ? `/report/${latestReport.id}${docSuffix}` : '/report')
