@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ScoreGauge from '@/components/ui/ScoreGauge'
 import { useConsultantStore } from '@/store/consultant'
 import { useAuthStore } from '@/store/auth'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ const MOCK_ACTIVITY: ActivityItem[] = [
   {
     institutionId: 'c4',
     institutionName: 'EFG Hermes',
-    action: 'Report approved and locked',
+    action: 'consultant.activity_report_locked',
     time: '12h ago',
     icon: CheckCircle2,
     iconColor: '#10B981',
@@ -117,7 +118,7 @@ const MOCK_ACTIVITY: ActivityItem[] = [
   {
     institutionId: 'c2',
     institutionName: 'Beltone Financial',
-    action: 'Pipeline completed — 8 metrics extracted',
+    action: 'consultant.activity_pipeline_complete',
     time: '1d ago',
     icon: BarChart2,
     iconColor: '#0D9488',
@@ -125,7 +126,7 @@ const MOCK_ACTIVITY: ActivityItem[] = [
   {
     institutionId: 'c2',
     institutionName: 'Beltone Financial',
-    action: 'ESG report uploaded for processing',
+    action: 'consultant.activity_uploaded',
     time: '1d ago',
     icon: FileText,
     iconColor: '#38BDF8',
@@ -133,7 +134,7 @@ const MOCK_ACTIVITY: ActivityItem[] = [
   {
     institutionId: 'c1',
     institutionName: 'ADCB Egypt',
-    action: '3 metrics approved by reviewer',
+    action: 'consultant.activity_metrics_approved',
     time: '3d ago',
     icon: CheckCircle2,
     iconColor: '#10B981',
@@ -141,7 +142,7 @@ const MOCK_ACTIVITY: ActivityItem[] = [
   {
     institutionId: 'c3',
     institutionName: 'ADIB Egypt',
-    action: '31 indicators still missing disclosure',
+    action: 'consultant.activity_indicators_missing',
     time: '5d ago',
     icon: AlertCircle,
     iconColor: '#F59E0B',
@@ -175,6 +176,35 @@ function REPORT_STATUS_STYLE(status: ReportStatus): React.CSSProperties {
   return { background: '#6B728020', color: '#9CA3AF', border: '1px solid #6B728040' }
 }
 
+type TFn = (k: string, o?: Record<string, unknown>) => string
+
+function typeLabel(type: InstitutionType, t: TFn): string {
+  const k: Record<InstitutionType, string> = {
+    'Commercial Bank': 'type_commercial_bank',
+    NBFI: 'type_nbfi',
+    Insurance: 'type_insurance',
+  }
+  return t(`consultant.${k[type]}`)
+}
+
+function statusLabel(status: ReportStatus, t: TFn): string {
+  const k: Record<ReportStatus, string> = {
+    DRAFT: 'status_draft',
+    'Pending review': 'status_pending_review',
+    'Report locked': 'status_locked',
+  }
+  return t(`consultant.${k[status]}`)
+}
+
+function compareLabel(key: string, t: TFn): string {
+  const map: Record<string, string> = {
+    overall: 'compare_overall', E: 'compare_e', S: 'compare_s', G: 'compare_g',
+    griCoverage: 'compare_gri', fraCoverage: 'compare_fra',
+    missingIndicators: 'compare_missing', tier: 'compare_tier',
+  }
+  return t(`consultant.${map[key] ?? key}`)
+}
+
 // ─── Shared Card ──────────────────────────────────────────────────────────────
 
 function Card({
@@ -199,6 +229,7 @@ function Card({
 // ─── Add Client Modal ─────────────────────────────────────────────────────────
 
 function AddClientModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [type, setType] = useState<InstitutionType>('Commercial Bank')
@@ -233,7 +264,7 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold text-text">Add Client Institution</h2>
+          <h2 className="text-base font-semibold text-text">{t('consultant.add_client_title')}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -248,44 +279,43 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
             <div className="w-12 h-12 rounded-full bg-success/15 flex items-center justify-center">
               <CheckCircle2 size={24} style={{ color: '#10B981' }} aria-hidden="true" />
             </div>
-            <p className="text-sm font-semibold text-text">Invitation sent</p>
+            <p className="text-sm font-semibold text-text">{t('consultant.invitation_sent')}</p>
             <p className="text-xs text-text-muted">
-              {name} will receive an onboarding email at{' '}
-              <span className="text-text">{email}</span>.
+              {t('consultant.add_client_success_detail', { name, email })}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-text-muted">Institution name</label>
+              <label className="text-xs font-medium text-text-muted">{t('consultant.add_client_name')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Cairo International Bank"
+                placeholder={t('consultant.modal_name_placeholder')}
                 className={inputCls}
                 autoFocus
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-text-muted">Institution type</label>
+              <label className="text-xs font-medium text-text-muted">{t('consultant.add_client_type')}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as InstitutionType)}
                 className={cn(inputCls, 'appearance-none')}
               >
-                <option>Commercial Bank</option>
-                <option>NBFI</option>
-                <option>Insurance</option>
+                <option value="Commercial Bank">{t('consultant.type_commercial_bank')}</option>
+                <option value="NBFI">{t('consultant.type_nbfi')}</option>
+                <option value="Insurance">{t('consultant.type_insurance')}</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-text-muted">Contact email</label>
+              <label className="text-xs font-medium text-text-muted">{t('consultant.add_client_email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="sustainability@bank.eg"
+                placeholder={t('consultant.modal_email_placeholder')}
                 className={inputCls}
               />
             </div>
@@ -295,14 +325,14 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
                 onClick={onClose}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-surface-raised text-text-muted hover:text-text hover:bg-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                Cancel
+                {t('consultant.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={!name.trim() || !email.trim()}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                Send Invitation
+                {t('consultant.add_client_submit')}
               </button>
             </div>
           </form>
@@ -339,6 +369,7 @@ function PillarBar({ label, score, color }: { label: string; score: number; colo
 // ─── Client Card ──────────────────────────────────────────────────────────────
 
 function ClientCard({ client }: { client: ClientInstitution }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const setActiveClient = useConsultantStore((s) => s.setActiveClient)
 
@@ -367,7 +398,7 @@ function ClientCard({ client }: { client: ClientInstitution }) {
               className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium"
               style={TYPE_BADGE_STYLE(client.type)}
             >
-              {client.type}
+              {typeLabel(client.type, t)}
             </span>
           </div>
           <div className="shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-surface-raised">
@@ -391,13 +422,13 @@ function ClientCard({ client }: { client: ClientInstitution }) {
         <div className="flex items-center justify-between text-xs border-t border-border-subtle pt-3">
           <span className="flex items-center gap-1 text-text-muted">
             <Clock size={10} aria-hidden="true" />
-            Updated {client.lastActivity}
+            {t('consultant.updated', { time: client.lastActivity })}
           </span>
           <span
             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
             style={REPORT_STATUS_STYLE(client.reportStatus)}
           >
-            {client.reportStatus}
+            {statusLabel(client.reportStatus, t)}
           </span>
         </div>
 
@@ -414,7 +445,7 @@ function ClientCard({ client }: { client: ClientInstitution }) {
             {client.tier}
           </span>
           <span className="text-xs text-text-subtle">
-            {client.griCoverage}% GRI · {client.missingIndicators} missing
+            {t('consultant.coverage_summary', { gri: client.griCoverage, missing: client.missingIndicators })}
           </span>
         </div>
 
@@ -424,21 +455,21 @@ function ClientCard({ client }: { client: ClientInstitution }) {
             onClick={openDashboard}
             className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            Open Dashboard
+            {t('consultant.open_dashboard')}
           </button>
           {client.latestReportId ? (
             <Link
               to={`/report/${client.latestReportId}`}
               className="flex-1 py-2 rounded-lg text-xs font-semibold text-center transition-all bg-surface-raised text-text-muted hover:bg-border hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              View Report
+              {t('consultant.view_report')}
             </Link>
           ) : (
             <button
               disabled
               className="flex-1 py-2 rounded-lg text-xs font-semibold opacity-40 cursor-not-allowed bg-surface-raised text-text-muted"
             >
-              No Report Yet
+              {t('consultant.no_report_yet')}
             </button>
           )}
         </div>
@@ -490,6 +521,7 @@ function downloadComparisonCSV(clients: ClientInstitution[]) {
 }
 
 function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
+  const { t } = useTranslation()
   const [selected, setSelected] = useState<string[]>([])
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
@@ -517,8 +549,8 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
     <Card className="p-5">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-sm font-semibold text-text">Side-by-side comparison</h2>
-          <p className="text-xs text-text-muted mt-0.5">Select 2–4 institutions to compare</p>
+          <h2 className="text-sm font-semibold text-text">{t('consultant.comparison_title')}</h2>
+          <p className="text-xs text-text-muted mt-0.5">{t('consultant.comparison_hint')}</p>
         </div>
         {comparedClients.length >= 2 && (
           <button
@@ -526,7 +558,7 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-surface-raised text-text-muted border border-border hover:text-text hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <Download size={12} aria-hidden="true" />
-            Export CSV
+            {t('consultant.export_csv')}
           </button>
         )}
       </div>
@@ -542,7 +574,7 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
         >
           <span className="truncate">
             {selected.length === 0
-              ? 'Choose institutions…'
+              ? t('consultant.comparison_choose')
               : clients
                   .filter((c) => selected.includes(c.id))
                   .map((c) => c.name)
@@ -611,7 +643,7 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
       {comparedClients.length < 2 ? (
         <div className="rounded-xl py-10 flex flex-col items-center gap-2 text-center bg-surface-raised">
           <BarChart2 size={24} className="text-text-subtle opacity-50" aria-hidden="true" />
-          <p className="text-sm text-text-muted">Select at least 2 institutions to compare</p>
+          <p className="text-sm text-text-muted">{t('consultant.comparison_select_two')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -622,7 +654,7 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
                   scope="col"
                   className="py-2.5 px-4 text-start text-xs font-semibold text-text-muted w-44"
                 >
-                  Metric
+                  {t('consultant.metric_col')}
                 </th>
                 {comparedClients.map((c) => (
                   <th
@@ -650,7 +682,7 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
                     )}
                   >
                     <td className="py-2.5 px-4 text-xs font-medium text-text-muted whitespace-nowrap">
-                      {row.label}
+                      {compareLabel(row.key, t)}
                     </td>
                     {comparedClients.map((c) => {
                       const val = getCellValue(c, row.key)
@@ -691,6 +723,7 @@ function ComparisonPanel({ clients }: { clients: ClientInstitution[] }) {
 // ─── Activity feed ────────────────────────────────────────────────────────────
 
 function ActivityFeed({ items }: { items: ActivityItem[] }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const setActiveClient = useConsultantStore((s) => s.setActiveClient)
   const clients = MOCK_CLIENTS
@@ -698,7 +731,7 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
   return (
     <Card className="p-5 flex flex-col gap-3" style={{ height: 'fit-content' }}>
       <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1">
-        Client Activity
+        {t('consultant.client_activity')}
       </p>
       <ul className="flex flex-col gap-3" role="list">
         {items.map((item, i) => {
@@ -728,7 +761,7 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
                 >
                   {item.institutionName}
                 </button>
-                <p className="text-xs text-text-muted leading-snug mt-0.5">{item.action}</p>
+                <p className="text-xs text-text-muted leading-snug mt-0.5">{t(item.action)}</p>
               </div>
               <span className="text-xs text-text-subtle shrink-0 flex items-center gap-1 mt-0.5">
                 <Clock size={10} aria-hidden="true" />
@@ -745,20 +778,21 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
 // ─── Access denied ────────────────────────────────────────────────────────────
 
 function AccessDenied() {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="w-14 h-14 rounded-2xl bg-danger/10 flex items-center justify-center mb-5 border border-danger/20">
         <Users size={24} style={{ color: '#EF4444' }} aria-hidden="true" />
       </div>
-      <p className="text-base font-semibold text-text mb-2">Access restricted</p>
+      <p className="text-base font-semibold text-text mb-2">{t('consultant.access_denied_title')}</p>
       <p className="text-sm text-text-muted mb-6 max-w-sm leading-relaxed">
-        The Consultant Workspace is only available to consultant and admin accounts.
+        {t('consultant.access_denied_hint')}
       </p>
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
-        Back to Dashboard
+        {t('consultant.back_to_dashboard')}
       </Link>
     </div>
   )
@@ -767,6 +801,7 @@ function AccessDenied() {
 // ─── ConsultantWorkspace ──────────────────────────────────────────────────────
 
 export default function ConsultantWorkspace() {
+  const { t } = useTranslation()
   const [showAddModal, setShowAddModal] = useState(false)
   const [search, setSearch] = useState('')
   const role = useAuthStore((s) => s.role)
@@ -792,23 +827,23 @@ export default function ConsultantWorkspace() {
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-text leading-tight">
-            Consultant Workspace
+            {t('consultant.title')}
           </h1>
           <p className="text-sm text-text-muted mt-1">
-            Manage and compare your client portfolio.
+            {t('consultant.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0 flex-wrap">
           {/* Portfolio count chip */}
           <span className="text-xs text-text-muted bg-surface-raised px-3 py-1.5 rounded-full border border-border">
-            Managing {MOCK_CLIENTS.length} institutions
+            {t('consultant.managing_count', { count: MOCK_CLIENTS.length })}
           </span>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-primary hover:bg-primary-hover text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <Plus size={15} aria-hidden="true" />
-            Add Client
+            {t('consultant.add_client')}
           </button>
         </div>
       </div>
@@ -825,8 +860,8 @@ export default function ConsultantWorkspace() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search institutions…"
-            aria-label="Search client institutions"
+            placeholder={t('consultant.search_placeholder')}
+            aria-label={t('consultant.search_placeholder')}
             className="w-full ps-9 pe-4 py-2 text-sm rounded-lg bg-surface border border-border-subtle hover:border-border text-text placeholder:text-text-subtle outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary transition-colors"
           />
         </div>
@@ -840,7 +875,7 @@ export default function ConsultantWorkspace() {
           {filteredClients.length === 0 ? (
             <div className="rounded-xl border border-border bg-surface-raised py-12 flex flex-col items-center gap-2 text-center">
               <Building2 size={24} className="text-text-subtle opacity-40" aria-hidden="true" />
-              <p className="text-sm text-text-muted">No institutions match your search.</p>
+              <p className="text-sm text-text-muted">{t('consultant.no_institutions_match')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
