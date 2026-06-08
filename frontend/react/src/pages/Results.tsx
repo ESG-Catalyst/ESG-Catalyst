@@ -17,6 +17,7 @@ import { generateReport } from '@/api/reports'
 import { getDocument } from '@/api/documents'
 import StatusPill from '@/components/ui/StatusPill'
 import { usePipelineStore } from '@/store/pipeline'
+import { useTranslation } from 'react-i18next'
 
 // ─── Pillar chip ──────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ function EditForm({
   onCancel: () => void
   saving: boolean
 }) {
+  const { t } = useTranslation()
   const [val, setVal] = useState(metric.value?.toString() ?? '')
   const [unit, setUnit] = useState(metric.unit ?? '')
   const [note, setNote] = useState('')
@@ -100,7 +102,7 @@ function EditForm({
       >
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-text-muted mb-1">Value</label>
+            <label className="block text-xs text-text-muted mb-1">{t('results.edit_value')}</label>
             <input
               type="number"
               value={val}
@@ -112,11 +114,11 @@ function EditForm({
                 color: 'var(--color-text)',
                 fontFamily: 'var(--font-mono)',
               }}
-              placeholder="e.g. 19262"
+              placeholder={t('results.edit_value_placeholder')}
             />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1">Unit</label>
+            <label className="block text-xs text-text-muted mb-1">{t('results.edit_unit')}</label>
             <input
               type="text"
               value={unit}
@@ -128,7 +130,7 @@ function EditForm({
                 border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
-              placeholder="e.g. tCO2e"
+              placeholder={t('results.edit_unit_placeholder')}
             />
             <datalist id="unit-suggestions">
               {UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}
@@ -136,7 +138,7 @@ function EditForm({
           </div>
         </div>
         <div>
-          <label className="block text-xs text-text-muted mb-1">Reason for edit</label>
+          <label className="block text-xs text-text-muted mb-1">{t('results.edit_reason')}</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -147,7 +149,7 @@ function EditForm({
               border: '1px solid var(--color-border)',
               color: 'var(--color-text)',
             }}
-            placeholder="Optional note for audit trail"
+            placeholder={t('results.edit_reason_placeholder')}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -163,14 +165,14 @@ function EditForm({
             className="px-4 py-1.5 text-xs font-semibold rounded transition-colors disabled:opacity-50"
             style={{ background: 'var(--color-primary)', color: '#fff' }}
           >
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? t('results.saving') : t('results.save')}
           </button>
           <button
             onClick={onCancel}
             className="px-4 py-1.5 text-xs font-medium rounded transition-colors text-text-muted"
             style={{ background: 'var(--color-surface-raised)' }}
           >
-            Cancel
+            {t('results.cancel')}
           </button>
         </div>
       </div>
@@ -199,6 +201,7 @@ function MetricCard({
   onSaveEdit: (value: number | null, unit: string | null, note: string | null) => void
   saving: boolean
 }) {
+  const { t } = useTranslation()
   const [editOpen, setEditOpen] = useState(false)
   const confidence = metric.confidence ?? 0
   const needsReview = confidence < 0.8
@@ -251,14 +254,14 @@ function MetricCard({
 
       {/* Confidence */}
       <div className="mb-3">
-        <p className="text-xs text-text-muted mb-1">Confidence</p>
+        <p className="text-xs text-text-muted mb-1">{t('results.confidence')}</p>
         <ConfidenceBar value={confidence} />
       </div>
 
       {/* Source — human filename, not the internal storage id */}
       {(fileName || metric.source_page) && (
         <p className="text-xs text-text-subtle mb-3">
-          Source:{fileName ? ` ${fileName}` : ''}{metric.source_page ? `, page ${metric.source_page}` : ''}
+          {t('results.source')}:{fileName ? ` ${fileName}` : ''}{metric.source_page ? `, ${t('results.page')} ${metric.source_page}` : ''}
         </p>
       )}
 
@@ -269,7 +272,7 @@ function MetricCard({
           style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B' }}
         >
           <Sparkles size={13} className="mt-0.5 shrink-0" />
-          <span>AI confidence is {Math.round(confidence * 100)}% — please verify this value before approving.</span>
+          <span>{t('results.low_confidence_warning', { pct: Math.round(confidence * 100) })}</span>
         </div>
       )}
 
@@ -288,7 +291,7 @@ function MetricCard({
           aria-pressed={metric.status === 'approved'}
         >
           <Check size={12} aria-hidden="true" />
-          {metric.status === 'approved' ? 'Approved' : 'Approve'}
+          {metric.status === 'approved' ? t('results.approved') : t('results.approve')}
         </button>
         <button
           onClick={onReject}
@@ -303,7 +306,7 @@ function MetricCard({
           aria-pressed={metric.status === 'rejected'}
         >
           <X size={12} aria-hidden="true" />
-          {metric.status === 'rejected' ? 'Rejected' : 'Reject'}
+          {metric.status === 'rejected' ? t('results.rejected') : t('results.reject')}
         </button>
         <button
           onClick={() => setEditOpen((o) => !o)}
@@ -317,7 +320,7 @@ function MetricCard({
           aria-label={`Edit value for ${metric.gri_code}`}
         >
           <Pencil size={12} aria-hidden="true" />
-          Edit
+          {t('results.edit')}
         </button>
       </div>
 
@@ -342,6 +345,7 @@ function MetricCard({
 // ─── Evidence viewer ──────────────────────────────────────────────────────────
 
 function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileName: string | null }) {
+  const { t } = useTranslation()
   if (!metric) {
     return (
       <div
@@ -349,7 +353,7 @@ function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileNa
         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
       >
         <BookOpen size={28} style={{ color: 'var(--color-text-subtle)' }} />
-        <p className="text-sm text-text-muted">Select a metric to view source evidence</p>
+        <p className="text-sm text-text-muted">{t('results.evidence_empty')}</p>
       </div>
     )
   }
@@ -384,7 +388,7 @@ function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileNa
     >
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
-          Source Evidence
+          {t('results.source_evidence')}
         </p>
         {evidence ? (
           <p
@@ -394,7 +398,7 @@ function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileNa
             {highlightEvidence(evidence, displayValue)}
           </p>
         ) : (
-          <p className="text-sm text-text-subtle italic">No evidence text available for this metric.</p>
+          <p className="text-sm text-text-subtle italic">{t('results.no_evidence')}</p>
         )}
       </div>
 
@@ -402,7 +406,7 @@ function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileNa
         <p className="text-xs text-text-muted">
           <FileText size={11} className="inline me-1 mb-0.5" aria-hidden="true" />
           {fileName && <span>{fileName}</span>}
-          {metric.source_page && <span> · Page {metric.source_page}</span>}
+          {metric.source_page && <span> · {t('results.page_label')} {metric.source_page}</span>}
         </p>
       )}
 
@@ -415,17 +419,17 @@ function EvidenceViewer({ metric, fileName }: { metric: MetricDTO | null; fileNa
         </p>
         {metric.fra_code && (
           <p className="text-xs text-text-muted mb-0.5">
-            FRA Code: <span style={{ fontFamily: 'var(--font-mono)' }}>{metric.fra_code}</span>
+            {t('results.fra_code')}: <span style={{ fontFamily: 'var(--font-mono)' }}>{metric.fra_code}</span>
           </p>
         )}
         {metric.sasb_code && (
           <p className="text-xs text-text-muted mb-0.5">
-            SASB Code: <span style={{ fontFamily: 'var(--font-mono)' }}>{metric.sasb_code}</span>
+            {t('results.sasb_code')}: <span style={{ fontFamily: 'var(--font-mono)' }}>{metric.sasb_code}</span>
           </p>
         )}
         {metric.topic && (
           <p className="text-xs text-text-subtle mt-2">
-            Required for: {metric.topic} · GRI Universal Standards
+            {t('results.required_for', { topic: metric.topic })}
             {metric.fra_code ? ' / FRA Decree 108' : ''}
           </p>
         )}
@@ -475,6 +479,7 @@ function sortPriority(m: MetricDTO): number {
 type FilterTab = 'all' | 'review' | 'approved' | 'rejected'
 
 export default function Results() {
+  const { t } = useTranslation()
   const { documentId: paramDocId } = useParams<{ documentId: string }>()
   const { documentId: storedDocId, documentName } = usePipelineStore()
   const documentId = paramDocId ?? storedDocId ?? undefined
@@ -564,11 +569,14 @@ export default function Results() {
     }
   }
 
+  const pillarLabel = (p: string): string =>
+    t('results.pillar_' + ({ E: 'environmental', S: 'social', G: 'governance' }[p] ?? 'environmental'))
+
   const TABS: { id: FilterTab; label: string; count?: number }[] = [
-    { id: 'all', label: 'All', count: total },
-    { id: 'review', label: 'Needs Review', count: pendingReview },
-    { id: 'approved', label: 'Approved', count: approved },
-    { id: 'rejected', label: 'Rejected', count: rejected },
+    { id: 'all', label: t('results.tab_all'), count: total },
+    { id: 'review', label: t('results.tab_review'), count: pendingReview },
+    { id: 'approved', label: t('results.tab_approved'), count: approved },
+    { id: 'rejected', label: t('results.tab_rejected'), count: rejected },
   ]
 
   const PILLARS = ['E', 'S', 'G'] as const
@@ -603,9 +611,9 @@ export default function Results() {
         >
           <AlertTriangle size={22} style={{ color: 'var(--color-text-subtle)' }} aria-hidden="true" />
         </div>
-        <p className="text-sm font-medium text-text-muted">No document selected</p>
+        <p className="text-sm font-medium text-text-muted">{t('results.no_document_title')}</p>
         <p className="text-xs text-text-subtle max-w-xs">
-          Return to the upload page to process a document, or navigate to a specific pipeline job.
+          {t('results.no_document_hint')}
         </p>
       </div>
     )
@@ -616,12 +624,11 @@ export default function Results() {
       {/* Header */}
       <div className="px-6 pt-6 pb-4">
         <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
-          Metric Review
+          {t('results.eyebrow')}
         </p>
-        <h1 className="text-2xl font-semibold text-text">Review Extracted Metrics</h1>
+        <h1 className="text-2xl font-semibold text-text">{t('results.title')}</h1>
         <p className="text-sm text-text-muted mt-1 max-w-xl">
-          Approve AI-extracted metrics before generating your ESG report.
-          Metrics below 80% confidence are flagged for manual verification.
+          {t('results.subtitle')}
         </p>
       </div>
 
@@ -631,10 +638,10 @@ export default function Results() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)
         ) : (
           <>
-            <StatCard label="Total Extracted" value={total} />
-            <StatCard label="Approved" value={approved} color="#10B981" />
-            <StatCard label="Needs Review" value={pendingReview} color="#F59E0B" />
-            <StatCard label="Rejected" value={rejected} color="#EF4444" />
+            <StatCard label={t('results.stat_total')} value={total} />
+            <StatCard label={t('results.stat_approved')} value={approved} color="#10B981" />
+            <StatCard label={t('results.stat_review')} value={pendingReview} color="#F59E0B" />
+            <StatCard label={t('results.stat_rejected')} value={rejected} color="#EF4444" />
           </>
         )}
       </div>
@@ -688,7 +695,7 @@ export default function Results() {
               border: `1px solid ${pillarFilter === null ? 'var(--color-primary)' : 'var(--color-border)'}`,
             }}
           >
-            All pillars
+            {t('results.all_pillars')}
           </button>
           {PILLARS.map((p) => {
             const s = PILLAR_STYLE[p]
@@ -698,7 +705,7 @@ export default function Results() {
                 key={p}
                 onClick={() => setPillarFilter(active ? null : p)}
                 aria-pressed={active}
-                aria-label={`Filter by ${s.label} pillar`}
+                aria-label={`${t('results.all_pillars')}: ${pillarLabel(p)}`}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus-visible:ring-2"
                 style={{
                   background: active ? s.bg : 'transparent',
@@ -708,7 +715,7 @@ export default function Results() {
                   ['--tw-ring-color' as string]: s.text,
                 }}
               >
-                {p} — {s.label}
+                {p} — {pillarLabel(p)}
               </button>
             )
           })}
@@ -719,8 +726,8 @@ export default function Results() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search GRI code or indicator…"
-          aria-label="Search metrics by GRI code or indicator name"
+          placeholder={t('results.search_placeholder')}
+          aria-label={t('results.search_placeholder')}
           className="flex-1 min-w-40 px-3 py-1.5 text-sm rounded-lg focus-visible:ring-2 ring-primary outline-none"
           style={{
             background: 'var(--color-surface)',
@@ -748,7 +755,7 @@ export default function Results() {
               title={`Approve the ${bulkActionable.length} pending-review metric(s) (extracted / ambiguous). Missing rows are skipped.`}
             >
               <Check size={12} />
-              Approve all ({bulkActionable.length})
+              {t('results.approve_all', { count: bulkActionable.length })}
             </button>
             <button
               onClick={handleRejectAll}
@@ -762,7 +769,7 @@ export default function Results() {
               title={`Reject the ${bulkActionable.length} pending-review metric(s) (extracted / ambiguous). Missing rows are skipped.`}
             >
               <X size={12} />
-              Reject all ({bulkActionable.length})
+              {t('results.reject_all', { count: bulkActionable.length })}
             </button>
           </div>
         )}
@@ -780,7 +787,7 @@ export default function Results() {
               style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
             >
               <AlertTriangle size={28} style={{ color: 'var(--color-text-subtle)' }} />
-              <p className="text-sm text-text-muted">No metrics match the current filters.</p>
+              <p className="text-sm text-text-muted">{t('results.no_match')}</p>
             </div>
           ) : (
             filtered.map((m) => (
@@ -817,11 +824,10 @@ export default function Results() {
         aria-label="Report actions"
       >
         <p className="text-sm text-text-muted">
-          <span className="font-semibold text-text">{approved}</span> of{' '}
-          <span className="font-semibold text-text">{total}</span> indicators approved
+          {t('results.approved_of_total', { approved, total })}
           {pendingReview > 0 && (
             <span className="ms-2 text-amber-400">
-              · {pendingReview} need{pendingReview === 1 ? 's' : ''} review
+              · {t('results.need_review_suffix', { count: pendingReview })}
             </span>
           )}
         </p>
@@ -850,7 +856,7 @@ export default function Results() {
               <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
             </svg>
           )}
-          Generate Report
+          {t('results.generate_report')}
           {!generatingReport && <ChevronRight size={15} aria-hidden="true" />}
         </button>
       </div>
