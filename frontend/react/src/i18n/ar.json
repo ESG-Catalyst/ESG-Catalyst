@@ -307,7 +307,14 @@
       "Hard": "صعب"
     },
     "pdf_preview": "معاينة PDF",
-    "could_not_load_pdf": "تعذّر تحميل معاينة PDF"
+    "could_not_load_pdf": "تعذّر تحميل معاينة PDF",
+    "eyebrow": "التقرير",
+    "status_label": "الحالة",
+    "reviewer_notice": "بوابة المراجع قادمة في التكرار الرابع — شارك الرابط مع مراجعك في الوقت الحالي.",
+    "source_document": "الوثيقة المصدر",
+    "loading_pdf": "جارٍ تحميل PDF…",
+    "no_report_hint": "أنشئ تقريراً من صفحة مراجعة المقاييس لعرضه هنا.",
+    "generating_title": "جارٍ إنشاء تقرير ESG الخاص بك…"
   },
   "framework": {
     "GRI": "GRI",
