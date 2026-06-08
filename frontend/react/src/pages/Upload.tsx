@@ -41,17 +41,16 @@ interface SelectedFile {
   warning?: string
 }
 
-function validateFile(f: File): { error?: string; warning?: string } {
+type TFn = (k: string, o?: Record<string, unknown>) => string
+
+function validateFile(f: File, t: TFn): { error?: string; warning?: string } {
   const ext = getExt(f.name)
   if (!SUPPORTED_EXTENSIONS.includes(ext as typeof SUPPORTED_EXTENSIONS[number])) {
-    return { error: `Unsupported file format. Accepted: ${SUPPORTED_EXTENSIONS.join(', ')}` }
+    return { error: t('upload.unsupported_format', { formats: SUPPORTED_EXTENSIONS.join(', ') }) }
   }
-  if (f.size > MAX_SIZE_BYTES) return { error: `File exceeds 50 MB limit (${formatBytes(f.size)}).` }
+  if (f.size > MAX_SIZE_BYTES) return { error: t('upload.file_too_large', { size: formatBytes(f.size) }) }
   if (IMAGE_EXTS.has(ext)) {
-    return {
-      warning:
-        'Image OCR is not yet implemented. The upload will succeed but the pipeline will not extract metrics from this file.',
-    }
+    return { warning: t('upload.image_ocr_warning_single') }
   }
   return {}
 }
@@ -82,12 +81,12 @@ function FileTypeBadge({ ext }: { ext: string }) {
   )
 }
 
-function extractErrorMessage(err: unknown): string {
+function extractErrorMessage(err: unknown, t: TFn): string {
   if (err && typeof err === 'object' && 'response' in err) {
     const r = (err as { response?: { data?: { detail?: string } } }).response
     if (r?.data?.detail) return r.data.detail
   }
-  return 'Upload failed. Please try again.'
+  return t('upload.upload_failed')
 }
 
 export default function Upload() {
@@ -119,12 +118,12 @@ export default function Upload() {
         if (merged.length >= MAX_FILES) break
         if (seen.has(key(f))) continue
         seen.add(key(f))
-        const { error, warning } = validateFile(f)
+        const { error, warning } = validateFile(f, t)
         merged.push({ file: f, error, warning })
       }
       return merged
     })
-  }, [])
+  }, [t])
 
   const onInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? [])
@@ -195,7 +194,7 @@ export default function Upload() {
       navigate(`/pipeline/${job.job_id}?doc=${job.document_id}`)
     } catch (err: unknown) {
       setUploadedCount(null)
-      setServerError(extractErrorMessage(err))
+      setServerError(extractErrorMessage(err, t))
     } finally {
       setSubmitting(false)
     }
@@ -290,13 +289,13 @@ export default function Upload() {
         <div className="text-center">
           <p className="text-base font-semibold text-text">
             {active
-              ? 'Drop to upload'
+              ? t('upload.drop_active')
               : files.length === 0
-                ? 'Drag your ESG documents here'
-                : 'Add more documents'}
+                ? t('upload.drop_hint')
+                : t('upload.add_more')}
           </p>
           <p className="text-sm text-text-muted mt-1">
-            {active ? '' : 'or click to browse'}
+            {active ? '' : t('upload.browse')}
           </p>
         </div>
 
@@ -315,7 +314,7 @@ export default function Upload() {
               {fmt}
             </span>
           ))}
-          <span className="text-xs text-text-subtle">· Max 50 MB</span>
+          <span className="text-xs text-text-subtle">· {t('upload.max_size_note')}</span>
         </div>
 
         {/* File count badge when files are selected */}
@@ -422,7 +421,7 @@ export default function Upload() {
         >
           <Info size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
           <span>
-            Image OCR is not yet implemented. {imageCount} of your files will upload but the pipeline will not extract metrics from them.
+            {t('upload.image_ocr_warning_multi', { count: imageCount })}
           </span>
         </div>
       )}
@@ -436,8 +435,8 @@ export default function Upload() {
                 <CheckCircle2 size={12} style={{ color: '#10B981' }} aria-hidden="true" />
               )}
               {isUploadComplete
-                ? 'Upload complete — starting analysis…'
-                : `Uploading… ${uploadedCount} of ${validFiles.length}`}
+                ? t('upload.upload_complete_starting')
+                : t('upload.uploading', { done: uploadedCount, total: validFiles.length })}
             </span>
             <span style={{ fontFamily: 'var(--font-mono)' }}>
               {uploadProgress}%
@@ -484,15 +483,14 @@ export default function Upload() {
           </svg>
         )}
         {submitting
-          ? 'Starting analysis…'
+          ? t('upload.button_running')
           : validFiles.length <= 1
-            ? 'Start Analysis'
-            : `Start Analysis (${validFiles.length} files)`}
+            ? t('upload.button')
+            : t('upload.button_multi', { count: validFiles.length })}
       </button>
 
       <p className="mt-3 text-xs text-center text-text-subtle">
-        The pipeline will extract ESG metrics and score against GRI, FRA, and SASB frameworks.
-        This typically takes 2–5 minutes per file.
+        {t('upload.pipeline_note')}
       </p>
     </div>
   )
