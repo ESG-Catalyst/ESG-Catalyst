@@ -19,17 +19,20 @@ import {
 import { getPipelineStatus } from '@/api/pipeline'
 import { usePipelineStore } from '@/store/pipeline'
 import { shortRef } from '@/lib/format'
+import { useTranslation } from 'react-i18next'
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
+type TFn = (k: string, o?: Record<string, unknown>) => string
+
 const STEPS = [
-  { id: 'ingestion',   label: 'Document Ingestion',  icon: FileInput,    hint: 'Parsing PDF structure and extracting text…',         estimateSec: 30  },
-  { id: 'chunking',    label: 'Text Chunking',        icon: Scissors,     hint: 'Splitting document into semantic segments…',          estimateSec: 15  },
-  { id: 'classifying', label: 'ESG Classification',   icon: BrainCircuit, hint: 'Running 3-model ensemble across all chunks…',        estimateSec: 900 },
-  { id: 'embedding',   label: 'Embedding',            icon: Layers,       hint: 'Encoding chunks into vector representations…',       estimateSec: 60  },
-  { id: 'extracting',  label: 'Metric Extraction',    icon: Cpu,          hint: 'Extracting structured metrics via LLM (46 indicators)…', estimateSec: 900 },
-  { id: 'scoring',     label: 'Scoring',              icon: BarChart2,    hint: 'Scoring against GRI / FRA / SASB frameworks…',       estimateSec: 30  },
-  { id: 'complete',    label: 'Complete',             icon: Flag,         hint: 'Pipeline finished.',                                 estimateSec: 0   },
+  { id: 'ingestion',   label: 'pipeline.step_ingestion',     icon: FileInput,    hint: 'pipeline.hint_ingestion',      estimateSec: 30  },
+  { id: 'chunking',    label: 'pipeline.step_chunking',       icon: Scissors,     hint: 'pipeline.hint_chunking',       estimateSec: 15  },
+  { id: 'classifying', label: 'pipeline.step_classification', icon: BrainCircuit, hint: 'pipeline.hint_classification', estimateSec: 900 },
+  { id: 'embedding',   label: 'pipeline.step_embedding',      icon: Layers,       hint: 'pipeline.hint_embedding',      estimateSec: 60  },
+  { id: 'extracting',  label: 'pipeline.step_extraction',     icon: Cpu,          hint: 'pipeline.hint_extraction',     estimateSec: 900 },
+  { id: 'scoring',     label: 'pipeline.step_scoring',        icon: BarChart2,    hint: 'pipeline.hint_scoring',        estimateSec: 30  },
+  { id: 'complete',    label: 'pipeline.step_complete',       icon: Flag,         hint: 'pipeline.hint_complete',       estimateSec: 0   },
 ] as const
 
 type StepId = (typeof STEPS)[number]['id']
@@ -55,13 +58,14 @@ function ChunkGrid({
   filledCount: number
   total: number
 }) {
+  const { t } = useTranslation()
   const filled = Math.min(filledCount, total)
   const pct = total > 0 ? Math.round((filled / total) * 100) : 0
 
   return (
     <div className="mt-3 mb-1">
       <div className="flex items-center justify-between text-xs text-text-muted mb-2">
-        <span>Chunks classified</span>
+        <span>{t('pipeline.chunks_classified')}</span>
         <span style={{ fontFamily: 'var(--font-mono)' }}>
           {filled}/{total} ({pct}%)
         </span>
@@ -93,16 +97,16 @@ function ChunkGrid({
       <div className="flex items-center gap-4 mt-2 text-xs text-text-subtle">
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-sm inline-block" style={{ background: 'var(--color-primary)' }} />
-          ESG-relevant
+          {t('pipeline.esg_relevant')}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-sm inline-block" style={{ background: 'var(--color-border)' }} />
-          Not relevant
+          {t('pipeline.not_relevant')}
         </span>
         {active && (
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#F59E0B' }} />
-            Processing
+            {t('pipeline.processing')}
           </span>
         )}
       </div>
@@ -140,6 +144,7 @@ function formatSec(s: number): string {
 }
 
 function TimeEstimate({ stepId, elapsed }: { stepId: StepId; elapsed: number }) {
+  const { t } = useTranslation()
   const step = STEPS.find((s) => s.id === stepId)
   if (!step || step.estimateSec === 0) return null
   const remaining = Math.max(0, step.estimateSec - elapsed)
@@ -147,8 +152,9 @@ function TimeEstimate({ stepId, elapsed }: { stepId: StepId; elapsed: number }) 
     <div className="flex items-center gap-1.5 text-xs text-text-muted mt-1.5">
       <Clock size={11} />
       <span>
-        {elapsed > 0 ? `${formatSec(elapsed)} elapsed · ` : ''}
-        ~{formatSec(remaining)} remaining
+        {elapsed > 0
+          ? t('pipeline.elapsed_remaining', { elapsed: formatSec(elapsed), remaining: formatSec(remaining) })
+          : t('pipeline.remaining_only', { remaining: formatSec(remaining) })}
       </span>
     </div>
   )
@@ -156,13 +162,13 @@ function TimeEstimate({ stepId, elapsed }: { stepId: StepId; elapsed: number }) 
 
 // ─── LLM error classifier ─────────────────────────────────────────────────────
 
-function classifyError(errorMsg: string | null): {
+function classifyError(errorMsg: string | null, t: TFn): {
   type: 'credit_limit' | 'fallback_exhausted' | 'abort' | 'generic'
   title: string
   detail: string
   canRetry: boolean
 } {
-  if (!errorMsg) return { type: 'generic', title: 'Pipeline failed', detail: 'An unexpected error occurred.', canRetry: true }
+  if (!errorMsg) return { type: 'generic', title: t('pipeline.error_generic'), detail: t('pipeline.detail_generic'), canRetry: true }
 
   const lower = errorMsg.toLowerCase()
 
@@ -172,48 +178,26 @@ function classifyError(errorMsg: string | null): {
     lower.includes('key limit exceeded') ||
     lower.includes('payment required')
   ) {
-    return {
-      type: 'credit_limit',
-      title: 'LLM credit limit reached',
-      detail:
-        'The primary AI model ran out of credits. The system tried the free fallback model — if this error persists, both are exhausted. Please top up your OpenRouter credits or contact support.',
-      canRetry: true,
-    }
+    return { type: 'credit_limit', title: t('pipeline.error_credit_limit'), detail: t('pipeline.detail_credit_limit'), canRetry: true }
   }
 
   if (
     lower.includes('both models failed') ||
-    lower.includes('fallback') && lower.includes('failed') ||
+    (lower.includes('fallback') && lower.includes('failed')) ||
     lower.includes('all models exhausted')
   ) {
-    return {
-      type: 'abort',
-      title: 'All AI models unavailable',
-      detail:
-        'Both the primary model and the free fallback have failed (likely due to exhausted credits on both). The pipeline has been aborted. Please top up your OpenRouter account and try again.',
-      canRetry: false,
-    }
+    return { type: 'abort', title: t('pipeline.error_all_models_unavailable'), detail: t('pipeline.detail_all_models'), canRetry: false }
   }
 
   if (lower.includes('rate limit') || lower.includes('429') || lower.includes('too many requests')) {
-    return {
-      type: 'credit_limit',
-      title: 'Rate limit reached',
-      detail: 'The AI model returned a rate-limit error (too many requests). Wait a minute and try again.',
-      canRetry: true,
-    }
+    return { type: 'credit_limit', title: t('pipeline.error_rate_limit'), detail: t('pipeline.detail_rate_limit'), canRetry: true }
   }
 
   if (lower.includes('timeout') || lower.includes('timed out')) {
-    return {
-      type: 'generic',
-      title: 'Request timed out',
-      detail: 'A step took too long to complete. This is usually transient — retry the pipeline.',
-      canRetry: true,
-    }
+    return { type: 'generic', title: t('pipeline.error_timeout'), detail: t('pipeline.detail_timeout'), canRetry: true }
   }
 
-  return { type: 'generic', title: 'Pipeline failed', detail: errorMsg, canRetry: true }
+  return { type: 'generic', title: t('pipeline.error_generic'), detail: errorMsg, canRetry: true }
 }
 
 // ─── Step row ─────────────────────────────────────────────────────────────────
@@ -229,6 +213,7 @@ function StepRow({
   hint?: string
   elapsed?: number
 }) {
+  const { t } = useTranslation()
   const Icon = step.icon
 
   const iconColor =
@@ -301,7 +286,7 @@ function StepRow({
                     : '#EF4444',
           }}
         >
-          {step.label}
+          {t(step.label)}
         </p>
         {state === 'active' && hint && (
           <p className="text-xs text-text-muted mt-0.5">{hint}</p>
@@ -337,6 +322,7 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PipelineProgress() {
+  const { t } = useTranslation()
   const { jobId } = useParams<{ jobId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -380,7 +366,7 @@ export default function PipelineProgress() {
   const isComplete = stage === 'complete'
 
   // Classify the error for friendly messaging
-  const errInfo = isFailed ? classifyError(apiError) : null
+  const errInfo = isFailed ? classifyError(apiError, t) : null
 
   async function retryPipeline() {
     if (!documentId) return
@@ -402,9 +388,9 @@ export default function PipelineProgress() {
         >
           <AlertTriangle size={18} style={{ color: '#EF4444' }} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="text-sm font-semibold" style={{ color: '#EF4444' }}>Could not load pipeline status</p>
-            <p className="text-xs text-text-muted mt-1">Job ID: <span style={{ fontFamily: 'var(--font-mono)' }}>{jobId}</span></p>
-            <p className="text-xs text-text-subtle mt-2">Try refreshing the page. If this persists, the job may have expired.</p>
+            <p className="text-sm font-semibold" style={{ color: '#EF4444' }}>{t('pipeline.could_not_load_status')}</p>
+            <p className="text-xs text-text-muted mt-1">{t('pipeline.job_id_label')}: <span style={{ fontFamily: 'var(--font-mono)' }}>{jobId}</span></p>
+            <p className="text-xs text-text-subtle mt-2">{t('pipeline.could_not_load_hint')}</p>
           </div>
         </div>
       </div>
@@ -422,14 +408,14 @@ export default function PipelineProgress() {
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Pipeline</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">{t('pipeline.eyebrow')}</p>
         <h1 className="text-2xl font-semibold text-text">
-          {isComplete ? 'Analysis Complete' : isFailed ? 'Analysis Failed' : 'Analysis in Progress'}
+          {isComplete ? t('pipeline.analysis_complete') : isFailed ? t('pipeline.analysis_failed') : t('pipeline.analysis_in_progress')}
         </h1>
         {docLabel && (
           <p className="text-sm text-text-muted mt-1 truncate max-w-sm" title={storedDocName ?? documentId}>
-            <span className="font-medium text-text-subtle">Document:</span> {docLabel}
-            {jobId && <span className="text-text-subtle"> · Job {shortRef(jobId)}</span>}
+            <span className="font-medium text-text-subtle">{t('pipeline.document_label')}:</span> {docLabel}
+            {jobId && <span className="text-text-subtle"> · {t('pipeline.job_label')} {shortRef(jobId)}</span>}
           </p>
         )}
       </div>
@@ -440,7 +426,7 @@ export default function PipelineProgress() {
           {/* Overall progress bar */}
           <div className="mb-6">
             <div className="flex items-center justify-between text-xs text-text-muted mb-2">
-              <span>Overall progress</span>
+              <span>{t('pipeline.overall_progress')}</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{progress}%</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-border-subtle)' }}>
@@ -489,17 +475,17 @@ export default function PipelineProgress() {
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
             <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">
-              Pipeline Info
+              {t('pipeline.pipeline_info')}
             </p>
             <div>
-              <StatRow label="Stage" value={stage === 'queued' ? 'Queued' : stage.charAt(0).toUpperCase() + stage.slice(1)} />
-              <StatRow label="Progress" value={`${progress}%`} />
+              <StatRow label={t('pipeline.stage')} value={t(`pipeline.${stage}`, { defaultValue: stage })} />
+              <StatRow label={t('pipeline.progress')} value={`${progress}%`} />
               <StatRow
-                label="Step elapsed"
+                label={t('pipeline.step_elapsed')}
                 value={elapsed > 0 && stage !== 'complete' && stage !== 'failed' ? formatSec(elapsed) : '—'}
               />
               <StatRow
-                label="Est. remaining"
+                label={t('pipeline.est_remaining')}
                 value={(() => {
                   const step = STEPS.find((s) => s.id === stage)
                   if (!step || step.estimateSec === 0 || stage === 'complete' || stage === 'failed') return '—'
@@ -509,10 +495,10 @@ export default function PipelineProgress() {
             </div>
             <p className="text-xs text-text-subtle mt-3">
               {stage === 'classifying'
-                ? 'Classification runs 3 models per chunk — this is the longest step on CPU (~15–20 min for large PDFs).'
+                ? t('pipeline.info_classifying')
                 : stage === 'extracting'
-                  ? 'LLM extraction calls one prompt per indicator across 46 GRI/SASB/FRA codes.'
-                  : 'Polling every 2 seconds.'}
+                  ? t('pipeline.info_extracting')
+                  : t('pipeline.info_polling')}
             </p>
           </div>
         </div>
@@ -538,8 +524,8 @@ export default function PipelineProgress() {
             >
               <CheckCircle2 size={52} style={{ color: '#10B981' }} aria-hidden="true" />
             </motion.div>
-            <p className="text-lg font-semibold text-text mt-4">Analysis complete</p>
-            <p className="text-sm text-text-muted mt-1">Metrics are ready for your review and approval</p>
+            <p className="text-lg font-semibold text-text mt-4">{t('pipeline.analysis_complete')}</p>
+            <p className="text-sm text-text-muted mt-1">{t('pipeline.metrics_ready')}</p>
             {documentId && (
               <Link
                 to={`/results/${documentId}`}
@@ -549,7 +535,7 @@ export default function PipelineProgress() {
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#10B981')}
                 aria-label="Review extracted metrics"
               >
-                Review Metrics
+                {t('pipeline.review_metrics')}
                 <CheckCircle2 size={14} aria-hidden="true" />
               </Link>
             )}
@@ -587,11 +573,7 @@ export default function PipelineProgress() {
                 className="rounded-lg px-4 py-3 text-xs leading-relaxed"
                 style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B' }}
               >
-                <strong>What happened:</strong> The primary extraction model returned HTTP 402 (Payment Required). The system
-                automatically switched to the free fallback model. If you see this after the fallback also failed, both OpenRouter
-                accounts are out of credits.
-                <br /><br />
-                <strong>Fix:</strong> Top up at <span style={{ fontFamily: 'var(--font-mono)' }}>openrouter.ai/credits</span>, then click &quot;Try Again&quot; below.
+                {t('pipeline.credit_tip')}
               </div>
             )}
             {errInfo.type === 'abort' && (
@@ -599,8 +581,7 @@ export default function PipelineProgress() {
                 className="rounded-lg px-4 py-3 text-xs leading-relaxed"
                 style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444' }}
               >
-                <strong>Pipeline aborted.</strong> Both the primary model and the free fallback are unavailable. No partial
-                results have been saved. Please restore at least one working LLM before retrying.
+                {t('pipeline.abort_tip')}
               </div>
             )}
 
@@ -614,14 +595,14 @@ export default function PipelineProgress() {
                   onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-primary-hover)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-primary)' }}
                 >
-                  Try Again
+                  {t('pipeline.retry')}
                 </button>
               )}
               <a
                 href="mailto:support@esg-catalyst.tech"
                 className="text-sm text-text-muted hover:text-text transition-colors focus-visible:ring-2 ring-primary rounded px-1"
               >
-                Contact Support
+                {t('pipeline.contact_support')}
               </a>
             </div>
           </motion.div>
