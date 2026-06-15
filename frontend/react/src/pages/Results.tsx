@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { getMetrics, updateMetric, type MetricDTO } from '@/api/metrics'
 import { generateReport } from '@/api/reports'
-import { getDocument } from '@/api/documents'
+import { getDocument, listDocuments } from '@/api/documents'
 import StatusPill from '@/components/ui/StatusPill'
 import { usePipelineStore } from '@/store/pipeline'
 import { useTranslation } from 'react-i18next'
@@ -482,7 +482,18 @@ export default function Results() {
   const { t } = useTranslation()
   const { documentId: paramDocId } = useParams<{ documentId: string }>()
   const { documentId: storedDocId, documentName } = usePipelineStore()
-  const documentId = paramDocId ?? storedDocId ?? undefined
+  const ctxDocId = paramDocId ?? storedDocId ?? undefined
+  // When neither the route param nor the pipeline store names a document
+  // (e.g. the sidebar "Results" link, or a fresh login that cleared the
+  // store), fall back to the user's most recent document so the review page
+  // isn't an empty shell with no metrics and no bulk actions.
+  const { data: allDocs } = useQuery({
+    queryKey: ['documents'],
+    queryFn: listDocuments,
+    enabled: !ctxDocId,
+  })
+  const documentId =
+    ctxDocId ?? allDocs?.[allDocs.length - 1]?.document_id ?? undefined
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 

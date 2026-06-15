@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { getReport, getReportPdf } from '@/api/reports'
 import { getMetrics, type MetricDTO } from '@/api/metrics'
-import { getDocument } from '@/api/documents'
+import { getDocument, listDocuments } from '@/api/documents'
 import { formatDate, shortRef } from '@/lib/format'
 import ScoreGauge from '@/components/ui/ScoreGauge'
 import StatusPill from '@/components/ui/StatusPill'
@@ -414,38 +414,34 @@ function ConfidencePill({ value }: { value: number }) {
 
 // ─── GRI Content Index tab ────────────────────────────────────────────────────
 
-const GRI_INDICATORS_SAMPLE = [
-  { code: 'GRI 2-1', label: 'Organizational details', required: true },
-  { code: 'GRI 2-9', label: 'Governance structure', required: true },
-  { code: 'GRI 302-1', label: 'Energy consumption within organisation', required: false },
-  { code: 'GRI 302-3', label: 'Energy intensity', required: false },
-  { code: 'GRI 303-5', label: 'Water consumption', required: false },
-  { code: 'GRI 305-1', label: 'Direct (Scope 1) GHG emissions', required: true },
-  { code: 'GRI 305-2', label: 'Energy indirect (Scope 2) GHG emissions', required: true },
-  { code: 'GRI 305-4', label: 'GHG emissions intensity', required: false },
-  { code: 'GRI 401-1', label: 'New employee hires and employee turnover', required: false },
-  { code: 'GRI 403-9', label: 'Work-related injuries', required: false },
-  { code: 'GRI 405-1', label: 'Diversity of governance bodies and employees', required: true },
-  { code: 'GRI 418-1', label: 'Substantiated complaints concerning customer privacy', required: false },
-]
-
 type GRIStatus = 'reported' | 'partial' | 'omitted'
+
+function griStatusOf(m: MetricDTO): GRIStatus {
+  if (m.status === 'approved' || m.status === 'extracted') return 'reported'
+  if (m.status === 'ambiguous') return 'partial'
+  return 'omitted' // missing | rejected
+}
+
+// FRA disclosures are mandatory under the Egyptian FRA circular; everything
+// else in the catalog is treated as voluntary for index purposes.
+function isRequired(m: MetricDTO): boolean {
+  return !!m.fra_code || m.framework === 'FRA'
+}
 
 function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
   const { t } = useTranslation()
-  function getStatus(code: string): GRIStatus {
-    const m = metrics.find((x) => x.gri_code === code)
-    if (!m) return 'omitted'
-    if (m.status === 'approved') return 'reported'
-    if (m.status === 'extracted' || m.status === 'ambiguous') return 'partial'
-    return 'omitted'
+
+  const STATUS_STYLE: Record<GRIStatus, { color: string; bg: string }> = {
+    reported: { color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
+    partial: { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
+    omitted: { color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
   }
 
-  const STATUS_STYLE: Record<GRIStatus, { label: string; color: string; bg: string }> = {
-    reported: { label: 'Reported', color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
-    partial: { label: 'Partially Reported', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
-    omitted: { label: 'Omitted', color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
-  }
+  // Drive the index from the actual extracted metrics (all in-scope
+  // indicators), not a hardcoded sample — sorted by code for a stable index.
+  const rows = [...metrics].sort((a, b) =>
+    a.gri_code.localeCompare(b.gri_code, undefined, { numeric: true }),
+  )
 
   return (
     <div>
@@ -464,12 +460,12 @@ function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
             </tr>
           </thead>
           <tbody>
-            {GRI_INDICATORS_SAMPLE.map((ind, i) => {
-              const st = STATUS_STYLE[getStatus(ind.code)]
-              const m = metrics.find((x) => x.gri_code === ind.code)
+            {rows.map((m, i) => {
+              const status = griStatusOf(m)
+              const st = STATUS_STYLE[status]
               return (
                 <tr
-                  key={ind.code}
+                  key={m.id}
                   style={{
                     background: i % 2 === 0 ? 'var(--color-surface)' : 'var(--color-bg)',
                     borderBottom: '1px solid var(--color-border)',
@@ -477,17 +473,17 @@ function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
                 >
                   <td className="px-4 py-2.5">
                     <span
-                      className="text-xs font-semibold"
+                      className="text-xs font-semibold whitespace-nowrap"
                       style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-primary)' }}
                     >
-                      {ind.code}
+                      {m.gri_code}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 max-w-xs">
-                    <span className="text-xs text-text">{ind.label}</span>
+                    <span className="text-xs text-text">{m.label}</span>
                   </td>
                   <td className="px-4 py-2.5">
-                    {ind.required ? (
+                    {isRequired(m) ? (
                       <span className="text-xs font-medium" style={{ color: '#EF4444' }}>{t('report.gri_required')}</span>
                     ) : (
                       <span className="text-xs text-text-subtle">{t('report.gri_voluntary')}</span>
@@ -498,11 +494,11 @@ function GRIIndexTab({ metrics }: { metrics: MetricDTO[] }) {
                       className="text-xs font-semibold px-2 py-0.5 rounded"
                       style={{ color: st.color, background: st.bg }}
                     >
-                      {t('report.gri_status.' + getStatus(ind.code))}
+                      {t('report.gri_status.' + status)}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-text-muted">
-                    {m?.source_page ? `p. ${m.source_page}` : '—'}
+                    {m.source_page ? `p. ${m.source_page}` : '—'}
                   </td>
                 </tr>
               )
@@ -582,10 +578,37 @@ const DIFF_STYLE: Record<GapRow['difficulty'], { color: string; bg: string }> = 
   Hard: { color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
 }
 
+const GAP_BY_CODE: Record<string, GapRow> = Object.fromEntries(
+  GAP_TEMPLATES.map((g) => [g.code, g]),
+)
+
+// Sourcing-difficulty heuristic when a missing code has no hand-written
+// template: environmental quant metrics are hardest (utility bills, fuel
+// logs), then social, then governance disclosures.
+function difficultyFor(m: MetricDTO): GapRow['difficulty'] {
+  if (m.pillar === 'E') return 'Hard'
+  if (m.pillar === 'S') return 'Medium'
+  return 'Easy'
+}
+
 function GapAnalysisTab({ metrics }: { metrics: MetricDTO[] }) {
   const { t } = useTranslation()
-  const approvedCodes = new Set(metrics.filter((m) => m.status === 'approved').map((m) => m.gri_code))
-  const gaps = GAP_TEMPLATES.filter((g) => !approvedCodes.has(g.code))
+  // Real gaps = every in-scope indicator the document did not disclose
+  // (missing or reviewer-rejected), enriched with template guidance where it
+  // exists. Driven by the actual extraction, not a fixed 6-row sample.
+  const gaps = metrics
+    .filter((m) => m.status === 'missing' || m.status === 'rejected')
+    .map((m) => {
+      const tpl = GAP_BY_CODE[m.gri_code]
+      return {
+        code: m.gri_code,
+        label: m.label,
+        why: tpl?.why ?? 'Not disclosed in the source document; required for a complete ESG profile.',
+        difficulty: tpl?.difficulty ?? difficultyFor(m),
+        dataSource: tpl?.dataSource ?? '—',
+        mandatory: tpl?.mandatory ?? isRequired(m),
+      }
+    })
     .sort((a, b) => Number(b.mandatory) - Number(a.mandatory))
 
   if (!gaps.length) {
@@ -815,7 +838,19 @@ export default function ReportView() {
   const { t } = useTranslation()
   const { reportId } = useParams<{ reportId: string }>()
   const [searchParams] = useSearchParams()
-  const docId = searchParams.get('doc')
+  // Resolve the source document for this report WITHOUT relying on a ?doc=
+  // query param — that param is absent on sidebar "Report" nav and the
+  // consultant workspace, which left every disclosure tab empty. The report
+  // already knows its document via Document.report_id (exposed on each
+  // listDocuments() row); fall back to ?doc= only if the lookup misses.
+  const { data: allDocs } = useQuery({
+    queryKey: ['documents'],
+    queryFn: listDocuments,
+    enabled: !!reportId,
+  })
+  const docId =
+    allDocs?.find((d) => d.report_id === reportId)?.document_id ??
+    searchParams.get('doc')
   const [activeTab, setActiveTab] = useState<Tab>('preview')
   const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState(false)

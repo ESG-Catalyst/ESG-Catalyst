@@ -51,7 +51,6 @@ fields — never omit a key):
   "confidence": <float 0.0-1.0>,
   "status": "<extracted|ambiguous|missing>",
   "evidence": "<exact text passage that contains the value>",
-  "source_page": <int or null>,
   "reporting_period_start": "<YYYY-MM-DD or null>",
   "reporting_period_end": "<YYYY-MM-DD or null>",
   "note": "<calculation details, methodology, data gaps, etc.>"

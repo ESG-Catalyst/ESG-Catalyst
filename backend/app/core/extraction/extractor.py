@@ -280,8 +280,7 @@ async def extract_metrics(
             try:
                 indicator_text: str | None = None
                 n_retrieved = 0
-                prov_source: str | None = None  # winning chunk's source document
-                prov_page: int | None = None     # winning chunk's page
+                retrieved_chunks: list[dict] = []  # kept for post-hoc provenance
 
                 if chromadb_available:
                     try:
@@ -290,15 +289,10 @@ async def extract_metrics(
                             report_id=str(report_id),
                             top_k=settings.extraction_top_k,
                         )
+                        retrieved_chunks = retrieved
                         n_retrieved = len(retrieved)
                         if n_retrieved >= settings.extraction_min_chunks:
                             indicator_text = _format_retrieved_chunks(retrieved)
-                            # Provenance: the top-ranked chunk is the most
-                            # relevant evidence — attribute the metric to its
-                            # source document + page.
-                            top_chunk = retrieved[0]
-                            prov_source = top_chunk.get("source_filename")
-                            prov_page = safe_int(top_chunk.get("page_number"))
                         else:
                             logger.warning(
                                 "extractor.no_chunks_retrieved",
@@ -333,12 +327,10 @@ async def extract_metrics(
                     source_file=None,
                     n_chunks=n_retrieved,
                 )
-                # Stamp per-metric provenance from the winning evidence chunk —
-                # which document + page the value was actually found in.
-                if prov_source:
-                    metric.source_file = prov_source
-                    if prov_page is not None:
-                        metric.source_page = prov_page
+                # Stamp provenance from the actual evidence chunk's metadata.
+                # The LLM only sees chunk *text* (no page numbers), so its
+                # source_page is discarded — see _stamp_provenance.
+                _stamp_provenance(metric, retrieved_chunks)
                 metrics.append(metric)
                 raw_responses[indicator["code"]] = raw
                 if n_retrieved > 0:
@@ -503,7 +495,10 @@ async def _extract_single(
         confidence=confidence,
         status=status,
         source_file=source_file,
-        source_page=safe_int(parsed.get("source_page")),
+        # source_page is stamped by the caller from the evidence chunk's
+        # metadata. The LLM is given chunk text only (no page numbers), so
+        # parsed["source_page"] is a hallucination — never persist it.
+        source_page=None,
         evidence_chunk=parsed.get("evidence"),
         extraction_method=ExtractionMethod.llm,
         note=parsed.get("note"),
@@ -558,6 +553,38 @@ def _map_status(raw: str) -> MetricStatus:
         "missing": MetricStatus.missing,
     }
     return mapping.get(raw.lower().strip(), MetricStatus.missing)
+
+
+def _stamp_provenance(metric: ExtractedMetricCreate, chunks: list[dict]) -> None:
+    """Attribute a found metric to the source file + page of its real evidence.
+
+    Provenance must come from ChromaDB chunk metadata, never from the LLM (which
+    receives chunk *text* only and cannot know page numbers). Rules:
+
+    * Skip metrics that were not found (``missing`` / ``rejected``) — claiming a
+      page for absent data is exactly the "wrong page" the review UI surfaced.
+    * Pick the retrieved chunk whose text contains the extracted evidence
+      snippet so the page points at where the value actually appears; fall back
+      to the top-ranked chunk.
+    * No-op in full-doc fallback mode (``chunks`` empty) — leaving source_page
+      ``None`` is more honest than a guess.
+    """
+    if not chunks or metric.status not in (
+        MetricStatus.extracted,
+        MetricStatus.ambiguous,
+    ):
+        return
+    chosen = chunks[0]
+    probe = (metric.evidence_chunk or "").strip()[:50]
+    if probe:
+        for ch in chunks:
+            if probe in (ch.get("text") or ""):
+                chosen = ch
+                break
+    metric.source_file = chosen.get("source_filename") or metric.source_file
+    page = safe_int(chosen.get("page_number"))
+    if page is not None:
+        metric.source_page = page
 
 
 def _missing_metric(

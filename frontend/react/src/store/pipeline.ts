@@ -19,7 +19,10 @@ export const usePipelineStore = create<PipelineState>()(
       documentName: null,
       reportId: null,
       setJob: (jobId, documentId, documentName) =>
-        set({ jobId, documentId, documentName: documentName ?? null }),
+        // Preserve an already-stored name when the caller omits it (e.g. the
+        // PipelineProgress page re-persists jobId/documentId on every mount
+        // without the filename) — otherwise the resume banner loses its label.
+        set((s) => ({ jobId, documentId, documentName: documentName ?? s.documentName })),
       setReportId: (reportId) => set({ reportId }),
       clearJob: () => set({ jobId: null, documentId: null, documentName: null, reportId: null }),
     }),
