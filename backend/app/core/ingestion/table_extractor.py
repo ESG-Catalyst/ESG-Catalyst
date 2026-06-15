@@ -158,7 +158,13 @@ def parse_csv(path: Path) -> str:
     """
     df = None
     used_encoding = None
-    for encoding in ("utf-8", "utf-8-sig", "latin-1", "cp1256", "iso-8859-6"):
+    # Order matters: try strict/likely-correct encodings first and keep the
+    # never-failing catch-all (latin-1 maps all 256 byte values, so it NEVER
+    # raises UnicodeDecodeError) dead last. If latin-1 came earlier, a genuine
+    # UTF-8 or Windows-Arabic (cp1256) / ISO-8859-6 CSV would be silently
+    # mis-decoded into mojibake (e.g. an em-dash "—" → "â€"") instead of
+    # falling through to the codec that actually matches the bytes.
+    for encoding in ("utf-8-sig", "utf-8", "cp1256", "iso-8859-6", "latin-1"):
         try:
             df = pd.read_csv(path, dtype=str, encoding=encoding)
             used_encoding = encoding
