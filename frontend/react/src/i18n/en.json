@@ -131,6 +131,8 @@
     "unsupported_format": "Unsupported file format. Accepted: {{formats}}",
     "file_too_large": "File exceeds 50 MB limit ({{size}}).",
     "upload_failed": "Upload failed. Please try again.",
+    "resume_running_cta": "Resume analysis",
+    "resume_view_cta": "View details",
     "pipeline_note": "The pipeline will extract ESG metrics and score against GRI, FRA, and SASB frameworks. This typically takes 2–5 minutes per file."
   },
   "pipeline": {
@@ -483,8 +485,8 @@
   },
   "landing": {
     "tagline": "Built for Egyptian NBFIs",
-    "hero_heading": "ESG Reporting Built for Egyptian Banks",
-    "hero_body": "Extract, score, and disclose GRI, FRA, and CBE-aligned ESG metrics from your documents — in minutes, not months.",
+    "hero_heading": "ESG Reporting Built for Egyptian Financial Institutions",
+    "hero_body": "Extract, score, and disclose GRI, FRA, and SASB-aligned ESG metrics from your documents — in minutes, not months.",
     "cta_demo": "Request Demo",
     "cta_how": "See How It Works",
     "nav_features": "Features",

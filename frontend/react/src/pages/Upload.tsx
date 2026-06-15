@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { UploadCloud, FileText, X, AlertCircle, CheckCircle2, Info } from 'lucide-react'
+import { UploadCloud, FileText, X, AlertCircle, CheckCircle2, Info, Loader2, ArrowRight } from 'lucide-react'
 import { uploadDocument } from '@/api/documents'
-import { runPipeline } from '@/api/pipeline'
+import { runPipeline, getPipelineStatus } from '@/api/pipeline'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { usePipelineStore } from '@/store/pipeline'
@@ -87,6 +88,94 @@ function extractErrorMessage(err: unknown, t: TFn): string {
     if (r?.data?.detail) return r.data.detail
   }
   return t('upload.upload_failed')
+}
+
+// ─── Resume banner ──────────────────────────────────────────────────────────
+// A pipeline started on this page keeps running on the worker even after the
+// user navigates away (there is no "Pipeline" nav item). This banner reads the
+// persisted pipeline context, polls live status, and lets the user jump back
+// to the in-progress run (or its results) — so leaving the page never strands
+// an analysis.
+function ResumePipelineBanner() {
+  const { t } = useTranslation()
+  const { jobId, documentId, documentName } = usePipelineStore()
+
+  const { data: status } = useQuery({
+    queryKey: ['pipeline-status', jobId],
+    queryFn: () => getPipelineStatus(jobId!),
+    enabled: !!jobId,
+    refetchInterval: (q) => {
+      const s = q.state.data?.stage
+      return s === 'complete' || s === 'failed' ? false : 4000
+    },
+  })
+
+  if (!jobId) return null
+
+  const stage = status?.stage ?? 'queued'
+  const progress = status?.progress ?? 0
+  const isComplete = stage === 'complete'
+  const isFailed = stage === 'failed'
+  const running = !isComplete && !isFailed
+
+  const accent = isFailed ? '#EF4444' : isComplete ? '#10B981' : 'var(--color-primary)'
+  const tintBg = isFailed
+    ? 'rgba(239,68,68,0.07)'
+    : isComplete
+      ? 'rgba(16,185,129,0.07)'
+      : 'rgba(13,148,136,0.07)'
+  const tintBorder = isFailed
+    ? 'rgba(239,68,68,0.3)'
+    : isComplete
+      ? 'rgba(16,185,129,0.3)'
+      : 'rgba(13,148,136,0.3)'
+
+  const title = isComplete
+    ? t('pipeline.analysis_complete')
+    : isFailed
+      ? t('pipeline.analysis_failed')
+      : t('pipeline.analysis_in_progress')
+  const cta = isComplete
+    ? t('pipeline.review_metrics')
+    : isFailed
+      ? t('upload.resume_view_cta')
+      : t('upload.resume_running_cta')
+  const href =
+    isComplete && documentId
+      ? `/results/${documentId}`
+      : `/pipeline/${jobId}${documentId ? `?doc=${documentId}` : ''}`
+  const stageLabel = t(`pipeline.${stage}`, { defaultValue: stage })
+
+  return (
+    <div
+      className="mb-5 flex items-center gap-3 px-4 py-3 rounded-lg border"
+      role="status"
+      style={{ background: tintBg, borderColor: tintBorder }}
+    >
+      {running ? (
+        <Loader2 size={18} className="animate-spin shrink-0" style={{ color: accent }} aria-hidden="true" />
+      ) : isComplete ? (
+        <CheckCircle2 size={18} className="shrink-0" style={{ color: accent }} aria-hidden="true" />
+      ) : (
+        <AlertCircle size={18} className="shrink-0" style={{ color: accent }} aria-hidden="true" />
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold" style={{ color: accent }}>{title}</p>
+        <p className="text-xs text-text-muted truncate">
+          {documentName ?? t('pipeline.document_label')}
+          {running ? ` · ${stageLabel} · ${progress}%` : ''}
+        </p>
+      </div>
+      <Link
+        to={href}
+        className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-opacity hover:opacity-90 focus-visible:ring-2 ring-offset-1 shrink-0"
+        style={{ background: accent, color: '#fff', ['--tw-ring-color' as string]: accent }}
+      >
+        {cta}
+        <ArrowRight size={13} aria-hidden="true" />
+      </Link>
+    </div>
+  )
 }
 
 export default function Upload() {
@@ -223,6 +312,9 @@ export default function Upload() {
         <h1 className="text-2xl font-semibold text-text">{t('upload.title')}</h1>
         <p className="text-sm text-text-muted mt-1">{t('upload.subtitle')}</p>
       </div>
+
+      {/* Resume in-progress / latest analysis */}
+      <ResumePipelineBanner />
 
       {/* Server error banner */}
       {serverError && (
