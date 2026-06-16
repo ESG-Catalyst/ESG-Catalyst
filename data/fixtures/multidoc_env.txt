@@ -1,0 +1,10 @@
+ACME Bank — Environmental Data Sheet 2024
+
+Greenhouse Gas Emissions
+Our total Scope 1 direct GHG emissions were 1,250 tCO2e in 2024.
+Scope 2 indirect emissions from purchased electricity were 3,400 tCO2e.
+Combined Scope 1 and Scope 2 emissions therefore totalled 4,650 tCO2e.
+
+Energy and Water
+Total energy consumption across all branches was 45,000 GJ.
+Total water withdrawal was 12,000 cubic meters for the reporting year.

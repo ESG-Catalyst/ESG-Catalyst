@@ -1,0 +1,13 @@
+ESG Disclosure Summary 2024
+
+Environmental Performance:
+- Total energy consumption (GRI 302-1): 142,500 GJ
+- Scope 1 GHG emissions (GRI 305-1): 12,400 tCO2e
+- Scope 2 GHG emissions (GRI 305-2): 38,200 tCO2e
+
+Social Performance:
+- New hires (GRI 401-1): 1,850 employees
+
+Governance:
+- Board diversity (GRI 405-1): 15 members, 2 women
+- Privacy complaints (GRI 418-1): 0 substantiated
