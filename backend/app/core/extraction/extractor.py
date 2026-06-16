@@ -74,16 +74,37 @@ def _get_chroma_client():
     return _chroma_client
 
 
-def _build_retrieval_query(indicator: dict) -> str:
+def _build_retrieval_query(indicator: dict, lang: str = "en") -> str:
     """Build a semantic-search query string from an indicator's metadata.
 
-    Uses the GRI code + name (+ sector ref if present) — these are always
-    English so we hardcode lang="en" at embed time.
+    The GRI/SASB ``code`` is kept verbatim (it appears in Latin even inside
+    Arabic reports, so it anchors retrieval in both languages). For the
+    Arabic collection we pair the code with the indicator's Arabic name
+    (``name_ar``) so an Arabic-chunk search is driven by an Arabic query —
+    cross-lingual EN-query → AR-chunk matching was the main recall gap.
+    Falls back to the English name when ``name_ar`` is absent.
+
+    Args:
+        indicator: Indicator dict from ``gri_indicators.json``.
+        lang: ``"ar"`` to build the Arabic query, anything else → English.
     """
-    parts = [indicator["code"], indicator["name"]]
+    name = indicator["name"]
+    if lang == "ar":
+        name = indicator.get("name_ar") or name
+    parts = [indicator["code"], name]
     ref = indicator.get("sector_standard_ref")
     if ref:
         parts.append(ref)
+    # Qualitative disclosures have a vague title (e.g. "Organizational
+    # details") but a concrete field list. Enrich the EN query with those
+    # field names so retrieval matches the chunk that actually carries them
+    # (legal name, headquarters, countries of operation, ...). Query-side
+    # only — costs no LLM tokens. AR relies on name_ar (English field names
+    # would pollute the Arabic query vector).
+    if lang == "en" and str(indicator.get("metric_type") or "").lower() == "qualitative":
+        fields = indicator.get("expected_fields") or []
+        if fields:
+            parts.append(" ".join(f.replace("_", " ") for f in fields))
     return " ".join(parts)
 
 
@@ -105,8 +126,6 @@ def _retrieve_chunks_for_indicator(
     Raises on connection error so the caller can fall back to full-doc mode.
     """
     from app.core.nlp.embedder import embed_query
-
-    query_text = _build_retrieval_query(indicator)
 
     client = _get_chroma_client()
     # Pool across every document in the set: filter by report_id, not a single
@@ -130,8 +149,10 @@ def _retrieve_chunks_for_indicator(
             )
             continue
 
-        # Generate query vector with the model that matches this collection's
-        # embedding dimension (EN → 768-d e5-base, AR → 1024-d bge-m3).
+        # Build the query in the collection's language (AR uses name_ar) and
+        # embed it with the matching model (EN → 768-d e5-base, AR → 1024-d
+        # bge-m3) to avoid both cross-lingual recall loss and dim mismatch.
+        query_text = _build_retrieval_query(indicator, lang=lang)
         query_vec = embed_query(query_text, lang=lang).tolist()
 
         try:
@@ -449,11 +470,22 @@ async def _extract_single(
     status = _map_status(parsed.get("status", "missing"))
     confidence = clamp(float(parsed.get("confidence", 0.0)), 0.0, 1.0)
 
+    raw_metric_type = str(indicator.get("metric_type") or "").strip().lower()
+
+    # Qualitative disclosures (e.g. GRI 2-1) have no headline number — a
+    # faithful evidence summary IS the deliverable. Some models return
+    # status="missing" merely because `value` is null. If a substantive
+    # summary came back (and it doesn't itself say the data is absent),
+    # treat the disclosure as present so it isn't wrongly counted as a miss.
+    if raw_metric_type == "qualitative" and status == MetricStatus.missing:
+        evidence = (parsed.get("evidence") or "").strip()
+        if len(evidence) >= 40 and not _looks_absent(evidence):
+            status = MetricStatus.extracted
+
     if status == MetricStatus.extracted and confidence < settings.confidence_threshold:
         status = MetricStatus.ambiguous
 
     framework = _coerce_framework(indicator.get("framework"))
-    raw_metric_type = str(indicator.get("metric_type") or "").strip().lower()
     metric_type = _coerce_metric_type(indicator.get("metric_type"))
 
     # For monetary metrics, prefer the LLM's structured currency; fall back to
@@ -467,6 +499,15 @@ async def _extract_single(
             value = parsed_val
         if currency is None and parsed_curr is not None:
             currency = parsed_curr
+
+    # Qualitative disclosures carry their content as text, not a scalar. The
+    # disclosure-quality rubric credits "original_value present, value None"
+    # at 0.6 — so mirror the evidence summary into original_value when the
+    # model left it blank, otherwise a found qualitative disclosure scores 0.0.
+    if raw_metric_type == "qualitative" and value is None and not parsed.get("original_value"):
+        summary = (parsed.get("evidence") or "").strip()
+        if summary:
+            parsed["original_value"] = summary[:500]
 
     breakdown = parsed.get("breakdown")
     if isinstance(breakdown, str):
@@ -546,6 +587,23 @@ def _parse_llm_json(raw: str) -> dict:
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
+# Phrases that signal a model wrote an evidence string to say the disclosure
+# is NOT present — so a long evidence value alone shouldn't rescue a
+# qualitative metric from "missing". EN + common AR equivalents.
+_ABSENT_PHRASES = (
+    "not found", "not disclosed", "not reported", "not available",
+    "not mentioned", "not provided", "no information", "no disclosure",
+    "could not find", "could not be found", "is absent", "not stated",
+    "غير متوفر", "غير مذكور", "غير مفصح", "لم يتم العثور", "لا توجد",
+)
+
+
+def _looks_absent(text: str) -> bool:
+    """True if an evidence string itself says the data is not present."""
+    t = text.lower()
+    return any(p in t for p in _ABSENT_PHRASES)
+
+
 def _map_status(raw: str) -> MetricStatus:
     mapping = {
         "extracted": MetricStatus.extracted,
