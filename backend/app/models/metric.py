@@ -62,7 +62,7 @@ class ExtractedMetric(Base):
     unit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Raw value + unit exactly as found in the source document
-    original_value: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    original_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     original_unit: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # 0.0 – 1.0; when in doubt, return lower confidence

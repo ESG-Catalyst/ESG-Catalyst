@@ -169,6 +169,10 @@ services:
       CHROMA_HOST: chromadb
       CHROMA_PORT: "8000"
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      # Scope extraction to the company's sector (a bank skips insurance/
+      # mortgage/consumer-finance-only indicators): fewer LLM calls + cost,
+      # cleaner review list. Remove this line to restore all-46 behavior.
+      EXTRACTION_SECTOR_SCOPED: "true"
     volumes:
       - ./data:/app/data
       # HuggingFace model cache — first worker call downloads the
