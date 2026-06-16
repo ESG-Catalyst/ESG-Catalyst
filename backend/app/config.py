@@ -285,6 +285,16 @@ class Settings(BaseSettings):
             "remote APIs (Groq / OpenRouter) may need 2–3 to stay under rate limits."
         ),
     )
+    extraction_sector_scoped: bool = Field(
+        default=False,
+        description=(
+            "When True and no explicit indicator_codes are requested, restrict "
+            "extraction to the company sector's in-scope indicators (e.g. a bank "
+            "skips insurance/mortgage/consumer-finance-only metrics). Cuts LLM "
+            "calls + cost and keeps the review list relevant. Default False "
+            "preserves the all-46-indicator behavior."
+        ),
+    )
 
     # ── Auth ─────────────────────────────────────────────────────────────────
     secret_key: str = Field(
