@@ -555,6 +555,10 @@ async def _generate_report_async(task, report_id: uuid.UUID) -> dict[str, Any]:
 
     _update_state(task, "NARRATING", "Generating narratives...")
     bundle.sections = await generate_narratives(bundle.sections)
+    # Company-specific ESG improvement roadmap (closes gaps + strengthens weak
+    # disclosures). One extra LLM call; falls back to a deterministic roadmap.
+    from app.core.reporting.narrative import generate_roadmap
+    bundle.roadmap = await generate_roadmap(bundle)
 
     _update_state(task, "RENDERING", "Rendering PDF...")
     out_dir = Path("data/generated_reports") / str(report_id)

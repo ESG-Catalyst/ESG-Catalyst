@@ -724,10 +724,14 @@ def score_report(
     total_score = _COMP_E * e_score + _COMP_S * s_score + _COMP_G * g_score
 
     # ── Gap analysis ──────────────────────────────────────────────────────────
+    # Build gaps over the SECTOR's in-scope indicators (materiality-weight > 0),
+    # not the raw indicator_codes. Report generation calls score_report with
+    # indicator_codes=None, which would otherwise surface every out-of-sector
+    # indicator (e.g. insurance/mortgage SASB for a bank) as a "missing" gap.
     gaps = build_gap_analysis(
         metrics,
         confidence_threshold=settings.confidence_threshold,
-        indicator_codes=indicator_codes,
+        indicator_codes=in_scope_codes,
     )
 
     # coverage_pct is now sector-scoped: how many of the in-scope indicators
