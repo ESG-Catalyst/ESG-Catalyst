@@ -208,25 +208,29 @@ def build_report_sections(
 
 
 def gri_content_index(metrics: list) -> list[dict]:
-    """Build GRI Content Index rows for all known indicators.
+    """Build GRI Content Index rows from the metrics actually in the report.
+
+    Rows are built from the supplied metrics only — i.e. the indicators that
+    were in scope and attempted — so a sector-scoped run (e.g. a bank with its
+    25 banking indicators) does NOT list out-of-sector SASB consumer-finance /
+    insurance / mortgage indicators as "not reported". When extraction covers
+    all 46 indicators every indicator still has a metric row, so the index is
+    unchanged. In-scope indicators that genuinely weren't disclosed still
+    appear here with status "missing" — those are real gaps worth showing.
 
     Args:
-        metrics: All ExtractedMetric objects in the report.
+        metrics: ExtractedMetric objects that appear in the report sections.
 
     Returns:
-        List of dicts: code, name, page, status for each indicator.
+        List of dicts: code, name, page, status for each metric.
     """
-    by_code = {m.gri_code: m for m in metrics}
-    all_indicators = get_all_indicators()
     rows = []
-    for ind in all_indicators:
-        code = ind["code"]
-        m = by_code.get(code)
-        if m:
-            status = m.status.value if hasattr(m.status, "value") else str(m.status)
-            page = m.source_page
-        else:
-            status = "not reported"
-            page = None
-        rows.append({"code": code, "name": ind["name"], "page": page, "status": status})
+    for m in metrics:
+        status = m.status.value if hasattr(m.status, "value") else str(m.status)
+        rows.append({
+            "code": m.gri_code,
+            "name": m.label,
+            "page": m.source_page,
+            "status": status,
+        })
     return rows
