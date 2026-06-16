@@ -160,6 +160,7 @@ class ReportBundle:
     company: CompanyProfile
     score: object
     sections: list[ReportSection]
+    roadmap: str = ""
 
 
 def build_report_sections(

@@ -79,6 +79,136 @@ async def generate_narratives(sections: list[ReportSection]) -> list[ReportSecti
     return sections
 
 
+_ROADMAP_SYSTEM_PROMPT = """\
+You are a senior ESG advisor (SASB-FSA credentialed) building a practical, prioritized \
+improvement roadmap for an Egyptian financial institution's ESG disclosure, aligned with \
+GRI Standards, SASB, and the Financial Regulatory Authority (FRA) of Egypt.
+
+You are given two inputs:
+A) GAPS — material indicators that are NOT yet disclosed (or are ambiguous).
+B) DISCLOSED — indicators already reported, with their value, confidence, and whether \
+they carry a unit / page citation / evidence.
+
+### Write the roadmap as follows
+- Open with one short framing sentence naming the company, its sector, and its current \
+overall score and tier.
+- Then "Priority actions to close gaps:" — a numbered list. For each high/medium-priority \
+gap give: (a) the specific data to collect, (b) the concrete internal source/owner to get \
+it from (utility bills, HR system, compliance/AML logs, loan-book/treasury, board secretariat, \
+etc.), and (c) the framework it satisfies. Be specific to a bank's operations, not generic.
+- Then "Strengthen existing disclosures:" — for disclosed metrics that are weak (low \
+confidence, missing unit, or no citation), say exactly what would raise their quality \
+(add the measurement unit, cite the source page, obtain third-party assurance, add the \
+sector breakdown the standard requires).
+- Close with one sentence on the single highest-leverage move to lift the score next cycle.
+
+### Rules
+- Plain prose + numbered lists only. No markdown headers (##), no bold (**), no tables.
+- Be concrete and actionable; reference the actual indicator codes and the company's sector.
+- Do NOT invent values. Do NOT use ESG boilerplate ("committed to sustainability", etc.).
+- Keep it under 350 words.
+"""
+
+
+async def generate_roadmap(bundle) -> str:
+    """Generate a company-specific ESG improvement roadmap for the report.
+
+    Covers both undisclosed material indicators (how to start reporting them)
+    and already-disclosed but weak metrics (how to raise their quality). Uses
+    the ``report`` model with credit fallback; on failure returns a clean
+    deterministic roadmap built from the gap recommendations.
+
+    Args:
+        bundle: ``ReportBundle`` with ``company``, ``score`` (incl. ``gaps``),
+            and ``sections``.
+
+    Returns:
+        Roadmap prose string (English).
+    """
+    try:
+        messages = [
+            SystemMessage(content=_ROADMAP_SYSTEM_PROMPT),
+            HumanMessage(content=_build_roadmap_prompt(bundle)),
+        ]
+        response = await model_router.ainvoke_with_fallback("report", messages)
+        text = response.content.strip()
+        if text:
+            return text
+    except Exception as exc:  # noqa: BLE001 — report must still render
+        logger.error("roadmap.failed", error=str(exc)[:300])
+    return _fallback_roadmap(bundle)
+
+
+def _build_roadmap_prompt(bundle) -> str:
+    company = bundle.company
+    score = bundle.score
+    lines = [
+        f"Company: {company.name}",
+        f"Sector: {company.sector}",
+        f"Overall score: {score.total_score} / 100 (tier: {score.benchmark_tier}); "
+        f"E={score.environmental_score} S={score.social_score} G={score.governance_score}.",
+        "",
+        "A) GAPS (material indicators not yet disclosed / ambiguous):",
+    ]
+    gaps = list(getattr(score, "gaps", []) or [])
+    if gaps:
+        for g in gaps:
+            lines.append(
+                f"  - [{g.priority}] {g.code} ({g.name}) — status={g.status}; "
+                f"why it matters: {getattr(g, 'why_it_matters', '')}"
+            )
+    else:
+        lines.append("  (none — all in-scope indicators disclosed)")
+
+    lines.append("")
+    lines.append("B) DISCLOSED indicators (raise quality where weak):")
+    for s in bundle.sections:
+        for m in s.metrics:
+            if not _is_disclosed(m):
+                continue
+            quality_flags = []
+            if m.confidence < 0.70:
+                quality_flags.append("low confidence")
+            if m.value is not None and not m.unit:
+                quality_flags.append("no unit")
+            if not getattr(m, "source_page", None):
+                quality_flags.append("no page citation")
+            flag = f" [{', '.join(quality_flags)}]" if quality_flags else ""
+            lines.append(
+                f"  - {m.gri_code} ({m.label}): {_format_value(m)} "
+                f"[confidence={m.confidence:.2f}]{flag}"
+            )
+    lines.append("")
+    lines.append("Write the improvement roadmap.")
+    return "\n".join(lines)
+
+
+def _fallback_roadmap(bundle) -> str:
+    """Deterministic roadmap when the LLM is unavailable."""
+    score = bundle.score
+    gaps = list(getattr(score, "gaps", []) or [])
+    parts = [
+        f"{bundle.company.name} currently scores {score.total_score}/100 "
+        f"({score.benchmark_tier}). Priority actions to close gaps:"
+    ]
+    if gaps:
+        ordered = sorted(
+            gaps,
+            key=lambda g: {"high": 0, "medium": 1, "low": 2}.get(g.priority, 3),
+        )
+        for i, g in enumerate(ordered, 1):
+            parts.append(
+                f"{i}. {g.code} ({g.name}) — {getattr(g, 'recommendation', '')}".strip()
+            )
+    else:
+        parts.append("All in-scope indicators are disclosed; focus on assurance and trend reporting.")
+    parts.append(
+        "Strengthen existing disclosures by adding measurement units, citing the "
+        "source page for each figure, and obtaining third-party assurance where feasible."
+    )
+    return "\n".join(parts)
+
+
 async def _narrate_section(section: ReportSection) -> str:
     """Generate a single section narrative via the LLM (with credit fallback)."""
     messages = [

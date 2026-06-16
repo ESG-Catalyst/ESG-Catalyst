@@ -145,6 +145,13 @@ _REPORT_TEMPLATE = """\
         <div class="evidence">"{{ m.evidence_chunk[:220] }}{{ "…" if m.evidence_chunk|length > 220 else "" }}"</div>
         {%- endif %}
       </td>
+      {%- if m.value is none and m.original_value and m.original_value|length > 40 -%}
+      {# Qualitative text value (e.g. GRI 2-1): wrap + truncate so it doesn't
+         overflow the column. Full text remains in the evidence box below. #}
+      <td class="num" style="background-color:{{ rowbg }}; text-align:left; white-space:normal; word-break:break-word;">
+        {{ m.original_value[:60] }}{{ "…" if m.original_value|length > 60 else "" }}
+      </td>
+      {%- else -%}
       <td class="num" style="background-color:{{ rowbg }}; text-align:right; white-space:nowrap;">
         {%- if m.value is not none and m.unit -%}
           {{ m.value }} {{ m.unit }}
@@ -156,6 +163,7 @@ _REPORT_TEMPLATE = """\
           —
         {%- endif -%}
       </td>
+      {%- endif -%}
       <td class="num" style="background-color:{{ rowbg }}; text-align:right;">{{ "%.0f"|format(m.confidence * 100) }}%</td>
       <td class="center" style="background-color:{{ rowbg }}; text-align:center;"><span class="status-pill status-{{ status }}">{{ status }}</span></td>
       <td class="center" style="background-color:{{ rowbg }}; text-align:center;">{{ m.source_page or "—" }}</td>
@@ -220,6 +228,11 @@ _REPORT_TEMPLATE = """\
 <p>No gaps identified. All target indicators are covered with adequate confidence.</p>
 {% endif %}
 
+{% if roadmap %}
+<h2>Improvement Roadmap</h2>
+<div class="narrative">{{ roadmap | replace('\n', '<br>') | safe }}</div>
+{% endif %}
+
 </body>
 </html>
 """
@@ -247,6 +260,7 @@ def render_report_html(bundle: ReportBundle) -> str:
         score=bundle.score,
         sections=bundle.sections,
         content_index=gri_content_index([m for s in bundle.sections for m in s.metrics]),
+        roadmap=getattr(bundle, "roadmap", ""),
         generated_date=datetime.utcnow().strftime("%d %B %Y"),
         generated_year=datetime.utcnow().year,
         status_label=_status_label,
