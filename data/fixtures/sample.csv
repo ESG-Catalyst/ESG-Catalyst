@@ -1,0 +1,4 @@
+indicator,value,unit,year
+energy_consumption,142500,GJ,2024
+scope1_emissions,12400,tCO2e,2024
+board_members,15,count,2024
