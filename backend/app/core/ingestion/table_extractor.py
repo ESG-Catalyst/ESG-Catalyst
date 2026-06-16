@@ -70,48 +70,139 @@ def _fix_arabic_text(text: str) -> str:
         return text
 
 
+def _clean_cell(v: object) -> str:
+    """Stringify, trim, collapse newlines, and logical-order Arabic a cell."""
+    cell = str(v).strip().replace("\n", " ")
+    if cell.lower() == "nan":
+        cell = ""
+    if cell and _arabic_char_ratio(cell) >= 0.15:
+        cell = _fix_arabic_text(cell)
+    return cell
+
+
+def _is_number(s: str) -> bool:
+    """True if the cell is a plain number (ignoring thousands/percent/currency)."""
+    s = s.strip().replace(",", "").replace("%", "").replace("EGP", "").strip()
+    if not s:
+        return False
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _detect_header_row(grid: list[list[str]]) -> int | None:
+    """Index of the most likely header row near the top of a grid.
+
+    A header is the first row (scanning the top) with at least two non-empty
+    cells, none of which is a plain number — i.e. a row of text labels. Rows
+    above it (merged titles, subtitles that ``read_excel`` mis-promotes to the
+    header) become context. Returns ``None`` when no such row exists (e.g.
+    purely numeric tables, or year-only headers like 2021/2022/2023), in which
+    case the caller keeps flat pipe rendering — so detection can never make the
+    output worse than before.
+    """
+    for i, row in enumerate(grid[:8]):
+        nonempty = [c for c in row if c]
+        if len(nonempty) < 2:
+            continue
+        if any(_is_number(c) for c in nonempty):
+            continue
+        return i
+    return None
+
+
+def _append_numeric_summary(
+    lines: list[str], data_rows: list[list[str]], headers: list[str] | None
+) -> None:
+    """Append row/col counts and per-column min/max/sum for numeric columns."""
+    n_rows = len(data_rows)
+    n_cols = max((len(r) for r in data_rows), default=0)
+    lines.append("")
+    lines.append(f"[Summary: {n_rows} rows x {n_cols} columns]")
+    if not headers:
+        return
+    for j, col_name in enumerate(headers):
+        vals: list[float] = []
+        for r in data_rows:
+            if j < len(r) and _is_number(r[j]):
+                vals.append(float(r[j].replace(",", "").replace("%", "").replace("EGP", "").strip()))
+        if vals:
+            lines.append(
+                f"  {col_name}: min={min(vals):,.2f}, "
+                f"max={max(vals):,.2f}, sum={sum(vals):,.2f}"
+            )
+
+
 def _render_dataframe(df: pd.DataFrame, sheet_label: str | None = None) -> str:
-    """Render a DataFrame as pipe-delimited text with optional summary."""
-    # Drop fully empty rows and columns
+    """Render a table as text, one self-describing ``Header: value`` row each.
+
+    Each data row repeats its column headers inline (``Count: 4,230 | Value
+    (EGP M): 2,980 | ...``). This keeps a row interpretable even after the
+    downstream chunker splits a sheet mid-table — the old "header printed once
+    at the top" layout stranded the column meaning in a different chunk, so a
+    retrieved value row arrived with no labels and the extractor could not bind
+    the number to the right field. Row-wise labelling also enriches the chunk
+    embedding (the field names sit next to the indicator code), improving
+    retrieval recall. Falls back to the flat pipe layout when no header row can
+    be identified.
+    """
     df = df.dropna(how="all").dropna(axis=1, how="all")
     df = df.fillna("")
-    lines: list[str] = []
 
+    # Rebuild the full grid INCLUDING whatever pandas pulled into df.columns:
+    # our sheets carry a merged title in row 1, so the header=0 guess is usually
+    # the title, not the real header — folding columns back in lets detection
+    # recover the true header wherever it sits.
+    header_as_row = [
+        "" if str(c).startswith("Unnamed") else _clean_cell(c) for c in df.columns
+    ]
+    grid: list[list[str]] = [header_as_row]
+    grid += [[_clean_cell(v) for v in row] for row in df.values.tolist()]
+    grid = [r for r in grid if any(c for c in r)]  # drop fully empty rows
+
+    lines: list[str] = []
     if sheet_label:
         lines.append(f"=== Sheet: {sheet_label} ===")
         lines.append("")
 
-    if len(df.columns) > 0:
-        lines.append(" | ".join(str(c) for c in df.columns))
-        lines.append("-" * 40)
+    hdr_idx = _detect_header_row(grid)
 
-    for _, row in df.iterrows():
-        values = []
-        for v in row.values:
-            cell_str = str(v).strip().replace("\n", " ")
-            if cell_str and _arabic_char_ratio(cell_str) >= 0.15:
-                cell_str = _fix_arabic_text(cell_str)
-            values.append(cell_str)
-            
-        row_text = " | ".join(values)
-        if row_text.strip(" |"):
-            lines.append(row_text)
+    if hdr_idx is None:
+        # No identifiable header — keep the original flat rendering (no regression).
+        for row in grid:
+            row_text = " | ".join(row)
+            if row_text.strip(" |"):
+                lines.append(row_text)
+        _append_numeric_summary(lines, grid, headers=None)
+        return "\n".join(lines)
 
-    n_rows = len(df)
-    n_cols = len(df.columns)
-    lines.append("")
-    lines.append(f"[Summary: {n_rows} rows x {n_cols} columns]")
+    headers = [h if h else f"Col{j + 1}" for j, h in enumerate(grid[hdr_idx])]
 
-    for col in df.columns:
-        numeric = pd.to_numeric(df[col], errors="coerce")
-        non_null = numeric.dropna()
-        if len(non_null) > 0:
-            lines.append(
-                f"  {col}: min={non_null.min():,.2f}, "
-                f"max={non_null.max():,.2f}, "
-                f"sum={non_null.sum():,.2f}"
-            )
+    # Context rows above the header (merged title/subtitle) carry the indicator
+    # code + sheet purpose — keep them verbatim so retrieval still anchors on them.
+    for row in grid[:hdr_idx]:
+        ctx = " ".join(c for c in row if c)
+        if ctx:
+            lines.append(ctx)
 
+    # Header once (human + retrieval), then self-describing data rows.
+    lines.append(" | ".join(headers))
+    lines.append("-" * 40)
+
+    data_rows = grid[hdr_idx + 1:]
+    for row in data_rows:
+        pairs = []
+        for j, val in enumerate(row):
+            if not val:
+                continue
+            key = headers[j] if j < len(headers) else f"Col{j + 1}"
+            pairs.append(f"{key}: {val}")
+        if pairs:
+            lines.append(" | ".join(pairs))
+
+    _append_numeric_summary(lines, data_rows, headers=headers)
     return "\n".join(lines)
 
 
