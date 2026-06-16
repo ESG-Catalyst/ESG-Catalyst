@@ -507,7 +507,10 @@ async def _extract_single(
     if raw_metric_type == "qualitative" and value is None and not parsed.get("original_value"):
         summary = (parsed.get("evidence") or "").strip()
         if summary:
-            parsed["original_value"] = summary[:500]
+            # Cap to 240: the live DB column is VARCHAR(255) (the ORM declares
+            # Text, but legacy create_all dev DBs were never migrated). The
+            # full summary is preserved in evidence_chunk (Text) regardless.
+            parsed["original_value"] = summary[:240]
 
     breakdown = parsed.get("breakdown")
     if isinstance(breakdown, str):
