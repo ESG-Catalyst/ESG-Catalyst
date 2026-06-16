@@ -17,7 +17,8 @@ import FrameworkCoverageBar from '@/components/ui/FrameworkCoverageBar'
 import StatusPill, { type StatusValue } from '@/components/ui/StatusPill'
 import { listDocuments } from '@/api/documents'
 import { getMetrics, type MetricDTO } from '@/api/metrics'
-import { listReports, generateReport } from '@/api/reports'
+import { listReports, generateReport, type ReportDTO } from '@/api/reports'
+import { tierKeyFor, tierColorFor } from '@/lib/score'
 import { useAuthStore, emailHandle } from '@/store/auth'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -61,22 +62,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── Tier helpers ─────────────────────────────────────────────────────────────
-
-function TIER_LABEL(score: number): string {
-  if (score >= 75) return 'Leading'
-  if (score >= 55) return 'Established'
-  if (score >= 35) return 'Developing'
-  return 'Laggard'
-}
-
-function TIER_COLOR(tier: string): string {
-  if (tier === 'Leading') return '#10B981'
-  if (tier === 'Established') return '#0D9488'
-  if (tier === 'Developing') return '#F59E0B'
-  return '#EF4444'
-}
-
 // ─── Stat chip ────────────────────────────────────────────────────────────────
 
 function StatChip({
@@ -100,23 +85,21 @@ function StatChip({
 
 // ─── Score overview card ──────────────────────────────────────────────────────
 
-function ScoreCard({ metrics }: { metrics: MetricDTO[] }) {
+function ScoreCard({ report, metrics }: { report?: ReportDTO; metrics: MetricDTO[] }) {
   const { t } = useTranslation()
-  const eMetrics = metrics.filter((m) => m.pillar === 'E' && m.value != null)
-  const sMetrics = metrics.filter((m) => m.pillar === 'S' && m.value != null)
-  const gMetrics = metrics.filter((m) => m.pillar === 'G' && m.value != null)
 
-  const avgConf = (arr: MetricDTO[]) =>
-    arr.length ? Math.round((arr.reduce((s, m) => s + m.confidence, 0) / arr.length) * 100) : 0
-
+  // Scores come straight from the persisted Report row — the SAME fields the
+  // PDF renders from and the ReportView reads (see backend
+  // workers/tasks.py::_run_pipeline_async + _generate_report_async). Never
+  // recompute here, or the dashboard would disagree with the report + PDF.
+  const hasScores = report != null && report.total_score != null
   const scores = {
-    E: avgConf(eMetrics),
-    S: avgConf(sMetrics),
-    G: avgConf(gMetrics),
+    E: Math.round(report?.environmental_score ?? 0),
+    S: Math.round(report?.social_score ?? 0),
+    G: Math.round(report?.governance_score ?? 0),
   }
-  const overall = Math.round((scores.E + scores.S + scores.G) / 3)
-  const tier = TIER_LABEL(overall)
-  const tierColor = TIER_COLOR(tier)
+  const overall = Math.round(report?.total_score ?? 0)
+  const tierColor = tierColorFor(overall)
 
   const approved = metrics.filter((m) => m.status === 'approved').length
   const extracted = metrics.filter((m) => m.status === 'extracted').length
@@ -126,24 +109,36 @@ function ScoreCard({ metrics }: { metrics: MetricDTO[] }) {
     <Card className="flex flex-col gap-4">
       <SectionTitle>{t('dashboard.esg_score_overview')}</SectionTitle>
 
-      <div className="flex justify-center">
-        <ScoreGauge scores={scores} overall={overall} size="md" />
-      </div>
+      {hasScores ? (
+        <>
+          <div className="flex justify-center">
+            {/* showTier=false — the page renders its own i18n-aware tier chip
+                below, so the gauge's built-in (English, un-banded) badge is
+                suppressed to avoid two conflicting tier labels. */}
+            <ScoreGauge scores={scores} overall={overall} size="md" showTier={false} />
+          </div>
 
-      {/* Tier badge */}
-      <div className="flex justify-center">
-        <span
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
-          style={{
-            background: `${tierColor}18`,
-            color: tierColor,
-            borderColor: `${tierColor}35`,
-          }}
-        >
-          <TrendingUp size={11} aria-hidden="true" />
-          {tier}
-        </span>
-      </div>
+          {/* Tier badge — derived from the same composite score the PDF prints */}
+          <div className="flex justify-center">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
+              style={{
+                background: `${tierColor}18`,
+                color: tierColor,
+                borderColor: `${tierColor}35`,
+              }}
+            >
+              <TrendingUp size={11} aria-hidden="true" />
+              {t('tier.' + tierKeyFor(overall))}
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+          <BarChart2 size={22} className="text-text-subtle opacity-50" aria-hidden="true" />
+          <p className="text-sm text-text-subtle max-w-[220px]">{t('dashboard.scores_pending')}</p>
+        </div>
+      )}
 
       {/* Stat chips */}
       <div className="grid grid-cols-3 gap-2 mt-1">
@@ -584,6 +579,11 @@ export default function Dashboard() {
   })
 
   const latestReport = reports[reports.length - 1]
+  // The score card must reflect the SAME document whose metrics are shown
+  // below. Tie it to the latest document's report (Document.report_id) rather
+  // than "the newest report row", which could belong to a different document.
+  const reportForLatestDoc =
+    reports.find((r) => r.id === latestDoc?.report_id) ?? undefined
   const hasApprovedMetrics = metrics.some((m) => m.status === 'approved')
 
   const loading = docsLoading || metricsLoading
@@ -631,7 +631,7 @@ export default function Dashboard() {
         >
           {/* Row 1 — Score, coverage, activity */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <ScoreCard metrics={metrics} />
+            <ScoreCard report={reportForLatestDoc} metrics={metrics} />
             <CoverageCard metrics={metrics} />
             <ActivityFeed documents={documents ?? []} metrics={metrics} />
           </div>

@@ -16,6 +16,10 @@ export interface MetricDTO {
   evidence_chunk?: string | null
   pillar?: string | null
   topic?: string | null
+  // Framework the indicator belongs to (GRI | SASB-FN-* | FRA). Backend
+  // ExtractedMetricSchema serializes this; the GRI Content Index "Required"
+  // column on ReportView keys off it (FRA disclosures are mandatory).
+  framework?: string | null
 }
 
 export interface UpdateMetricRequest {
