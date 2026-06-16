@@ -287,6 +287,27 @@ async def _run_pipeline_async(
 
     _update_state(task, "EXTRACTING", "Extracting ESG metrics via LLM...")
 
+    # Optionally scope extraction to the company's sector when the caller did
+    # not request specific codes. A bank then skips insurance/mortgage/
+    # consumer-finance-only indicators (out of scope for its score anyway),
+    # cutting LLM calls + cost and keeping the review list relevant. Opt-in via
+    # settings.extraction_sector_scoped; default keeps all 46 indicators.
+    effective_codes = indicator_codes
+    if effective_codes is None and settings.extraction_sector_scoped:
+        from app.core.gri.indicators import get_indicators_for_sector
+        from app.core.scoring.scorer import KNOWN_SECTORS
+
+        scope_sector = sector if sector in KNOWN_SECTORS else "banking"
+        effective_codes = [
+            ind["code"] for ind in get_indicators_for_sector(scope_sector)
+        ]
+        logger.info(
+            "pipeline.sector_scoped_extraction",
+            company_sector=sector,
+            scope_sector=scope_sector,
+            n_codes=len(effective_codes),
+        )
+
     # ── 5. Extraction — ONE pooled pass over ALL docs' chunks ─────────
     # Retrieval filters by report_id, so chunks from every document in the set
     # compete for each indicator; each metric is then attributed to the source
@@ -294,7 +315,7 @@ async def _run_pipeline_async(
     metrics = await extract_metrics(
         company_id=company_id,
         report_id=report_id,
-        indicator_codes=indicator_codes,
+        indicator_codes=effective_codes,
         document_id=docs[0].id,
         n_chunks_processed=total_embedded,
         document_text=extraction_text,  # combined fallback if ChromaDB is down
@@ -304,7 +325,7 @@ async def _run_pipeline_async(
     _update_state(task, "SCORING", "Computing ESG scores...")
 
     # ── 6. Scoring — sector-aware disclosure quality (v1 methodology) ─
-    scoring_result = score_report(metrics, sector=sector, indicator_codes=indicator_codes)
+    scoring_result = score_report(metrics, sector=sector, indicator_codes=effective_codes)
 
     _update_state(task, "PERSISTING", "Saving results to database...")
 
