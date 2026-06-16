@@ -84,17 +84,17 @@ _REPORT_TEMPLATE = """\
 
 <h2>Executive Summary</h2>
 <div class="score-row">
-  <div class="score-card"><div class="label">Composite</div><div class="value">{{ score.total_score }}</div><div class="meta-line">{{ score.benchmark_tier }}</div></div>
-  <div class="score-card"><div class="label">Environmental</div><div class="value">{{ score.environmental_score }}</div></div>
-  <div class="score-card"><div class="label">Social</div><div class="value">{{ score.social_score }}</div></div>
-  <div class="score-card"><div class="label">Governance</div><div class="value">{{ score.governance_score }}</div></div>
+  <div class="score-card"><div class="label">Composite</div><div class="value">{{ r0(score.total_score) }}</div><div class="meta-line">{{ score.benchmark_tier }}</div></div>
+  <div class="score-card"><div class="label">Environmental</div><div class="value">{{ r0(score.environmental_score) }}</div></div>
+  <div class="score-card"><div class="label">Social</div><div class="value">{{ r0(score.social_score) }}</div></div>
+  <div class="score-card"><div class="label">Governance</div><div class="value">{{ r0(score.governance_score) }}</div></div>
 </div>
 <p>
   This report was assembled from {{ score.indicators_found }} of {{ score.indicators_total }} target indicators
-  ({{ score.coverage_pct }}% coverage). The composite score of <strong>{{ score.total_score }}</strong>
+  ({{ r0(score.coverage_pct) }}% coverage). The composite score of <strong>{{ r0(score.total_score) }}</strong>
   places {{ company.name }} in the <span class="badge">{{ score.benchmark_tier }}</span> tier.
-  GRI completeness is {{ score.gri_score }}%, FRA-36 compliance is {{ score.fra_score }}%,
-  and SASB sector-specific coverage is {{ score.sasb_score }}%.
+  GRI completeness is {{ r0(score.gri_score) }}%, FRA-36 compliance is {{ r0(score.fra_score) }}%,
+  and SASB sector-specific coverage is {{ r0(score.sasb_score) }}%.
 </p>
 
 <h2>Company Profile</h2>
@@ -226,6 +226,18 @@ _REPORT_TEMPLATE = """\
 
 
 # ── Public API ──────────────────────────────────────────────────────────
+def _round_half_up(value: object) -> int:
+    """Round a 0–100 score to an integer, half-up — matching the frontend.
+
+    The React gauge / dashboard display these same scores via JS ``Math.round``
+    (round-half-up). Python's built-in ``round`` (and Jinja's ``%.0f`` /
+    ``round('common')``) use banker's rounding, which would disagree by a point
+    on exact ``x.5`` values. This keeps the PDF's headline ESG scores numerically
+    identical to every on-screen surface (see frontend lib/score.ts + ScoreGauge).
+    """
+    return int(float(value or 0) + 0.5)
+
+
 def render_report_html(bundle: ReportBundle) -> str:
     """Render a ``ReportBundle`` to an HTML string (no PDF dependencies)."""
     env = Environment(autoescape=select_autoescape(["html"]))
@@ -238,6 +250,7 @@ def render_report_html(bundle: ReportBundle) -> str:
         generated_date=datetime.utcnow().strftime("%d %B %Y"),
         generated_year=datetime.utcnow().year,
         status_label=_status_label,
+        r0=_round_half_up,
     )
 
 

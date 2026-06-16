@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { animate, useInView } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { tierKeyFor, tierColorFor, TIER_LABELS_EN } from '@/lib/score'
 
-/* ── Score tier helpers ─────────────────────────────────────────────────── */
+/* ── Score tier helper ──────────────────────────────────────────────────────
+ * Derives the badge from the shared banding (lib/score.ts) so this component
+ * never diverges from the page-level tier chips or the generated PDF. Labels
+ * are the English fallbacks; i18n-aware pages pass showTier={false} and render
+ * their own translated chip instead. */
 function scoreTier(score: number): { label: string; color: string } {
-  if (score >= 80) return { label: 'Leading',   color: 'var(--color-success)' }
-  if (score >= 60) return { label: 'Advanced',  color: 'var(--color-primary)' }
-  if (score >= 40) return { label: 'Progressing', color: 'var(--color-warning)' }
-  return             { label: 'Beginning',  color: 'var(--color-danger)' }
+  return { label: TIER_LABELS_EN[tierKeyFor(score)], color: tierColorFor(score) }
 }
 
 /* ── Pillar colour map — uses CSS vars so they flip with theme ─────────── */

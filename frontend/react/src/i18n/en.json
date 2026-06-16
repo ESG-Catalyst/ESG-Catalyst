@@ -341,10 +341,11 @@
     "published": "Published"
   },
   "tier": {
-    "Leading": "Leading",
-    "Established": "Established",
-    "Developing": "Developing",
-    "Laggard": "Laggard"
+    "leader": "Leader",
+    "aboveAverage": "Above average",
+    "average": "Average",
+    "belowAverage": "Below average",
+    "laggard": "Laggard"
   },
   "dashboard": {
     "greeting_morning": "Good morning",
@@ -356,6 +357,7 @@
     "no_documents_hint": "Upload your first ESG report to get started. The pipeline will extract, score, and structure your data automatically.",
     "upload_document_cta": "Upload Document",
     "esg_score_overview": "ESG Score Overview",
+    "scores_pending": "ESG scores appear once the pipeline has scored this document.",
     "framework_coverage": "Framework Coverage",
     "indicators_disclosed": "{{count}} of 46 indicators disclosed",
     "recent_activity": "Recent Activity",

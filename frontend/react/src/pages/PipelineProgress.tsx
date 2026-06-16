@@ -372,7 +372,7 @@ export default function PipelineProgress() {
     if (!documentId) return
     try {
       const { runPipeline } = await import('@/api/pipeline')
-      const job = await runPipeline({ document_id: documentId })
+      const job = await runPipeline({ document_ids: [documentId] })
       navigate(`/pipeline/${job.job_id}?doc=${documentId}`)
     } catch {
       // noop — user will see page reload

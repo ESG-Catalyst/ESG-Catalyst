@@ -341,10 +341,11 @@
     "published": "منشور"
   },
   "tier": {
-    "Leading": "رائد",
-    "Established": "راسخ",
-    "Developing": "ناشئ",
-    "Laggard": "متأخر"
+    "leader": "رائد",
+    "aboveAverage": "فوق المتوسط",
+    "average": "متوسط",
+    "belowAverage": "دون المتوسط",
+    "laggard": "متأخر"
   },
   "dashboard": {
     "greeting_morning": "صباح الخير",
@@ -356,6 +357,7 @@
     "no_documents_hint": "ارفع أول تقرير ESG للبدء. سيستخرج خط المعالجة بياناتك ويصنّفها ويهيكلها تلقائياً.",
     "upload_document_cta": "رفع وثيقة",
     "esg_score_overview": "نظرة عامة على درجة ESG",
+    "scores_pending": "تظهر درجات ESG بعد أن تقوم المنظومة بتقييم هذا المستند.",
     "framework_coverage": "تغطية الإطار",
     "indicators_disclosed": "{{count}} من 46 مؤشراً مُفصَح عنه",
     "recent_activity": "النشاط الأخير",

@@ -19,23 +19,10 @@ import { getDocument, listDocuments } from '@/api/documents'
 import { formatDate, shortRef } from '@/lib/format'
 import ScoreGauge from '@/components/ui/ScoreGauge'
 import StatusPill from '@/components/ui/StatusPill'
+import { tierKeyFor, tierColorFor } from '@/lib/score'
 import { useTranslation } from 'react-i18next'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function TIER_LABEL(score: number): string {
-  if (score >= 75) return 'Leading'
-  if (score >= 55) return 'Established'
-  if (score >= 35) return 'Developing'
-  return 'Laggard'
-}
-
-function TIER_COLOR(score: number): string {
-  if (score >= 75) return '#10B981'
-  if (score >= 55) return '#38BDF8'
-  if (score >= 35) return '#F59E0B'
-  return '#EF4444'
-}
 
 // Pillar scores come from the backend ScoringResult (persisted on the
 // Report row by the worker). The PDF reads the same numbers — we must
@@ -1006,17 +993,19 @@ export default function ReportView() {
             <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">
               {t('report.esg_score')}
             </p>
-            <ScoreGauge scores={scores} overall={scores.overall} size="sm" />
+            {/* showTier=false — the i18n-aware tier chip below is the single
+                tier label; suppress the gauge's built-in English badge. */}
+            <ScoreGauge scores={scores} overall={scores.overall} size="sm" showTier={false} />
             <div className="mt-3 text-center">
               <span
                 className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
                 style={{
-                  background: `${TIER_COLOR(scores.overall)}18`,
-                  color: TIER_COLOR(scores.overall),
-                  border: `1px solid ${TIER_COLOR(scores.overall)}44`,
+                  background: `${tierColorFor(scores.overall)}18`,
+                  color: tierColorFor(scores.overall),
+                  border: `1px solid ${tierColorFor(scores.overall)}44`,
                 }}
               >
-                {t('tier.' + TIER_LABEL(scores.overall))}
+                {t('tier.' + tierKeyFor(scores.overall))}
               </span>
             </div>
           </div>
