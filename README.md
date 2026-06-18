@@ -1,276 +1,243 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/MLflow-Tracked-0194E2?logo=mlflow&logoColor=white" alt="MLflow" />
+</p>
+
 # ESG Catalyst
 
-AI-powered ESG reporting and scoring platform. Ingests Arabic and English
-company documents, extracts ESG metrics via NLP + LLMs, scores against
-GRI / FRA / SASB frameworks, and generates PDF reports with an interactive
-dashboard.
+**An AI-powered ESG reporting and scoring platform** that ingests bilingual (Arabic & English) corporate documents, extracts ESG metrics using a multi-model NLP pipeline + LLMs, scores them against **GRI / SASB / FRA** frameworks, and generates compliance-ready PDF reports — all through an interactive React dashboard.
 
-Two user portals: Consultant (manages multiple clients) and Company
-(self-service). Target sector: Egyptian banking (FRA-regulated NBFIs)
-first, then MENA expansion.
-
-For architectural depth see [`CLAUDE.md`](CLAUDE.md). For the narrative
-behind recent changes see [`SESSION_NOTES.md`](SESSION_NOTES.md).
+> **Target Market:** Egyptian financial institutions (FRA-regulated NBFIs), expanding to MENA.  
+> **Two Portals:** Consultant workspace (multi-client management) & Company portal (self-service).
 
 ---
 
-## Tech stack
+## What This Solves
 
-- **Backend:** FastAPI + Celery + SQLAlchemy 2.0 (Postgres), Python 3.11
-- **Pipeline:** PyMuPDF / python-docx / openpyxl ingestion → sentence-window
-  chunker → 3-voter ESG classifier ensemble (ClimateBERT + finbert-esg +
-  nbroad/ESG-BERT) → per-language embeddings (e5-base EN / bge-m3 AR) →
-  ChromaDB → per-indicator LLM extraction → v1 disclosure-quality scorer →
-  WeasyPrint PDF
-- **Frontend:** React + TypeScript + Vite + TanStack Query + Zustand
-- **Infra:** Docker Compose orchestrates Postgres, Redis, ChromaDB, MLflow,
-  api, worker, frontend, and two browser admins (Adminer for Postgres,
-  a Streamlit ChromaDB browser)
+ESG compliance in the MENA financial sector is a manual, months-long process involving consultants reading hundreds of pages across Arabic and English documents. **ESG Catalyst automates the entire pipeline** — from raw document to scored, branded PDF report — in under 30 minutes per document.
 
 ---
 
-## Run everything from scratch
+## Key Features
 
-These steps take a fresh machine to a working stack. Allow ~30 minutes
-end-to-end the first time (most of it is model downloads on the first
-pipeline run).
+| Feature | Details |
+|---------|---------|
+| **Multi-Format Ingestion** | PDF, DOCX, XLSX, CSV, TXT — with Arabic BiDi/reshaping for RTL text extraction |
+| **7-Stage ML Pipeline** | Ingest → Chunk → Classify → Embed → Extract → Score → Report |
+| **3-Model ESG Classifier** | Ensemble of ClimateBERT + FinBERT-ESG + ESG-BERT (2-of-3 voting) with +62% recall over single-model baseline |
+| **Bilingual Embeddings** | Language-routed: `multilingual-e5-base` for English, `BAAI/bge-m3` for Arabic — validated on 20-query bilingual test set |
+| **46-Indicator Catalog** | GRI Financial Services, SASB FN-CF/MF/IN, and FRA KPIs with per-indicator extraction prompts |
+| **Disclosure-Quality Scoring** | 6-tier quality ladder × confidence factor × sector-specific materiality weights |
+| **4-Sector Support** | Banking, Insurance, Consumer Finance, Mortgage Finance — add a sector with a JSON edit |
+| **PDF Report Generation** | WeasyPrint primary + PyMuPDF fallback — branded, table-formatted, GRI Content Index included |
+| **Full Auth & Multi-Tenancy** | JWT-based auth, per-company data isolation, cross-tenant access returns 404 (not 403) |
+| **Bilingual UI** | Full English/Arabic i18n with RTL layout support |
+| **MLflow Experiment Tracking** | Per-extraction run metrics: confidence by indicator, model usage, retrieval stats |
 
-### 1. Prerequisites
+---
 
-| Tool | Version | Why |
-|---|---|---|
-| Docker Desktop | latest | Postgres, Redis, ChromaDB, MLflow, api + worker + frontend all run in containers |
-| Python | 3.11+ | Migration scripts + the optional pre-download helper |
+## Architecture
+
+```
+                           ┌─────────────────────────┐
+                           │     React Frontend       │
+                           │  TypeScript · Vite · RTL │
+                           └────────────┬────────────┘
+                                        │ REST API
+                           ┌────────────▼────────────┐
+                           │    FastAPI (async)        │
+                           │  JWT Auth · Pydantic v2   │
+                           └──────┬──────────┬────────┘
+                                  │          │
+                    ┌─────────────▼──┐  ┌────▼──────────┐
+                    │   PostgreSQL   │  │     Redis      │
+                    │  (persistent)  │  │   (broker)     │
+                    └────────────────┘  └────┬──────────┘
+                                             │
+                           ┌─────────────────▼────────────────┐
+                           │       Celery Worker               │
+                           │                                   │
+                           │  ┌─── M1: Ingestion ────────────┐ │
+                           │  │  PyMuPDF · python-docx ·     │ │
+                           │  │  openpyxl · Arabic reshaper  │ │
+                           │  └──────────────────────────────┘ │
+                           │  ┌─── M2: NLP ──────────────────┐ │
+                           │  │  Sentence-window chunker      │ │
+                           │  │  3-model ESG classifier       │ │
+                           │  │  Bilingual embedder → ChromaDB│ │
+                           │  └──────────────────────────────┘ │
+                           │  ┌─── M3: Extraction ───────────┐ │
+                           │  │  Per-indicator retrieval      │ │
+                           │  │  LLM extraction (OpenRouter)  │ │
+                           │  │  Monetary/currency parsing    │ │
+                           │  └──────────────────────────────┘ │
+                           │  ┌─── M4: Scoring ──────────────┐ │
+                           │  │  GRI · SASB · FRA · TCFD     │ │
+                           │  │  Sector-driven materiality    │ │
+                           │  │  Gap analysis                 │ │
+                           │  └──────────────────────────────┘ │
+                           │  ┌─── M5: Reporting ────────────┐ │
+                           │  │  Section builder              │ │
+                           │  │  LLM narrative generation     │ │
+                           │  │  WeasyPrint PDF renderer      │ │
+                           │  └──────────────────────────────┘ │
+                           │                                   │
+                           │  MLflow ◄── experiment tracking   │
+                           └───────────────────────────────────┘
+```
+
+---
+
+## Technical Highlights
+
+### Data Science & ML
+- **Classifier Ensemble Architecture** — Conducted a systematic 4-stage evaluation (C1–C4): bias audit of ClimateBERT → single-model shootout → multi-architecture comparison → production integration. The 3-voter ensemble recovered +87% S-pillar recall over the ClimateBERT baseline, with all decisions documented in a reproducible decision log.
+- **Bilingual Embedding Strategy** — Language-routed embedding (e5-base EN / bge-m3 AR) selected via a 5-model shootout on a bilingual retrieval test set. Discovered that an English-only evaluation would have selected the wrong model (mpnet collapsed to 0.30 R@5 on Arabic).
+- **Sentence-Window Chunking** — Replaced block-merge chunking after a 5-strategy comparison. Custom composite objective (`n_esg − 2·n_short − 5·n_long`) selected window=3, stride=1, max=1500 chars — yielding +62% ESG-relevant chunks with 1.3% truncation risk (down from 46.8% noise).
+- **Disclosure-Quality Scoring** — 6-tier quality ladder (missing → ambiguous → qualitative → numeric → fully cited) × LLM confidence factor × sector-specific materiality weights from a data-driven catalog. Sector-swap produces materially different scores on identical metrics.
+
+### Backend Engineering
+- **Async-First Architecture** — FastAPI with SQLAlchemy 2.0 async sessions, Celery background workers with `asyncio.run` bridge, and `NullPool` to prevent asyncpg transport leaks across Celery solo-pool event loops.
+- **LLM Resilience** — `ModelRouter` with automatic free-tier fallback on HTTP 402/429, per-task `max_tokens` caps to prevent credit over-reservation, and `LLMUnavailableError` propagation that marks documents as failed (not silently empty).
+- **Multi-Tenant Security** — JWT auth with per-company data scoping. Cross-tenant access returns 404 (not 403) to prevent ID enumeration. Shared `require_company()` / `require_owned_record()` dependency injection eliminates 7 copies of scope-guard boilerplate.
+- **498 Unit Tests** — Covering monetary parsing, confidence calibration, 46-indicator catalog validation, v1 scoring methodology, and report-section building. All dependency-light (no torch/network/DB).
+
+### Frontend Engineering
+- **React 19 + TypeScript** — Vite, TanStack Query for server state, Zustand for client state, Framer Motion for animations, Recharts for data visualization.
+- **Full Bilingual Support** — Complete English/Arabic i18n with RTL layout, `dir`/`lang` attribute management, and mobile-responsive drawer navigation.
+- **Pipeline Visualization** — Real-time progress tracking with chunk-grid visualizer, elapsed timers, stage-specific error handling, and credit-exhaustion recovery UX.
+
+### Infrastructure
+- **Docker Compose Orchestration** — 9-service stack: API, Worker, Frontend, PostgreSQL, Redis, ChromaDB, MLflow, Adminer, and a custom Streamlit ChromaDB browser.
+- **Optimized Container Sizes** — Worker image reduced from 10.3 GB to 3.67 GB (−64%) via CPU-only PyTorch wheels and split requirements. API image 917 MB (−91% from shared image).
+- **HuggingFace Model Caching** — Shared `hf_cache` Docker volume persists ~2 GB of model weights across rebuilds. `preload_models()` for warm worker startup.
+
+---
+
+## Tech Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | React 19 · TypeScript 5.6 · Vite 6 · TailwindCSS 4 · TanStack Query · Zustand · Framer Motion · Recharts · Radix UI · i18next |
+| **Backend** | Python 3.11 · FastAPI · Celery · SQLAlchemy 2.0 (async) · Pydantic v2 · bcrypt + JWT Auth |
+| **NLP/ML** | PyTorch (CPU) · HuggingFace Transformers · ClimateBERT · FinBERT-ESG · ESG-BERT · multilingual-e5-base · BAAI/bge-m3 |
+| **LLM** | OpenRouter (Claude Sonnet / GPT / Mistral) · LangChain · per-task max_tokens · automatic fallback |
+| **Data** | PostgreSQL 16 · Redis · ChromaDB (cosine HNSW, dual-collection) · MLflow |
+| **PDF** | WeasyPrint (primary) · PyMuPDF Story (fallback) · Jinja2 templates · Noto fonts |
+| **DevOps** | Docker Compose · multi-stage builds · bind-mount dev · named volumes · health checks |
+| **Testing** | pytest (498 tests) · bilingual retrieval test sets · ground-truth ESG classification sets |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+| Tool | Version | Required For |
+|------|---------|-------------|
+| Docker Desktop | latest | Full stack (Postgres, Redis, ChromaDB, MLflow, API, Worker, Frontend) |
 | Git | any | Cloning |
-| Node.js | 20+ | Only needed if you want to run the frontend outside Docker. The Compose stack runs Vite inside its own container, so for most workflows Node on the host is optional. |
 
-On Windows, install Docker Desktop with WSL2 backend. On macOS / Linux,
-either Docker Desktop or `docker` + `docker-compose` work.
-
-### 2. Clone + branch
+### Setup
 
 ```bash
+# Clone and configure
 git clone https://github.com/ESG-Catalyst/ESG-Catalyst.git
 cd ESG-Catalyst
-git checkout main
-```
-
-### 3. Configure secrets
-
-Copy the example env file:
-
-```bash
 cp .env.example .env
-```
+# Edit .env: set OPENROUTER_API_KEY, GROQ_API_KEY, SECRET_KEY
 
-Then open `.env` and set at minimum:
-
-- `OPENROUTER_API_KEY=sk-or-...` — get from <https://openrouter.ai>
-- `GROQ_API_KEY=gsk_...` — get from <https://console.groq.com>. Free tier
-  is enough for scoring + report narrative.
-- `SECRET_KEY=...` — JWT signing secret. For dev, any random string is
-  fine; for any shared environment, generate one with
-  `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
-
-Optional knobs you'll probably leave at default:
-
-- `PDF_BACKEND=auto` — `auto` (WeasyPrint primary, PyMuPDF Story fallback)
-  is the default. Set to `pymupdf` as a one-line revert if WeasyPrint ever
-  regresses; set to `weasyprint` to fail loudly instead of falling back.
-- `CHUNK_STRATEGY=sentence_window` — the chunker default. `block_merge` is
-  the legacy alternative.
-- `MODEL_EXTRACTION` / `MODEL_REPORT` / `MODEL_SCORING` — LLM router
-  endpoints. Defaults work; swap to your own if you have a contract.
-
-### 4. (Optional) pre-download HuggingFace models
-
-The worker downloads the embedder + classifier weights on first run
-(~1.5–2 GB total: e5-base, bge-m3, ClimateBERT, finbert-esg, ESG-BERT).
-If you want to do that before starting the stack — e.g. you're on a slow
-connection and want a progress bar — run:
-
-```bash
-python scripts/download_models.py
-```
-
-This populates the Docker `hf_cache` volume so the worker doesn't
-re-download. Safe to skip; the worker will fetch on first pipeline run.
-
-### 5. Bring the stack up
-
-```bash
+# Launch the full stack
 docker compose up -d --build
-```
 
-First build takes 5–10 minutes (the worker image bakes torch CPU + Tesseract
-+ WeasyPrint's GTK3 runtime + Noto fonts). Subsequent builds are minutes
-thanks to Docker layer caching.
-
-Verify health:
-
-```bash
+# Verify health (allow 60-90s for worker model preload)
 docker compose ps
 ```
 
-Expect `(healthy)` next to `esg_api`, `esg_postgres`, `esg_redis`, `esg_worker`.
-The first worker startup is slow (it preloads the embedder + classifier
-ensemble); allow 60–90 seconds before the healthcheck flips.
+### First Run
 
-### 6. Fresh DB migrations
+1. Open **http://localhost:5173** — register an account
+2. Upload a test document from `data/ingestion_test_files/curated/`
+3. Click **Run Pipeline** — watch real-time progress through 7 stages
+4. **Approve metrics** → **Generate Report** → Download PDF
 
-A fresh Postgres comes up empty. SQLAlchemy `Base.metadata.create_all`
-creates the schema on api startup, so **no migration is needed for a
-fresh DB**.
-
-If you're joining a project that already has data, run the two idempotent
-migration scripts (safe to re-run; they check `information_schema` before
-each ADD COLUMN):
-
-```bash
-docker compose exec api python scripts/migrate_reports_pillar_scores.py
-docker compose exec api python scripts/migrate_documents_error_message.py
-```
-
-### 7. Smoke-test it
-
-Open the URLs in the table below. Quick path:
-
-1. **<http://localhost:5173>** — register an account (any email; password
-   ≥ 6 chars; pick "Bank" or any institution type).
-2. **Set your sector to one of `banking` / `insurance` / `consumer_finance`
-   / `mortgage_finance`** — the registration form defaults industry to
-   `commercial_bank`, which the scorer logs an unknown-sector warning for
-   and falls back to `banking`. To set it explicitly:
-   ```bash
-   docker compose exec postgres psql -U postgres -d esg_catalyst -c \
-     "UPDATE companies SET industry='banking' WHERE name='Your Institution Name';"
-   ```
-3. Upload one of the curated test docs from
-   `data/ingestion_test_files/curated/` (NBE PDF is the fastest — ~6 pages,
-   ~10 min end-to-end on a laptop).
-4. Click **Run Pipeline**. The Pipeline Progress page shows
-   chunking → classifying → embedding → extracting stages.
-5. When done, **Approve some metrics**, then **Generate Report**. PDF
-   appears in the Disclosures tab and downloads via the API at
-   `/api/v1/reports/{id}/pdf`.
-
-If the report shows realistic scores (not all 100s) and the PDF tables
-have proper borders + headers — you're good.
-
-### 8. Local URLs
+### Service URLs
 
 | Service | URL | Purpose |
-|---|---|---|
-| Frontend | <http://localhost:5173> | React UI |
-| API | <http://localhost:8000> | FastAPI |
-| API docs | <http://localhost:8000/docs> | Swagger / interactive |
-| MLflow | <http://localhost:5001> | Experiment tracking (extraction runs land in `esg-extraction`) |
-| ChromaDB | <http://localhost:8001> | Vector store HTTP |
-| ChromaDB browser | <http://localhost:8502> | Streamlit UI to browse collections + run semantic queries |
-| Adminer | <http://localhost:8080> | Postgres browser (server `postgres`, user `postgres`, pass `password`, db `esg_catalyst`) |
-| Streamlit (legacy) | <http://localhost:8501> | Pre-React UI; rarely used now |
+|---------|-----|---------|
+| Frontend | http://localhost:5173 | React dashboard |
+| API Docs | http://localhost:8000/docs | Interactive Swagger |
+| MLflow | http://localhost:5001 | Experiment tracking |
+| Adminer | http://localhost:8080 | PostgreSQL browser |
+| ChromaDB Browser | http://localhost:8502 | Vector store inspector |
 
 ---
 
-## Pulling someone else's changes
-
-After someone pushes to `main`:
-
-```bash
-git pull origin main
-docker compose build worker api      # rebuild if backend Python or Dockerfile changed
-docker compose up -d worker api      # pick up the new images
-# If their commit added DB migrations, run them once:
-docker compose exec api python scripts/migrate_<...>.py
-```
-
-The frontend container uses Vite HMR with file polling so React changes
-hot-reload without a rebuild — just refresh the browser tab.
-
----
-
-## Daily dev loop
-
-- **Backend edits** (Python): the worker has `./backend` bind-mounted, but
-  Python doesn't auto-reload Celery tasks. After editing a `core/*` file:
-  ```bash
-  docker compose restart worker
-  ```
-- **Frontend edits**: Vite HMR picks them up immediately. Hard-refresh if
-  state goes weird.
-- **Pipeline status**: tail `docker logs esg_worker -f` and watch for
-  `pipeline.classified`, `pipeline.embedded`, `indicator_extracted`,
-  `pipeline.complete`.
-- **DB inspection**: <http://localhost:8080> (Adminer) or
-  `docker compose exec postgres psql -U postgres -d esg_catalyst`.
-- **ChromaDB inspection**: <http://localhost:8502> (browse collections,
-  filter by `where`, run semantic queries).
-- **MLflow runs**: <http://localhost:5001>, experiment `esg-extraction`.
-
----
-
-## Common gotchas
-
-- **Worker is solo-pool.** Only one pipeline runs at a time per worker.
-  Multiple uploads queue up. Intentional — M3 LLM extraction is the
-  bottleneck, not parallelism.
-- **First-run model download blocks pipeline start.** The worker preloads
-  models lazily on first use. If your first pipeline seems stuck at
-  `classifying` for 5 minutes, it's downloading — check
-  `docker logs esg_worker -f`.
-- **OpenRouter free tier rate-limits.** If LLM calls return HTTP 402 / 429,
-  the `ModelRouter` falls back to the free model in `.env`
-  (`MODEL_EXTRACTION_FALLBACK`). Look for
-  `model_router.fallback_activated` in worker logs.
-- **Auth tokens expire after 30 min** (default
-  `ACCESS_TOKEN_EXPIRE_MINUTES`). If API calls start returning
-  `401 Invalid token`, log out and back in.
-- **Cross-tenant access returns 404, not 403.** This is intentional — it
-  prevents an attacker from enumerating other tenants' IDs. Don't be
-  surprised when "you don't own this" looks like "doesn't exist".
-- **Industry must be one of the four known sectors** (`banking`,
-  `insurance`, `consumer_finance`, `mortgage_finance`). Anything else
-  logs a warning and falls back to `banking`. See
-  [`CLAUDE.md`](CLAUDE.md) (section *ESG Scoring Methodology — v1*) for
-  the rubric and the "Adding a sector" recipe.
-
----
-
-## Project layout
-
-See `## Project Structure` in [`CLAUDE.md`](CLAUDE.md). Quick orientation:
+## Project Structure
 
 ```
 backend/app/
-  api/          FastAPI routers (auth, documents, pipeline, metrics, reports, admin)
+  api/            FastAPI routers (auth, documents, pipeline, metrics, reports, admin)
   core/
-    ingestion/  M1 — parser dispatch (PDF/DOCX/XLSX/CSV/TXT/images)
-    nlp/        M1/M2 — chunker, embedder, classifier
-    extraction/ M3 — per-indicator retrieval + LLM extraction
-    scoring/    M4 — v1 disclosure-quality scorer
-    reporting/  M5 — builder + narrative + PDF renderer
-    llm/        ModelRouter (extraction / scoring / report tasks)
-    gri/        46-indicator catalog loader
-    tracking/   MLflow fail-safe wrappers
-  workers/      Celery tasks (run_extraction_pipeline, report.generate)
-frontend/react/ Vite + React + TypeScript
-data/           gri_indicators.json, uploads/, generated_reports/, curated test docs
-scripts/        download_models.py, migrate_*.py, run_full_pipeline.py
+    ingestion/    M1 — parser dispatch (PDF/DOCX/XLSX/CSV/TXT), Arabic BiDi
+    nlp/          M2 — sentence-window chunker, 3-model classifier, bilingual embedder
+    extraction/   M3 — per-indicator ChromaDB retrieval + LLM extraction
+    scoring/      M4 — v1 disclosure-quality scorer, gap analysis, TCFD
+    reporting/    M5 — section builder + LLM narrative + WeasyPrint PDF
+    llm/          ModelRouter with credit-fallback + max_tokens caps
+    gri/          46-indicator catalog loader with sector materiality weights
+    tracking/     MLflow fail-safe wrappers
+    exceptions/   Typed error hierarchy (Ingestion/Extraction/LLM/Scoring/Report)
+  workers/        Celery tasks (7-stage pipeline, report generation)
+
+frontend/react/   React 19 + TypeScript + Vite + TailwindCSS
+data/             gri_indicators.json, uploads/, generated_reports/, test fixtures
+tests/            498 unit tests (validator, confidence, indicators, scorer, builder)
+scripts/          download_models.py, migrate_*.py, experiments/
 ```
 
 ---
 
-## Where to look when things break
+## ESG Scoring Methodology (v1)
 
-| Symptom | Where to look |
-|---|---|
-| Pipeline hangs at "classifying" | `docker logs esg_worker -f` — first-run model download or CPU saturated |
-| Pipeline hangs at "extracting" | OpenRouter rate-limit — look for `model_router.fallback_activated` |
-| Scores are 0 or weird | Check the metric `status` + `value` columns in `extracted_metrics`; the v1 scorer is described in [`CLAUDE.md`](CLAUDE.md) |
-| Dashboard scores ≠ PDF scores | Shouldn't happen post-2026-05-23. If it does, the worker hasn't re-run `score_report` at report-generation time — restart worker |
-| PDF tables render as raw text | `PDF_BACKEND=auto` and WeasyPrint failed to load — check worker logs for `renderer.weasyprint_unavailable` |
-| Cross-tenant 404 you didn't expect | You're hitting a resource that belongs to another user's company — correct behavior |
-| `Invalid token` everywhere | JWT expired (30 min). Log out + back in |
+```
+indicator_score = disclosure_quality × confidence_factor
+pillar_score    = Σ(indicator_score × materiality_weight) / Σ(materiality_weight)
+total_score     = 0.40·E + 0.35·S + 0.25·G
+```
 
-For anything else, the [`CLAUDE.md`](CLAUDE.md) session log has the full
-narrative of every fix landed so far.
+| Disclosure Tier | Score | Trigger |
+|----------------|-------|---------|
+| Missing / Rejected | 0.0 | No disclosure found |
+| Ambiguous | 0.4 | Uncertain extraction |
+| Qualitative Only | 0.6 | Text present, no numeric value |
+| Quantitative, No Unit | 0.7 | Value without unit |
+| Quantitative + Unit | 0.8 | Value + unit, no source citation |
+| Fully Disclosed | 1.0 | Value + unit + source page + evidence |
+
+Materiality weights are **data-driven** — stored per-indicator per-sector in `data/gri_indicators.json`. Adding a new sector is a JSON edit + one-line code change.
+
+---
+
+## Experiment-Driven Development
+
+Every architectural decision in the ML pipeline was made through controlled experiments with documented results:
+
+| Experiment | Method | Key Finding |
+|-----------|--------|-------------|
+| Chunking (A1/A2) | 5-strategy shootout + tuning | Sentence-window w=3 s=1 cap=1500: +62% ESG recall, 1.3% truncation |
+| Embedding (B1/B2) | 5-model bilingual retrieval test | English-only evaluation would have picked the wrong model |
+| Classification (C1–C4) | Bias audit → shootout → ensemble | 3-voter ensemble: +87% S-pillar recall, 0.967 precision |
+
+All experiments are reproducible via scripts in `scripts/experiments/` with results in `scripts/experiments/results/`.
+
+---
+
+## License
+
+This project is proprietary software. All rights reserved.
