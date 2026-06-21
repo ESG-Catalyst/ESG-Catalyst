@@ -240,4 +240,8 @@ All experiments are reproducible via scripts in `scripts/experiments/` with resu
 
 ## License
 
-This project is proprietary software. All rights reserved.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+You are free to use, study, and modify this software. Any project that uses or builds upon ESG Catalyst — including deploying it as a service — must also be released as open source under the same license.
+
+See the [full license text](https://opensource.org/license/AGPL-3.0) for details.
