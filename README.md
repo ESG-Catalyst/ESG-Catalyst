@@ -19,7 +19,7 @@
 
 ## What This Solves
 
-ESG compliance in the MENA financial sector is a manual, months-long process involving consultants reading hundreds of pages across Arabic and English documents. **ESG Catalyst automates the entire pipeline** — from raw document to scored, branded PDF report — in under 30 minutes per document.
+ESG compliance in the MENA financial sector is a manual, months-long process involving consultants reading hundreds of pages across Arabic and English documents. **ESG Catalyst automates the entire pipeline**, from raw document to scored, branded PDF report, in a single run. Measured end to end on CPU: about 35 minutes for a 141-page English report and about 86 minutes for a 182-page Arabic one, with the 3-model classifier the dominant cost.
 
 ---
 
@@ -29,7 +29,7 @@ ESG compliance in the MENA financial sector is a manual, months-long process inv
 |---------|---------|
 | **Multi-Format Ingestion** | PDF, DOCX, XLSX, CSV, TXT — with Arabic BiDi/reshaping for RTL text extraction |
 | **7-Stage ML Pipeline** | Ingest → Chunk → Classify → Embed → Extract → Score → Report |
-| **3-Model ESG Classifier** | Ensemble of ClimateBERT + FinBERT-ESG + ESG-BERT (2-of-3 voting) with +62% recall over single-model baseline |
+| **3-Model ESG Classifier** | Ensemble of ClimateBERT + FinBERT-ESG + ESG-BERT (2-of-3 voting) at 0.967 precision, with +32% minimum-pillar coverage over the best single model |
 | **Bilingual Embeddings** | Language-routed: `multilingual-e5-base` for English, `BAAI/bge-m3` for Arabic — validated on 20-query bilingual test set |
 | **46-Indicator Catalog** | GRI Financial Services, SASB FN-CF/MF/IN, and FRA KPIs with per-indicator extraction prompts |
 | **Disclosure-Quality Scoring** | 6-tier quality ladder × confidence factor × sector-specific materiality weights |
@@ -96,9 +96,9 @@ ESG compliance in the MENA financial sector is a manual, months-long process inv
 ## Technical Highlights
 
 ### Data Science & ML
-- **Classifier Ensemble Architecture** — Conducted a systematic 4-stage evaluation (C1–C4): bias audit of ClimateBERT → single-model shootout → multi-architecture comparison → production integration. The 3-voter ensemble recovered +87% S-pillar recall over the ClimateBERT baseline, with all decisions documented in a reproducible decision log.
+- **Classifier Ensemble Architecture** — Conducted a systematic 4-stage evaluation (C1–C4): bias audit of ClimateBERT → single-model shootout → multi-architecture comparison → production integration. The 3-voter ensemble (arch-B) reached 0.967 precision on the 60-chunk ground-truth set with +32% relative minimum-pillar coverage over the best single model, with all decisions documented in a reproducible decision log.
 - **Bilingual Embedding Strategy** — Language-routed embedding (e5-base EN / bge-m3 AR) selected via a 5-model shootout on a bilingual retrieval test set. Discovered that an English-only evaluation would have selected the wrong model (mpnet collapsed to 0.30 R@5 on Arabic).
-- **Sentence-Window Chunking** — Replaced block-merge chunking after a 5-strategy comparison. Custom composite objective (`n_esg − 2·n_short − 5·n_long`) selected window=3, stride=1, max=1500 chars — yielding +62% ESG-relevant chunks with 1.3% truncation risk (down from 46.8% noise).
+- **Sentence-Window Chunking** — Replaced block-merge chunking after a 5-strategy comparison. Custom composite objective (`n_esg − 2·n_short − 5·n_long`) selected window=3, stride=1, max=1500 chars — yielding +62% ESG-relevant chunks overall (+87% in the S pillar, 153 to 286) with 1.3% truncation risk (down from 46.8% noise).
 - **Disclosure-Quality Scoring** — 6-tier quality ladder (missing → ambiguous → qualitative → numeric → fully cited) × LLM confidence factor × sector-specific materiality weights from a data-driven catalog. Sector-swap produces materially different scores on identical metrics.
 
 ### Backend Engineering
@@ -113,7 +113,7 @@ ESG compliance in the MENA financial sector is a manual, months-long process inv
 - **Pipeline Visualization** — Real-time progress tracking with chunk-grid visualizer, elapsed timers, stage-specific error handling, and credit-exhaustion recovery UX.
 
 ### Infrastructure
-- **Docker Compose Orchestration** — 9-service stack: API, Worker, Frontend, PostgreSQL, Redis, ChromaDB, MLflow, Adminer, and a custom Streamlit ChromaDB browser.
+- **Docker Compose Orchestration** — 10-service stack: API, Worker, Frontend, PostgreSQL, Redis, ChromaDB, MLflow, Adminer, the ChromaDB admin browser, and a custom Streamlit ChromaDB browser.
 - **Optimized Container Sizes** — Worker image reduced from 10.3 GB to 3.67 GB (−64%) via CPU-only PyTorch wheels and split requirements. API image 917 MB (−91% from shared image).
 - **HuggingFace Model Caching** — Shared `hf_cache` Docker volume persists ~2 GB of model weights across rebuilds. `preload_models()` for warm worker startup.
 
@@ -230,9 +230,9 @@ Every architectural decision in the ML pipeline was made through controlled expe
 
 | Experiment | Method | Key Finding |
 |-----------|--------|-------------|
-| Chunking (A1/A2) | 5-strategy shootout + tuning | Sentence-window w=3 s=1 cap=1500: +62% ESG recall, 1.3% truncation |
+| Chunking (A1/A2) | 5-strategy shootout + tuning | Sentence-window w=3 s=1 cap=1500: +62% ESG-relevant chunks (+87% in S), 1.3% truncation |
 | Embedding (B1/B2) | 5-model bilingual retrieval test | English-only evaluation would have picked the wrong model |
-| Classification (C1–C4) | Bias audit → shootout → ensemble | 3-voter ensemble: +87% S-pillar recall, 0.967 precision |
+| Classification (C1–C4) | Bias audit → shootout → ensemble | 3-voter ensemble: 0.967 precision, +32% minimum-pillar coverage |
 
 All experiments are reproducible via scripts in `scripts/experiments/` with results in `scripts/experiments/results/`.
 
